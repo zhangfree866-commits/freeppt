@@ -66,10 +66,21 @@ identity described in item 0.
 
 ## After the first push
 
-- Verify the Actions tab ran both jobs: `tests / py3.xx` and
-  `LibreOffice render regression`.
-- Download the `freeppt-rendered-*` artifact and eyeball the PNGs; CI checks
-  page count and non-empty rendering, not aesthetics.
+**Done 2026-11-08, run `42423667649` (commit `be35af8`)**: CI succeeded on all
+five jobs — `tests / py3.10`, `py3.11`, `py3.12`, `py3.13` and
+`LibreOffice render regression`. The `freeppt-rendered-*` artifact was
+downloaded: 9 PNG pages, and page 1 (editorial cover) and page 5 (offset
+triptych) were checked by eye — Chinese text renders completely, with no
+blank columns, clipping or garbled glyphs. The very first run
+(`42423131961`) failed at `Lint every example deck` and `Build deck` because
+`examples/deck_notes_composed.json` pinned the author's absolute
+`assets_base`; `be35af8` fixed the example, made `compose()` emit portable
+paths, added a portability test, and stopped hiding lint diagnostics in CI.
+
+Still manual (verified not yet done on 2026-11-08):
+
+- Items 3–6 above: repository topics are empty, `has_discussions` is `false`,
+  `main` is not protected, and no release tag exists.
 - Fill `docs/BENCHMARK.md` with the numbers produced by CI. Never paste
   competitor numbers you have not measured yourself.
 
