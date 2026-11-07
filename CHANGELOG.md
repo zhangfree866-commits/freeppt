@@ -32,6 +32,16 @@ Open-source foundation and the "verifiable quality" layer.
 - Copyright notices in `SKILL.md`, `README.md`, and
   `references/architecture.md` now describe the dual license instead of
   "all rights reserved".
+- Both READMEs were rewritten in plain technical prose: marketing phrasing,
+  antithetical slogans, heavy bold emphasis, the self-citation appendix and a
+  machine-specific absolute path were removed. The five-stage names now match
+  the pipeline definition exactly. Measured numbers were refreshed to 104 unit
+  tests and the two green remote CI runs; the MLA entries for external sources
+  were kept.
+- Fixed the `cli.py patch` example in both READMEs: `slides.0.data.title` does
+  not exist in the DSL and was rejected by the tool. The example now uses a
+  real text node (`slides.0.children.0.children.1.text`) and real example
+  input files.
 
 ### Fixed
 - Composed decks no longer bake in the generating machine's absolute
