@@ -60,10 +60,20 @@ Notes:
 - DSH resolves `dshHome` from `$DSH_HOME` (default `~/.dsh`) and
   `agentsHome` from `$DSH_AGENTS_HOME` (default `~/.agents`). The installer
   honours both environment variables.
-- WorkBuddy keeps a skill-list cache. A **newly created** skill directory is
-  not discovered automatically; `install.sh` touches a watched plugin SKILL.md
-  to invalidate the signature. Updating an existing `freeppt/SKILL.md` already
-  triggers a rescan, so no extra step is needed for updates.
+- WorkBuddy keeps a skill-list cache (`~/.workbuddy/.skill-list-cache.json`).
+  It only rescans when the signature of paths in its `watch` list changes.
+  **Measured 2026-11-08**: the watch list sometimes does NOT contain the user
+  skills directory (it was rebuilt without it at 04:15), so even editing
+  `freeppt/SKILL.md` did not trigger a rescan — the cache still reported
+  version `20261108.2` until a watched plugin SKILL.md was touched. Therefore:
+  - after install/update, check whether `watch` contains `freeppt`;
+  - if not, run `./install.sh --host workbuddy --refresh-cache` (touches one
+    watched plugin SKILL.md, changing only its mtime) or refresh the skill list
+    in settings;
+  - when `watch` already contains `freeppt`, editing its SKILL.md does trigger
+    a rescan on its own.
+  This nuance supersedes the earlier, over-optimistic "updates always
+  auto-refresh" claim.
 - These paths reflect the cited documentation at the time of writing. Host
   products change; if your client does not see the skill, check its current
   docs before assuming the installer is wrong.

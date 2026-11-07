@@ -18,6 +18,7 @@ BOOTSTRAP=0
 UNINSTALL=0
 DRY_RUN=0
 SELF_CHECK=1
+REFRESH_CACHE=0
 BACKUP_DIR="$HOME/.freeppt-uninstalled"
 
 usage() {
@@ -30,6 +31,9 @@ Usage: ./install.sh [options]
   --bootstrap        append an idempotent FreePPT block to the host's
                      AGENTS.md / CLAUDE.md (never overwrites existing content)
   --uninstall        move installed FreePPT dirs to a timestamped backup
+  --refresh-cache    if WorkBuddy's skill-list cache does not watch freeppt,
+                     touch one watched plugin SKILL.md (mtime only) to force
+                     a full rescan
   --dry-run          print the plan, change nothing
   --no-check         skip the post-install unit/lint self-check
   -h, --help         show this help
@@ -51,6 +55,7 @@ while [ $# -gt 0 ]; do
     --project-root) PROJECT_ROOT="${2:-}"; shift 2 ;;
     --bootstrap) BOOTSTRAP=1; shift ;;
     --uninstall) UNINSTALL=1; shift ;;
+    --refresh-cache) REFRESH_CACHE=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     --no-check) SELF_CHECK=0; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -200,6 +205,48 @@ install_once() {
   INSTALLED_PATHS="$(printf '%s\n%s\n' "$INSTALLED_PATHS" "$dst")"
 }
 
+# WorkBuddy's skill-list cache is only invalidated by changes to paths in its
+# watch list. That list does not always include the user skills dir, so we
+# check it explicitly instead of assuming an update is auto-discovered.
+workbuddy_cache_check() {
+  local cache="$HOME/.workbuddy/.skill-list-cache.json" state
+  [ -f "$cache" ] || return 0
+  command -v python3 >/dev/null 2>&1 || return 0
+  python3 - "$cache" <<'PY' >/dev/null 2>&1
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+    paths = d.get("watch", {}).get("dirs", []) + d.get("watch", {}).get("files", [])
+    sys.exit(0 if any("freeppt" in p for p in paths) else 1)
+except Exception:
+    sys.exit(2)
+PY
+  state=$?
+  [ "$state" -eq 0 ] && { log "skill-list cache already watches freeppt"; return 0; }
+  [ "$state" -eq 2 ] && { log "skill-list cache unreadable; skipping check"; return 0; }
+  if [ "$REFRESH_CACHE" -eq 1 ]; then
+    local f
+    f="$(python3 - "$cache" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+for p in d.get("watch", {}).get("files", []):
+    if p.endswith("SKILL.md") and not p.startswith("/Applications/"):
+        print(p)
+        break
+PY
+)"
+    if [ -n "$f" ] && [ -f "$f" ]; then
+      touch -m "$f"
+      log "cache signature invalidated via $f (mtime only); refresh the skill list"
+    else
+      log "could not find a watched SKILL.md; refresh the skill list manually"
+    fi
+  else
+    log "NOTE: skill-list cache does not watch freeppt yet."
+    log "      Re-run with --refresh-cache, or refresh the skill list in settings."
+  fi
+}
+
 self_check() {
   local dst="$1"
   [ "$SELF_CHECK" -eq 1 ] || return 0
@@ -266,7 +313,13 @@ if [ "$UNINSTALL" -eq 1 ]; then
 else
   echo "Install done."
   echo "  --dry-run to preview paths; --bootstrap to append AGENTS.md/CLAUDE.md hints."
-  echo "  WorkBuddy: a NEW skill directory needs a skill-list refresh; an UPDATE"
-  echo "  of an existing freeppt/SKILL.md already triggers a rescan."
+  echo "  WorkBuddy: a skill-list cache may need a refresh (use --refresh-cache"
+  echo "  if the cached version is stale)."
   echo "  Verify: python3 engine/cli.py lint examples/demo.json"
+fi
+
+if [ "$UNINSTALL" -eq 0 ] && [ "$DRY_RUN" -eq 0 ]; then
+  for h in $ALL_HOSTS; do
+    [ "$h" = "workbuddy" ] && { workbuddy_cache_check; break; }
+  done
 fi

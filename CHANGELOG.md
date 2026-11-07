@@ -14,7 +14,9 @@ Open-source foundation and the "verifiable quality" layer.
   checklist, issue/PR templates, and GitHub Actions CI.
 - `install.sh`: one-command install for WorkBuddy, Claude Code, Codex CLI,
   Cursor, and DeepSeek Harness (DSH), with project/user scope, idempotent
-  bootstrap blocks, self-check, and uninstall.
+  bootstrap blocks, self-check, uninstall backup, and `--refresh-cache` for
+  the WorkBuddy skill-list cache (measured: its watch list does not always
+  include the user skills directory).
 - Pure-CLI path: `cli.py make` turns a plain-text brief into a linted PPTX with
   no LLM and no network access.
 - `engine/typography.py`: CJK line-break prohibitions (kinsoku), punctuation

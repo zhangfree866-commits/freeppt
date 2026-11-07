@@ -201,6 +201,14 @@ class TestBenchmarkAndInstaller(unittest.TestCase):
             self.assertIn(f"[{host}]", out)
         self.assertIn("DRY-RUN", out)
 
+    def test_installer_accepts_refresh_cache_in_dry_run(self):
+        out = subprocess.run(
+            [os.path.join(ROOT, "install.sh"), "--host", "workbuddy",
+             "--scope", "user", "--refresh-cache", "--dry-run"],
+            capture_output=True, text=True, check=True).stdout
+        self.assertIn("DRY-RUN", out)
+        self.assertIn("workbuddy", out)
+
     def test_license_files_exist(self):
         with open(os.path.join(ROOT, "LICENSE"), encoding="utf-8") as f:
             mit = f.read()
