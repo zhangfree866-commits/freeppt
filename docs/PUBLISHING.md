@@ -8,11 +8,22 @@ has **not** been pushed to any remote. Publishing is a manual, external action.
 ## Before the first push
 
 0. This repository was initialized locally with a **placeholder git identity**
-   (`user.name` = 张三峯, `user.email` = `freeppt@localhost`). Replace
-   `user.email` with your own GitHub account email before pushing, otherwise
-   the first commit will not be attributed to your GitHub account:
-   `git config user.email "you@example.com"`. The placeholder is a local
-   convention, not a real mailbox.
+   (`user.name` = 张三峯, `user.email` = `freeppt@localhost`), so the first
+   three commits are not attributed to a GitHub account. On 2026-11-08 the
+   repository-level identity was changed to the GitHub-provided noreply address
+   `338116425+zhangfree866-commits@users.noreply.github.com`:
+   `git config user.email "338116425+zhangfree866-commits@users.noreply.github.com"`.
+   This address is **derived**, not copied from the account page: it combines
+   the public numeric user id `338116425` with the public login
+   `zhangfree866-commits`, per GitHub's documented `ID+USERNAME` format for
+   accounts created after 18 July 2017 (this account's public `created_at` is
+   2026-10-05). Before pushing, open <https://github.com/settings/emails>,
+   enable **Keep my email addresses private** (or deselect and reselect it to
+   obtain the ID-based address), and check the exact noreply address shown
+   there. If it differs, run `git config user.email "<shown address>"`.
+   You do **not** need to know your real Google sign-in mailbox to publish.
+   Rewriting the three earlier commits to carry the new address requires a
+   deliberate history rewrite and has not been done.
 1. Replace the placeholder `https://github.com/<owner>/<repo>/discussions` in
    `.github/ISSUE_TEMPLATE/config.yml` with the real Discussions URL.
 2. Add the CI badge to `README.md` only after the repository exists; do not
@@ -120,3 +131,19 @@ The path table was assembled from these sources by a research pass on
 2026-11-08. The WorkBuddy path was verified by a local install; the other four
 were not installed locally on this machine, so their runtime behaviour remains
 unverified here.
+
+## Commit identity sources (MLA)
+
+GitHub. "Setting Your Commit Email Address." *GitHub Docs*,
+docs.github.com/zh/account-and-profile/how-tos/email-preferences/setting-your-commit-email-address.
+Accessed 8 Nov. 2026.
+
+GitHub. "Email Addresses Reference." *GitHub Docs*,
+docs.github.com/zh/account-and-profile/reference/email-addresses-reference.
+Accessed 8 Nov. 2026.
+
+GitHub. "User Response for zhangfree866-commits." *GitHub REST API*,
+api.github.com/users/zhangfree866-commits. Accessed 8 Nov. 2026.
+
+Google. "Manage Your Email Addresses." *Google Account Help*,
+support.google.com/accounts/answer/6316959. Accessed 8 Nov. 2026.
