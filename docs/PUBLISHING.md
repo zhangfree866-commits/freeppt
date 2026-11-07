@@ -8,22 +8,24 @@ has **not** been pushed to any remote. Publishing is a manual, external action.
 ## Before the first push
 
 0. This repository was initialized locally with a **placeholder git identity**
-   (`user.name` = 张三峯, `user.email` = `freeppt@localhost`), so the first
-   three commits are not attributed to a GitHub account. On 2026-11-08 the
-   repository-level identity was changed to the GitHub-provided noreply address
-   `338116425+zhangfree866-commits@users.noreply.github.com`:
-   `git config user.email "338116425+zhangfree866-commits@users.noreply.github.com"`.
-   This address is **derived**, not copied from the account page: it combines
-   the public numeric user id `338116425` with the public login
-   `zhangfree866-commits`, per GitHub's documented `ID+USERNAME` format for
+   (`user.name` = 张三峯, `user.email` = `freeppt@localhost`). On 2026-11-08 the
+   repository-level identity was set to the account owner's Google mailbox:
+   `git config user.email "[redacted]"`. The mailbox was supplied
+   by the account owner; it is **not** verifiable from the public GitHub API
+   (the public user record returns `email: null`). Before pushing, open
+   <https://github.com/settings/emails> and confirm this address is listed and
+   **verified** on the GitHub account; GitHub attributes commits only when the
+   author email is connected to the account (GitHub Docs). A real mailbox
+   becomes permanently public in the commit history once pushed. To keep it
+   private instead, enable **Keep my email addresses private** there and use
+   the noreply address shown on that page; the ID-based form
+   `338116425+zhangfree866-commits@users.noreply.github.com` is **derived**
+   from the public user id `338116425`, the public login
+   `zhangfree866-commits` and GitHub's documented `ID+USERNAME` format for
    accounts created after 18 July 2017 (this account's public `created_at` is
-   2026-10-05). Before pushing, open <https://github.com/settings/emails>,
-   enable **Keep my email addresses private** (or deselect and reselect it to
-   obtain the ID-based address), and check the exact noreply address shown
-   there. If it differs, run `git config user.email "<shown address>"`.
-   You do **not** need to know your real Google sign-in mailbox to publish.
-   Rewriting the three earlier commits to carry the new address requires a
-   deliberate history rewrite and has not been done.
+   2026-10-05) — confirm the exact value on the settings page before using it.
+   History has **not** been rewritten: the first three commits still carry
+   `freeppt@localhost`, and one later commit carries the noreply address.
 1. Replace the placeholder `https://github.com/<owner>/<repo>/discussions` in
    `.github/ISSUE_TEMPLATE/config.yml` with the real Discussions URL.
 2. Add the CI badge to `README.md` only after the repository exists; do not
