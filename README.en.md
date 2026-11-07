@@ -93,7 +93,7 @@ python3 engine/cli.py patch deck.json --set "slides.0.title=New title" --build o
 Numbers below come from local runs on 2026-11-08; reproduce with
 `bash tools/check_all.sh` and `python3 tools/benchmark.py`.
 
-- 100 offline unit tests pass.
+- 101 offline unit tests pass.
 - All 8 example decks pass `lint` with zero errors; `bash tools/check_all.sh` is green.
 - Self-benchmark: 0 layout errors, mean editable-shape ratio 0.9647, 0.0 overflow rate, 0 network hits in the core pipeline (static scan). See `docs/BENCHMARK.md`.
 - 16 themes, 8 report types, 10 masters, 12 layout archetypes, 10 vector sets.

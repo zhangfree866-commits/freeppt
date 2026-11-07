@@ -78,7 +78,7 @@ B 路径解决的是「同一份材料做出来的十页都长一个样」：它
 | `tools/benchmark.py` / `tools/render_check.py` | 验收 | 可量化自测基准（版面错误/可编辑率/溢出率/离线就绪/耗时）；LibreOffice PDF/PNG 回归（缺依赖明确 skipped，CI 强制 ok） |
 | `install.sh` / `docs/PUBLISHING.md` | 分发 | 五宿主一键安装（WorkBuddy / Claude Code / Codex CLI / Cursor / DSH），路径来源逐条标注|
 | `tests/test_art_direction.py` | 验收 | 14 项单测：派生配色对比度/确定性、逐页原型不重样、重复版式与缺多样性被拦、自由画布不受母版教条误判、PPTX 原生形状可编辑、旧 deck 零回归 |
-| `tests/test_open_source_tooling.py` | 验收 | 24 项单测：8 类报告纯 CLI 全绿、禁则修复、patch 闸门、retext 格式保留、基准口径、安装脚本 dry-run、许可文件 |
+| `tests/test_open_source_tooling.py` | 验收 | 25 项单测：8 类报告纯 CLI 全绿、禁则修复、patch 闸门、retext 格式保留、基准口径、安装脚本 dry-run、许可文件 |
 | `engine/design_md_import.py` | 1（可选） | 确定性解析第三方 DESIGN.md frontmatter 的公开数值令牌（色值/圆角/间距/字阶）；语义角色由显式映射表指定，缺键报错，不猜测 |
 | `references/imported/*` | 1（可选） | `design_tokens.json` 数值档案（含来源 URL + SHA256）、`theme_mapping.json` 角色映射；台账与许可见 `references/design-token-sources.md` |
 | `engine/reports.py` | 1/2 | 8 类企业报告场景注册表（页面结构→模板映射→字段→写作提示）+ 确定性骨架生成 |
