@@ -2,10 +2,13 @@
 
 **作者：张三峯** ｜ 公众号：**AI龙卷风**
 
-This repository is prepared locally (git initialized, first commit made) but
-has **not** been pushed to any remote. Publishing is a manual, external action.
+This repository is published as a **public** GitHub repository at
+<https://github.com/zhangfree866-commits/freeppt>. It was prepared locally
+(git initialized, history rewritten before publishing) and first pushed on
+2026-11-08. Items marked **Done** below were completed during that push; the
+remaining items are manual web-UI steps.
 
-## Before the first push
+## First-push record
 
 0. This repository was initialized locally with a **placeholder git identity**
    (`user.name` = 张三峯, `user.email` = `freeppt@localhost`). On 2026-11-08 the
@@ -23,8 +26,9 @@ has **not** been pushed to any remote. Publishing is a manual, external action.
    which matches the setting above; GitHub attributes commits only when the
    author email is connected to the account or is the noreply address provided
    in email settings (GitHub Docs). **Block command line pushes that expose my
-   email** was **Off** in that screenshot; enabling it adds a push-time guard
-   against future commits authored with a private mailbox.
+   email** was **Off** in that screenshot; the account owner subsequently
+   switched it **On** before authorising the first push, which adds a
+   push-time guard against future commits authored with a private mailbox.
    **History rewritten 2026-11-08**: the page also notes that previously
    authored commits associated with a public email remain public (GitHub).
    Because the repository had never been pushed, the local history was
@@ -35,11 +39,14 @@ has **not** been pushed to any remote. Publishing is a manual, external action.
 1. **Done 2026-11-08**: the placeholder Discussions URL in
    `.github/ISSUE_TEMPLATE/config.yml` now points to
    `https://github.com/zhangfree866-commits/freeppt/discussions`, using the
-   repository name approved by the account owner. Verify the repository exists
-   before relying on the link; an anonymous API request for that path returned
-   404 on 2026-11-08, which also happens for private repositories.
-2. Add the CI badge to `README.md` only after the repository exists; do not
-   publish a badge that points nowhere.
+   repository name approved by the account owner. An authenticated API check
+   before creation returned 404, and the public repository was then created at
+   that path. The link resolves in a browser only once Discussions is enabled
+   (item 4).
+2. **Done 2026-11-08**: CI badges were added to `README.md` and
+   `README.en.md` only after the repository existed; both point at
+   `.github/workflows/ci.yml`. No badge was published against a
+   non-existent repository.
 3. Set repository topics (GitHub web UI → About → topics):
    `pptx`, `powerpoint`, `slides`, `presentation`, `python-pptx`,
    `design-system`, `chinese`, `ai-agent`, `agent-skills`, `skill`,
@@ -49,6 +56,13 @@ has **not** been pushed to any remote. Publishing is a manual, external action.
    `Themes & masters`, `Ideas`.
 5. Set branch protection on `main`: require the `CI` workflow to pass.
 6. Create the first release tag after CI is green on the remote.
+
+The public repository was created and pushed with the GitHub CLI using an
+OAuth device-flow token scoped `repo,workflow`; `gh auth setup-git` installed
+the Git credential helper. The token lives only in the local
+`~/.config/gh/hosts.yml` (mode 0600) and is never part of the repository.
+The local branch is `main` and every pushed commit carries the noreply
+identity described in item 0.
 
 ## After the first push
 

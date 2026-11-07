@@ -1,5 +1,7 @@
 # FreePPT — native, editable PPTX from a deterministic pipeline
 
+[![CI](https://github.com/zhangfree866-commits/freeppt/actions/workflows/ci.yml/badge.svg)](https://github.com/zhangfree866-commits/freeppt/actions/workflows/ci.yml)
+
 **Author: 张三峯** · WeChat publication: **AI龙卷风**
 
 © 2026 张三峯. **Code: MIT · Documentation and design references: CC BY 4.0**

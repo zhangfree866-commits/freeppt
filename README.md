@@ -1,5 +1,7 @@
 # FreePPT｜把零散想法做成专业、可编辑的 PPT
 
+[![CI](https://github.com/zhangfree866-commits/freeppt/actions/workflows/ci.yml/badge.svg)](https://github.com/zhangfree866-commits/freeppt/actions/workflows/ci.yml)
+
 ## 版权说明
 
 **作者：张三峯** ｜ 公众号：**AI龙卷风**
