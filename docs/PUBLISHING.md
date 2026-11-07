@@ -32,8 +32,12 @@ has **not** been pushed to any remote. Publishing is a manual, external action.
    and the personal mailbox no longer appears in any historical version of this
    file. A full pre-rewrite `git bundle` was kept locally as a recovery copy;
    it is not part of the repository and must not be published.
-1. Replace the placeholder `https://github.com/<owner>/<repo>/discussions` in
-   `.github/ISSUE_TEMPLATE/config.yml` with the real Discussions URL.
+1. **Done 2026-11-08**: the placeholder Discussions URL in
+   `.github/ISSUE_TEMPLATE/config.yml` now points to
+   `https://github.com/zhangfree866-commits/freeppt/discussions`, using the
+   repository name approved by the account owner. Verify the repository exists
+   before relying on the link; an anonymous API request for that path returned
+   404 on 2026-11-08, which also happens for private repositories.
 2. Add the CI badge to `README.md` only after the repository exists; do not
    publish a badge that points nowhere.
 3. Set repository topics (GitHub web UI → About → topics):
