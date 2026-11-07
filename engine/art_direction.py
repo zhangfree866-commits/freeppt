@@ -644,7 +644,19 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None):
                        "cover_file": None, "note": "无封面图，沿用基础主题令牌"},
         }
         ledger["fallback"] = "no cover image; base theme tokens reused"
-    assets_base = os.path.dirname(cover) if cover_file else ""
+    # Keep the emitted DSL portable. An absolute directory baked in here would
+    # only resolve on the machine that ran `compose`, and breaks CI / other
+    # checkouts with ASSET_MISSING. `cli.py` resolves assets_base against the
+    # current working directory, so a cwd-relative path is both correct on
+    # this machine and reproducible elsewhere.
+    if cover_file:
+        cover_dir = os.path.dirname(cover)
+        try:
+            assets_base = os.path.relpath(cover_dir, os.getcwd()) or "."
+        except ValueError:  # different drives on Windows
+            assets_base = cover_dir
+    else:
+        assets_base = ""
 
     raw = json.dumps(notes, ensure_ascii=False, sort_keys=True)
     seed = seed or hashlib.sha256((book.get("title", "") + raw +

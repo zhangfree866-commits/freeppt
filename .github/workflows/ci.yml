@@ -37,7 +37,7 @@ jobs:
               web_manifest.json|notes_*.json|style_*.json|structure_*.json|edits_*.json) continue ;;
             esac
             echo "lint $f"
-            python engine/cli.py lint "$f" > /dev/null
+            python engine/cli.py lint "$f"
           done
       - name: Creative composition smoke test
         run: |

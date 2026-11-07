@@ -33,6 +33,14 @@ Open-source foundation and the "verifiable quality" layer.
   `references/architecture.md` now describe the dual license instead of
   "all rights reserved".
 
+### Fixed
+- Composed decks no longer bake in the generating machine's absolute
+  `assets_base`: `art_direction.compose()` emits a cwd-relative directory and
+  `examples/deck_notes_composed.json` is portable. The absolute path made the
+  example pass locally but fail `ASSET_MISSING` in CI and fresh checkouts.
+  Added `tests/test_repo_portability.py` and stopped suppressing lint
+  diagnostics in the CI workflow.
+
 ## [20261108.2] - 2026-11-08
 
 ### Added

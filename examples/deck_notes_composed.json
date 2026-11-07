@@ -2,7 +2,7 @@
   "composed": true,
   "composition": "freeform",
   "theme": "magazine",
-  "assets_base": "/Users/lico/WorkBuddy/2026-11-03-18-38-56/ppt-skill/examples/assets",
+  "assets_base": "examples/assets",
   "slides": [
     {
       "type": "content",
