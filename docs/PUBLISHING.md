@@ -1,0 +1,112 @@
+# Publishing checklist and host path provenance
+
+**作者：张三峯** ｜ 公众号：**AI龙卷风**
+
+This repository is prepared locally (git initialized, first commit made) but
+has **not** been pushed to any remote. Publishing is a manual, external action.
+
+## Before the first push
+
+0. This repository was initialized locally with a **placeholder git identity**
+   (`user.name` = 张三峯, `user.email` = `freeppt@localhost`). Replace
+   `user.email` with your own GitHub account email before pushing, otherwise
+   the first commit will not be attributed to your GitHub account:
+   `git config user.email "you@example.com"`. The placeholder is a local
+   convention, not a real mailbox.
+1. Replace the placeholder `https://github.com/<owner>/<repo>/discussions` in
+   `.github/ISSUE_TEMPLATE/config.yml` with the real Discussions URL.
+2. Add the CI badge to `README.md` only after the repository exists; do not
+   publish a badge that points nowhere.
+3. Set repository topics (GitHub web UI → About → topics):
+   `pptx`, `powerpoint`, `slides`, `presentation`, `python-pptx`,
+   `design-system`, `chinese`, `ai-agent`, `agent-skills`, `skill`,
+   `ppt`, `deck`, `lint`, `offline`, `editable-pptx`.
+4. Enable GitHub Discussions. Suggested categories:
+   `Announcements`, `Show and tell` (deck gallery), `Q&A`,
+   `Themes & masters`, `Ideas`.
+5. Set branch protection on `main`: require the `CI` workflow to pass.
+6. Create the first release tag after CI is green on the remote.
+
+## After the first push
+
+- Verify the Actions tab ran both jobs: `tests / py3.xx` and
+  `LibreOffice render regression`.
+- Download the `freeppt-rendered-*` artifact and eyeball the PNGs; CI checks
+  page count and non-empty rendering, not aesthetics.
+- Fill `docs/BENCHMARK.md` with the numbers produced by CI. Never paste
+  competitor numbers you have not measured yourself.
+
+## Host path provenance
+
+`install.sh` copies the skill into the paths below. Verification status is
+stated honestly: "measured" means a real install was verified on this machine
+(2026-11-08, macOS); "documented" means an official doc or official repository
+source was consulted but no local install of that host was performed.
+
+| Host | User scope | Project scope | Bootstrap file | Status |
+|---|---|---|---|---|
+| WorkBuddy | `~/.workbuddy/skills/freeppt/` | — | — | **measured** |
+| Claude Code | `~/.claude/skills/freeppt/` | `.claude/skills/freeppt/` | `~/.claude/CLAUDE.md`, `./CLAUDE.md` | documented |
+| Codex CLI | `~/.agents/skills/freeppt/` | `.agents/skills/freeppt/` | `~/.codex/AGENTS.md`, `./AGENTS.md` | documented |
+| Cursor | `~/.cursor/skills/freeppt/` | `.cursor/skills/freeppt/` | `./AGENTS.md`, `./CLAUDE.md` | documented |
+| DeepSeek Harness (DSH) | `~/.dsh/skills/freeppt/` | `.dsh/skills/freeppt/` | `~/.dsh/AGENTS.md`, `./AGENTS.md` | documented |
+
+Notes:
+
+- Codex CLI, Cursor and DSH also read the shared `~/.agents/skills/` /
+  `.agents/skills/` root. `install.sh --host all` writes the primary path for
+  each host and deduplicates shared roots, so it does not install the same
+  skill twice into one directory.
+- DSH resolves `dshHome` from `$DSH_HOME` (default `~/.dsh`) and
+  `agentsHome` from `$DSH_AGENTS_HOME` (default `~/.agents`). The installer
+  honours both environment variables.
+- WorkBuddy keeps a skill-list cache. A **newly created** skill directory is
+  not discovered automatically; `install.sh` touches a watched plugin SKILL.md
+  to invalidate the signature. Updating an existing `freeppt/SKILL.md` already
+  triggers a rescan, so no extra step is needed for updates.
+- These paths reflect the cited documentation at the time of writing. Host
+  products change; if your client does not see the skill, check its current
+  docs before assuming the installer is wrong.
+
+### Sources (MLA)
+
+Anthropic. "Skills." *Claude Code Docs*, code.claude.com/docs/en/skills.
+Accessed 8 Nov. 2026.
+
+Anthropic. "Memory." *Claude Code Docs*, code.claude.com/docs/en/memory.
+Accessed 8 Nov. 2026.
+
+OpenAI. "Build skills." *Codex Docs*, developers.openai.com/codex/skills.
+Accessed 8 Nov. 2026.
+
+OpenAI. "Customization." *Codex Docs*,
+developers.openai.com/codex/concepts/customization. Accessed 8 Nov. 2026.
+
+OpenAI. "skills.md." *openai/codex*, GitHub,
+github.com/openai/codex/blob/main/docs/skills.md. Accessed 8 Nov. 2026.
+
+Cursor. "Skills." *Cursor Docs*, cursor.com/docs/context/skills.
+Accessed 8 Nov. 2026.
+
+Cursor. "Rules." *Cursor Docs*, cursor.com/docs/rules. Accessed 8 Nov. 2026.
+
+DeepSeek. "Skills." *DeepSeek Harness Reference*,
+deepseek-harness.github.io/deepseek-harness/en/reference/subsystems/skills.
+Accessed 8 Nov. 2026.
+
+DeepSeek. "Config catalog." *DeepSeek Harness Reference*,
+deepseek-harness.github.io/deepseek-harness/en/reference/config-catalog.
+Accessed 8 Nov. 2026.
+
+DeepSeek. "skill-filesystem README." *deepseek-ai/deepseek-harness*, GitHub,
+github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill-filesystem/README.md.
+Accessed 8 Nov. 2026.
+
+DeepSeek. "agent-instructions README." *deepseek-ai/deepseek-harness*, GitHub,
+github.com/deepseek-ai/deepseek-harness/blob/master/packages/context/agent-instructions/README.md.
+Accessed 8 Nov. 2026.
+
+The path table was assembled from these sources by a research pass on
+2026-11-08. The WorkBuddy path was verified by a local install; the other four
+were not installed locally on this machine, so their runtime behaviour remains
+unverified here.

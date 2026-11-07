@@ -1,0 +1,60 @@
+{
+  "cover_file": "book_cover_demo.png",
+  "cover_sha256": "ac41c5d52ca4de1c335e22d16d6d4fa977616968e4ff19ed02b9726ff530a05c",
+  "book": "人情与面子",
+  "swatches": [
+    {
+      "hex": "#EEE5D3",
+      "share": 0.5321
+    },
+    {
+      "hex": "#9E342A",
+      "share": 0.3361
+    },
+    {
+      "hex": "#882A22",
+      "share": 0.0191
+    },
+    {
+      "hex": "#EFE6D4",
+      "share": 0.0186
+    },
+    {
+      "hex": "#BEAEA0",
+      "share": 0.0169
+    },
+    {
+      "hex": "#8F796E",
+      "share": 0.0166
+    },
+    {
+      "hex": "#F4EBD9",
+      "share": 0.0149
+    },
+    {
+      "hex": "#F0E7D5",
+      "share": 0.0104
+    }
+  ],
+  "dominant_position": "bottom-left",
+  "cover_tone": "light",
+  "motif": "vertical-rule",
+  "serif": true,
+  "contrast_ink_on_paper": 16.22,
+  "contrast_paper_on_deep": 14.74,
+  "derived_theme": "cover-ac41c5d5",
+  "cover_path": "assets/book_cover_demo.png",
+  "archetypes": [
+    "cover-editorial",
+    "chapter-opener",
+    "editorial-spread",
+    "quote-bleed",
+    "offset-triptych",
+    "split-contrast",
+    "stair-list",
+    "data-focus",
+    "closing-echo"
+  ],
+  "distinct": 9,
+  "seed": "7a6a93106cf39ff6"
+}

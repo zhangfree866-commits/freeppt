@@ -1,0 +1,943 @@
+{
+  "repository": "VoltAgent/awesome-design-md",
+  "license": "MIT",
+  "branch": "main",
+  "source_root": "design-md",
+  "files": {
+    "stripe": {
+      "name": "stripe",
+      "sha256": "5c8806b7dd3e0c2554ccba9d1e2a7c78e7c6e50e44fcf6ff5daea6026f8a9ed9",
+      "meta": {
+        "version": "alpha",
+        "name": "Stripi-Inspired-design-analysis"
+      },
+      "colors": {
+        "primary": "#533AFD",
+        "primary-deep": "#4434D4",
+        "primary-press": "#2E2B8C",
+        "primary-soft": "#665EFD",
+        "primary-bg-subdued-hover": "#B9B9F9",
+        "brand-dark-900": "#1C1E54",
+        "ink": "#0D253D",
+        "ink-secondary": "#273951",
+        "ink-mute": "#64748D",
+        "ink-mute-2": "#61718A",
+        "on-primary": "#FFFFFF",
+        "canvas": "#FFFFFF",
+        "canvas-soft": "#F6F9FC",
+        "canvas-cream": "#F5E9D4",
+        "hairline": "#E3E8EE",
+        "hairline-input": "#A8C3DE",
+        "ruby": "#EA2261",
+        "magenta": "#F96BEE",
+        "lemon": "#9B6829",
+        "shadow-blue": "#003770"
+      },
+      "rounded": {
+        "xs": 4.0,
+        "sm": 6.0,
+        "md": 8.0,
+        "lg": 12.0,
+        "xl": 16.0,
+        "pill": 9999.0
+      },
+      "spacing": {
+        "xxs": 2.0,
+        "xs": 4.0,
+        "sm": 8.0,
+        "md": 12.0,
+        "lg": 16.0,
+        "xl": 24.0,
+        "xxl": 32.0,
+        "huge": 64.0
+      },
+      "typography": {
+        "display-xxl": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 56.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.03,
+          "letterSpacing": "-1.4px"
+        },
+        "display-xl": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 48.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.15,
+          "letterSpacing": "-0.96px"
+        },
+        "display-lg": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 32.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.1,
+          "letterSpacing": "-0.64px"
+        },
+        "display-md": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 26.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.12,
+          "letterSpacing": "-0.26px"
+        },
+        "heading-lg": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 22.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.1,
+          "letterSpacing": "-0.22px"
+        },
+        "heading-md": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 20.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.4,
+          "letterSpacing": "-0.2px"
+        },
+        "heading-sm": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 18.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.4,
+          "letterSpacing": 0.0
+        },
+        "body-lg": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 16.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.4,
+          "letterSpacing": 0.0
+        },
+        "body-md": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 15.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.4,
+          "letterSpacing": 0.0
+        },
+        "body-tabular": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 14.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.4,
+          "letterSpacing": "-0.42px"
+        },
+        "button-md": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 16.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.0,
+          "letterSpacing": 0.0
+        },
+        "button-sm": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 14.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.0,
+          "letterSpacing": 0.0
+        },
+        "caption": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 13.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.4,
+          "letterSpacing": "-0.39px"
+        },
+        "micro": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 11.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.4,
+          "letterSpacing": 0.0
+        },
+        "micro-cap": {
+          "fontFamily": "sohne-var, 'SF Pro Display', system-ui, -apple-system, sans-serif",
+          "fontSize": 10.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.15,
+          "letterSpacing": 0.1
+        }
+      },
+      "url": "https://raw.githubusercontent.com/VoltAgent/awesome-design-md/main/design-md/stripe/DESIGN.md"
+    },
+    "linear.app": {
+      "name": "linear.app",
+      "sha256": "30bd30e72c48a16e4bdbd010f2d1c85fab657c6fae3cc85389399aab10f9cb5f",
+      "meta": {
+        "version": "alpha",
+        "name": "Linear-design-analysis"
+      },
+      "colors": {
+        "primary": "#5E6AD2",
+        "on-primary": "#FFFFFF",
+        "primary-hover": "#828FFF",
+        "primary-focus": "#5E69D1",
+        "ink": "#F7F8F8",
+        "ink-muted": "#D0D6E0",
+        "ink-subtle": "#8A8F98",
+        "ink-tertiary": "#62666D",
+        "canvas": "#010102",
+        "surface-1": "#0F1011",
+        "surface-2": "#141516",
+        "surface-3": "#18191A",
+        "surface-4": "#191A1B",
+        "hairline": "#23252A",
+        "hairline-strong": "#34343A",
+        "hairline-tertiary": "#3E3E44",
+        "inverse-canvas": "#FFFFFF",
+        "inverse-surface-1": "#F5F6F6",
+        "inverse-surface-2": "#F6F7F7",
+        "inverse-ink": "#000000",
+        "brand-secure": "#7A7FAD",
+        "semantic-success": "#27A644",
+        "semantic-overlay": "#000000"
+      },
+      "rounded": {
+        "xs": 4.0,
+        "sm": 6.0,
+        "md": 8.0,
+        "lg": 12.0,
+        "xl": 16.0,
+        "xxl": 24.0,
+        "pill": 9999.0,
+        "full": 9999.0
+      },
+      "spacing": {
+        "xxs": 4.0,
+        "xs": 8.0,
+        "sm": 12.0,
+        "md": 16.0,
+        "lg": 24.0,
+        "xl": 32.0,
+        "xxl": 48.0,
+        "section": 96.0
+      },
+      "typography": {
+        "display-xl": {
+          "fontFamily": "Linear Display",
+          "fontSize": 80.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.05,
+          "letterSpacing": "-3.0px"
+        },
+        "display-lg": {
+          "fontFamily": "Linear Display",
+          "fontSize": 56.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.1,
+          "letterSpacing": "-1.8px"
+        },
+        "display-md": {
+          "fontFamily": "Linear Display",
+          "fontSize": 40.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.15,
+          "letterSpacing": "-1.0px"
+        },
+        "headline": {
+          "fontFamily": "Linear Display",
+          "fontSize": 28.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.2,
+          "letterSpacing": "-0.6px"
+        },
+        "card-title": {
+          "fontFamily": "Linear Display",
+          "fontSize": 22.0,
+          "fontWeight": 500.0,
+          "lineHeight": 1.25,
+          "letterSpacing": "-0.4px"
+        },
+        "subhead": {
+          "fontFamily": "Linear Display",
+          "fontSize": 20.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.4,
+          "letterSpacing": "-0.2px"
+        },
+        "body-lg": {
+          "fontFamily": "Linear Text",
+          "fontSize": 18.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.5,
+          "letterSpacing": "-0.1px"
+        },
+        "body": {
+          "fontFamily": "Linear Text",
+          "fontSize": 16.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.5,
+          "letterSpacing": "-0.05px"
+        },
+        "body-sm": {
+          "fontFamily": "Linear Text",
+          "fontSize": 14.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.5,
+          "letterSpacing": 0.0
+        },
+        "caption": {
+          "fontFamily": "Linear Text",
+          "fontSize": 12.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.4,
+          "letterSpacing": 0.0
+        },
+        "button": {
+          "fontFamily": "Linear Text",
+          "fontSize": 14.0,
+          "fontWeight": 500.0,
+          "lineHeight": 1.2,
+          "letterSpacing": 0.0
+        },
+        "eyebrow": {
+          "fontFamily": "Linear Text",
+          "fontSize": 13.0,
+          "fontWeight": 500.0,
+          "lineHeight": 1.3,
+          "letterSpacing": 0.4
+        },
+        "mono": {
+          "fontFamily": "Linear Mono",
+          "fontSize": 13.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.5,
+          "letterSpacing": 0.0
+        }
+      },
+      "url": "https://raw.githubusercontent.com/VoltAgent/awesome-design-md/main/design-md/linear.app/DESIGN.md"
+    },
+    "vercel": {
+      "name": "vercel",
+      "sha256": "d0951b93c2b4ce9840c715c9f9b3e58a386c6c58ae5cc0f804dec3b116b95bd8",
+      "meta": {
+        "version": "alpha",
+        "name": "Vercel-Inspired-design-analysis"
+      },
+      "colors": {
+        "primary": "#171717",
+        "on-primary": "#FFFFFF",
+        "ink": "#171717",
+        "body": "#4D4D4D",
+        "mute": "#888888",
+        "hairline": "#EBEBEB",
+        "hairline-strong": "#A1A1A1",
+        "canvas": "#FFFFFF",
+        "canvas-soft": "#FAFAFA",
+        "canvas-soft-2": "#F5F5F5",
+        "link": "#0070F3",
+        "link-deep": "#0761D1",
+        "link-bg-soft": "#D3E5FF",
+        "success": "#0070F3",
+        "error": "#EE0000",
+        "error-soft": "#F7D4D6",
+        "error-deep": "#C50000",
+        "warning": "#F5A623",
+        "warning-soft": "#FFEFCF",
+        "warning-deep": "#AB570A",
+        "violet": "#7928CA",
+        "violet-soft": "#D8CCF1",
+        "violet-deep": "#4C2889",
+        "cyan": "#50E3C2",
+        "cyan-soft": "#AAFFEC",
+        "cyan-deep": "#29BC9B",
+        "highlight-pink": "#FF0080",
+        "highlight-magenta": "#EB367F",
+        "gradient-develop-start": "#007CF0",
+        "gradient-develop-end": "#00DFD8",
+        "gradient-preview-start": "#7928CA",
+        "gradient-preview-end": "#FF0080",
+        "gradient-ship-start": "#FF4D4D",
+        "gradient-ship-end": "#F9CB28",
+        "selection-bg": "#171717",
+        "selection-fg": "#F2F2F2"
+      },
+      "rounded": {
+        "none": 0.0,
+        "xs": 4.0,
+        "sm": 6.0,
+        "md": 8.0,
+        "lg": 12.0,
+        "xl": 16.0,
+        "pill-sm": 64.0,
+        "pill": 100.0,
+        "full": 9999.0
+      },
+      "spacing": {
+        "xxs": 4.0,
+        "xs": 8.0,
+        "sm": 12.0,
+        "md": 16.0,
+        "lg": 24.0,
+        "xl": 32.0,
+        "2xl": 40.0,
+        "3xl": 48.0,
+        "4xl": 64.0,
+        "5xl": 96.0,
+        "6xl": 128.0,
+        "section": 192.0
+      },
+      "typography": {
+        "display-xl": {
+          "fontFamily": "Geist, Inter, system-ui, -apple-system, sans-serif",
+          "fontSize": 48.0,
+          "fontWeight": 600.0,
+          "lineHeight": 48.0,
+          "letterSpacing": "-2.4px"
+        },
+        "display-lg": {
+          "fontFamily": "Geist, Inter, system-ui, -apple-system, sans-serif",
+          "fontSize": 32.0,
+          "fontWeight": 600.0,
+          "lineHeight": 40.0,
+          "letterSpacing": "-1.28px"
+        },
+        "display-md": {
+          "fontFamily": "Geist, Inter, system-ui, -apple-system, sans-serif",
+          "fontSize": 24.0,
+          "fontWeight": 600.0,
+          "lineHeight": 32.0,
+          "letterSpacing": "-0.96px"
+        },
+        "display-sm": {
+          "fontFamily": "Geist, Inter, system-ui, -apple-system, sans-serif",
+          "fontSize": 20.0,
+          "fontWeight": 600.0,
+          "lineHeight": 28.0,
+          "letterSpacing": "-0.6px"
+        },
+        "body-lg": {
+          "fontFamily": "Geist, Inter, system-ui, -apple-system, sans-serif",
+          "fontSize": 18.0,
+          "fontWeight": 400.0,
+          "lineHeight": 28.0,
+          "letterSpacing": 0.0
+        },
+        "body-md": {
+          "fontFamily": "Geist, Inter, system-ui, -apple-system, sans-serif",
+          "fontSize": 16.0,
+          "fontWeight": 400.0,
+          "lineHeight": 24.0
+        },
+        "body-md-strong": {
+          "fontFamily": "Geist, Inter, system-ui, -apple-system, sans-serif",
+          "fontSize": 16.0,
+          "fontWeight": 500.0,
+          "lineHeight": 24.0
+        },
+        "body-sm": {
+          "fontFamily": "Geist, Inter, system-ui, -apple-system, sans-serif",
+          "fontSize": 14.0,
+          "fontWeight": 400.0,
+          "lineHeight": 20.0,
+          "letterSpacing": "-0.28px"
+        },
+        "body-sm-strong": {
+          "fontFamily": "Geist, Inter, system-ui, -apple-system, sans-serif",
+          "fontSize": 14.0,
+          "fontWeight": 500.0,
+          "lineHeight": 20.0,
+          "letterSpacing": "-0.28px"
+        },
+        "caption": {
+          "fontFamily": "Geist, Inter, system-ui, -apple-system, sans-serif",
+          "fontSize": 12.0,
+          "fontWeight": 400.0,
+          "lineHeight": 16.0
+        },
+        "caption-mono": {
+          "fontFamily": "Geist Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+          "fontSize": 12.0,
+          "fontWeight": 400.0,
+          "lineHeight": 16.0
+        },
+        "code": {
+          "fontFamily": "Geist Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+          "fontSize": 13.0,
+          "fontWeight": 400.0,
+          "lineHeight": 20.0
+        },
+        "button-md": {
+          "fontFamily": "Geist, Inter, system-ui, -apple-system, sans-serif",
+          "fontSize": 14.0,
+          "fontWeight": 500.0,
+          "lineHeight": 20.0
+        },
+        "button-lg": {
+          "fontFamily": "Geist, Inter, system-ui, -apple-system, sans-serif",
+          "fontSize": 16.0,
+          "fontWeight": 500.0,
+          "lineHeight": 24.0
+        }
+      },
+      "url": "https://raw.githubusercontent.com/VoltAgent/awesome-design-md/main/design-md/vercel/DESIGN.md"
+    },
+    "wired": {
+      "name": "wired",
+      "sha256": "eb439dcc573401dc30583f40e7eef8a60b769232da59e524de6dce56d5c3593e",
+      "meta": {
+        "version": "alpha",
+        "name": "Wired-Inspired-design-analysis"
+      },
+      "colors": {
+        "primary": "#000000",
+        "on-primary": "#FFFFFF",
+        "ink": "#000000",
+        "ink-soft": "#1A1A1A",
+        "body": "#757575",
+        "hairline": "#E0E0E0",
+        "canvas": "#FFFFFF",
+        "canvas-soft": "#F5F5F5",
+        "link": "#057DBC"
+      },
+      "rounded": {
+        "none": 0.0,
+        "full": 9999.0
+      },
+      "spacing": {
+        "xxs": 2.0,
+        "xs": 4.0,
+        "sm": 8.0,
+        "md": 12.0,
+        "lg": 16.0,
+        "xl": 20.0,
+        "2xl": 24.0,
+        "3xl": 32.0,
+        "4xl": 48.0
+      },
+      "typography": {
+        "display-hero": {
+          "fontFamily": "WiredDisplay, \"Times New Roman\", Georgia, serif",
+          "fontSize": 64.0,
+          "fontWeight": 400.0,
+          "lineHeight": 59.52,
+          "letterSpacing": "-0.5px"
+        },
+        "display-lg": {
+          "fontFamily": "WiredDisplay, \"Times New Roman\", Georgia, serif",
+          "fontSize": 48.0,
+          "fontWeight": 400.0,
+          "lineHeight": 50.4,
+          "letterSpacing": "-0.4px"
+        },
+        "display-md": {
+          "fontFamily": "WiredDisplay, \"Times New Roman\", Georgia, serif",
+          "fontSize": 32.0,
+          "fontWeight": 400.0,
+          "lineHeight": 35.2,
+          "letterSpacing": "-0.3px"
+        },
+        "display-sm": {
+          "fontFamily": "WiredDisplay, \"Times New Roman\", Georgia, serif",
+          "fontSize": 26.0,
+          "fontWeight": 400.0,
+          "lineHeight": 28.08
+        },
+        "display-xs": {
+          "fontFamily": "Apercu, \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+          "fontSize": 20.0,
+          "fontWeight": 700.0,
+          "lineHeight": 24.0,
+          "letterSpacing": "-0.28px"
+        },
+        "body-serif-lg": {
+          "fontFamily": "BreveText, Georgia, \"Times New Roman\", serif",
+          "fontSize": 19.0,
+          "fontWeight": 400.0,
+          "lineHeight": 27.93,
+          "letterSpacing": 0.108
+        },
+        "body-serif-md": {
+          "fontFamily": "BreveText, Georgia, \"Times New Roman\", serif",
+          "fontSize": 16.0,
+          "fontWeight": 400.0,
+          "lineHeight": 24.0,
+          "letterSpacing": 0.09
+        },
+        "body-md": {
+          "fontFamily": "Apercu, \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+          "fontSize": 17.0,
+          "fontWeight": 400.0,
+          "lineHeight": 20.0
+        },
+        "body-md-strong": {
+          "fontFamily": "Apercu, \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+          "fontSize": 17.0,
+          "fontWeight": 700.0,
+          "lineHeight": 22.0,
+          "letterSpacing": "-0.144px"
+        },
+        "body-sm": {
+          "fontFamily": "Apercu, \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+          "fontSize": 14.0,
+          "fontWeight": 400.0,
+          "lineHeight": 18.0,
+          "letterSpacing": 0.4
+        },
+        "body-sm-strong": {
+          "fontFamily": "Apercu, \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+          "fontSize": 14.0,
+          "fontWeight": 700.0,
+          "lineHeight": 18.0,
+          "letterSpacing": 0.4
+        },
+        "byline": {
+          "fontFamily": "BreveText, Georgia, \"Times New Roman\", serif",
+          "fontSize": 12.73,
+          "fontWeight": 700.0,
+          "lineHeight": 28.0,
+          "letterSpacing": 0.108
+        },
+        "caption": {
+          "fontFamily": "Apercu, \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+          "fontSize": 12.0,
+          "fontWeight": 400.0,
+          "lineHeight": 16.0
+        },
+        "button-md": {
+          "fontFamily": "Apercu, \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+          "fontSize": 16.0,
+          "fontWeight": 700.0,
+          "lineHeight": 20.0,
+          "letterSpacing": 0.3
+        }
+      },
+      "url": "https://raw.githubusercontent.com/VoltAgent/awesome-design-md/main/design-md/wired/DESIGN.md"
+    },
+    "ibm": {
+      "name": "ibm",
+      "sha256": "46f6fd65b5e7524fed1133b9b3c0dd619f9a0f145fbb2b87f3675c701a88f3bd",
+      "meta": {
+        "version": "alpha",
+        "name": "IBM-design-analysis"
+      },
+      "colors": {
+        "primary": "#0F62FE",
+        "on-primary": "#FFFFFF",
+        "ink": "#161616",
+        "ink-muted": "#525252",
+        "ink-subtle": "#8C8C8C",
+        "canvas": "#FFFFFF",
+        "surface-1": "#F4F4F4",
+        "surface-2": "#E0E0E0",
+        "inverse-canvas": "#161616",
+        "inverse-surface-1": "#262626",
+        "inverse-ink": "#FFFFFF",
+        "inverse-ink-muted": "#C6C6C6",
+        "hairline": "#E0E0E0",
+        "hairline-strong": "#161616",
+        "blue-60": "#0043CE",
+        "blue-80": "#002D9C",
+        "blue-hover": "#0050E6",
+        "semantic-success": "#24A148",
+        "semantic-warning": "#F1C21B",
+        "semantic-error": "#DA1E28",
+        "semantic-info": "#0F62FE"
+      },
+      "rounded": {
+        "none": 0.0,
+        "xs": 2.0,
+        "sm": 4.0,
+        "md": 6.0,
+        "lg": 8.0,
+        "pill": 9999.0,
+        "full": 9999.0
+      },
+      "spacing": {
+        "xxs": 4.0,
+        "xs": 8.0,
+        "sm": 12.0,
+        "md": 16.0,
+        "lg": 24.0,
+        "xl": 32.0,
+        "xxl": 48.0,
+        "section": 96.0
+      },
+      "typography": {
+        "display-xl": {
+          "fontFamily": "IBM Plex Sans",
+          "fontSize": 76.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.17,
+          "letterSpacing": "-0.5px"
+        },
+        "display-lg": {
+          "fontFamily": "IBM Plex Sans",
+          "fontSize": 60.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.17,
+          "letterSpacing": "-0.4px"
+        },
+        "display-md": {
+          "fontFamily": "IBM Plex Sans",
+          "fontSize": 42.0,
+          "fontWeight": 300.0,
+          "lineHeight": 1.2,
+          "letterSpacing": 0.0
+        },
+        "headline": {
+          "fontFamily": "IBM Plex Sans",
+          "fontSize": 32.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.25,
+          "letterSpacing": 0.0
+        },
+        "card-title": {
+          "fontFamily": "IBM Plex Sans",
+          "fontSize": 24.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.33,
+          "letterSpacing": 0.0
+        },
+        "subhead": {
+          "fontFamily": "IBM Plex Sans",
+          "fontSize": 20.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.4,
+          "letterSpacing": 0.0
+        },
+        "body-lg": {
+          "fontFamily": "IBM Plex Sans",
+          "fontSize": 18.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.5,
+          "letterSpacing": 0.0
+        },
+        "body": {
+          "fontFamily": "IBM Plex Sans",
+          "fontSize": 16.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.5,
+          "letterSpacing": 0.16
+        },
+        "body-sm": {
+          "fontFamily": "IBM Plex Sans",
+          "fontSize": 14.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.29,
+          "letterSpacing": 0.16
+        },
+        "body-emphasis": {
+          "fontFamily": "IBM Plex Sans",
+          "fontSize": 14.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.29,
+          "letterSpacing": 0.16
+        },
+        "caption": {
+          "fontFamily": "IBM Plex Sans",
+          "fontSize": 12.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.33,
+          "letterSpacing": 0.32
+        },
+        "button": {
+          "fontFamily": "IBM Plex Sans",
+          "fontSize": 14.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.29,
+          "letterSpacing": 0.16
+        },
+        "eyebrow": {
+          "fontFamily": "IBM Plex Sans",
+          "fontSize": 14.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.29,
+          "letterSpacing": 0.16
+        }
+      },
+      "url": "https://raw.githubusercontent.com/VoltAgent/awesome-design-md/main/design-md/ibm/DESIGN.md"
+    },
+    "notion": {
+      "name": "notion",
+      "sha256": "fa9d6e78216d8f3e5d3990709ca2de6bc2e268e945bb94f255fd1bfb15455266",
+      "meta": {
+        "version": "alpha",
+        "name": "Notion-design-analysis"
+      },
+      "colors": {
+        "primary": "#5645D4",
+        "primary-pressed": "#4534B3",
+        "primary-deep": "#3A2A99",
+        "on-primary": "#FFFFFF",
+        "brand-navy": "#0A1530",
+        "brand-navy-deep": "#070F24",
+        "brand-navy-mid": "#1A2A52",
+        "link-blue": "#0075DE",
+        "link-blue-pressed": "#005BAB",
+        "brand-orange": "#DD5B00",
+        "brand-orange-deep": "#793400",
+        "brand-pink": "#FF64C8",
+        "brand-pink-deep": "#A02E6D",
+        "brand-purple": "#7B3FF2",
+        "brand-purple-300": "#D6B6F6",
+        "brand-purple-800": "#391C57",
+        "brand-teal": "#2A9D99",
+        "brand-green": "#1AAE39",
+        "brand-yellow": "#F5D75E",
+        "brand-brown": "#523410",
+        "card-tint-peach": "#FFE8D4",
+        "card-tint-rose": "#FDE0EC",
+        "card-tint-mint": "#D9F3E1",
+        "card-tint-lavender": "#E6E0F5",
+        "card-tint-sky": "#DCECFA",
+        "card-tint-yellow": "#FEF7D6",
+        "card-tint-yellow-bold": "#F9E79F",
+        "card-tint-cream": "#F8F5E8",
+        "card-tint-gray": "#F0EEEC",
+        "canvas": "#FFFFFF",
+        "surface": "#F6F5F4",
+        "surface-soft": "#FAFAF9",
+        "hairline": "#E5E3DF",
+        "hairline-soft": "#EDE9E4",
+        "hairline-strong": "#C8C4BE",
+        "ink-deep": "#000000",
+        "ink": "#1A1A1A",
+        "charcoal": "#37352F",
+        "slate": "#5D5B54",
+        "steel": "#787671",
+        "stone": "#A4A097",
+        "muted": "#BBB8B1",
+        "on-dark": "#FFFFFF",
+        "on-dark-muted": "#A4A097",
+        "semantic-success": "#1AAE39",
+        "semantic-warning": "#DD5B00",
+        "semantic-error": "#E03131"
+      },
+      "rounded": {
+        "xs": 4.0,
+        "sm": 6.0,
+        "md": 8.0,
+        "lg": 12.0,
+        "xl": 16.0,
+        "xxl": 20.0,
+        "xxxl": 24.0,
+        "full": 9999.0
+      },
+      "spacing": {
+        "xxs": 4.0,
+        "xs": 8.0,
+        "sm": 12.0,
+        "md": 16.0,
+        "lg": 20.0,
+        "xl": 24.0,
+        "xxl": 32.0,
+        "xxxl": 40.0,
+        "section-sm": 48.0,
+        "section": 64.0,
+        "section-lg": 96.0,
+        "hero": 120.0
+      },
+      "typography": {
+        "hero-display": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 80.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.05,
+          "letterSpacing": "-2px"
+        },
+        "display-lg": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 56.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.1,
+          "letterSpacing": "-1px"
+        },
+        "heading-1": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 48.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.15,
+          "letterSpacing": "-0.5px"
+        },
+        "heading-2": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 36.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.2,
+          "letterSpacing": "-0.5px"
+        },
+        "heading-3": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 28.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.25
+        },
+        "heading-4": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 22.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.3
+        },
+        "heading-5": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 18.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.4
+        },
+        "subtitle": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 18.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.5
+        },
+        "body-md": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 16.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.55
+        },
+        "body-md-medium": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 16.0,
+          "fontWeight": 500.0,
+          "lineHeight": 1.55
+        },
+        "body-sm": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 14.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.5
+        },
+        "body-sm-medium": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 14.0,
+          "fontWeight": 500.0,
+          "lineHeight": 1.5
+        },
+        "caption": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 13.0,
+          "fontWeight": 400.0,
+          "lineHeight": 1.4
+        },
+        "caption-bold": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 13.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.4
+        },
+        "micro": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 12.0,
+          "fontWeight": 500.0,
+          "lineHeight": 1.4
+        },
+        "micro-uppercase": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 11.0,
+          "fontWeight": 600.0,
+          "lineHeight": 1.4,
+          "letterSpacing": 1.0
+        },
+        "button-md": {
+          "fontFamily": "Notion Sans",
+          "fontSize": 14.0,
+          "fontWeight": 500.0,
+          "lineHeight": 1.3
+        }
+      },
+      "url": "https://raw.githubusercontent.com/VoltAgent/awesome-design-md/main/design-md/notion/DESIGN.md"
+    }
+  }
+}

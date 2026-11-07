@@ -1,0 +1,39 @@
+name: New theme / master / archetype
+description: Contribute a visual theme, master template, or layout archetype
+labels: ["design", "enhancement"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Contribution type
+      options: ["theme", "master", "layout archetype"]
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Stable id and label
+      placeholder: "id: indigo-paper / label: 靛蓝纸本"
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Source of every color / value
+      description: MLA-style citation, license, and SHA256 if imported. State clearly if it is your own design decision.
+    validations:
+      required: true
+  - type: textarea
+    id: brand
+    attributes:
+      label: Third-party brand / trademark check
+      description: Confirm no logo is embedded and that a company-style theme is only an approximation, not an official VI
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Verification evidence
+      description: Test case, lint result, and rendered preview attached or linked
+    validations:
+      required: true

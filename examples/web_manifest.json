@@ -1,0 +1,13 @@
+{
+  "out_dir": "examples/assets",
+  "items": [
+    {
+      "name": "earth.jpg",
+      "url": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1600&q=80",
+      "title": "Earth from space (Unsplash photo ID 1451187580459-43490279c0fa)",
+      "author": "",
+      "license": "Unsplash License",
+      "source_page": "https://unsplash.com/photos/1451187580459-43490279c0fa"
+    }
+  ]
+}

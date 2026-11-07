@@ -1,0 +1,149 @@
+{
+  "scenario": "consulting",
+  "slides": [
+    {
+      "type": "cover",
+      "children": [
+        {
+          "t": "box", "layout": "rows", "gap": 32, "padding": 60,
+          "children": [
+            {"t": "spacer", "flex": 1},
+            {"t": "text", "text": "2026 中国 SaaS 行业增长策略报告", "size": 72, "weight": "bold", "color": "#FFFFFF"},
+            {"t": "text", "text": "从流量获客转向客户成功驱动的高质量增长", "size": 24, "color": "#99BDED"},
+            {"t": "spacer", "flex": 1},
+            {
+              "t": "box", "layout": "cols", "gap": 32, "padding": 0,
+              "children": [
+                {"t": "text", "text": "领导者管理笔记 · 战略咨询", "size": 18, "color": "#FFFFFF"},
+                {"t": "text", "text": "2026年11月", "size": 18, "color": "#99BDED", "align": "right"}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "toc",
+      "title": "目录",
+      "layout": "rows",
+      "gap": 24,
+      "children": [
+        {"t": "box", "layout": "cols", "gap": 24, "padding": 0,
+         "children": [
+           {"t": "text", "text": "01", "size": 30, "weight": "bold", "color": "#08A6F6", "width": 60},
+           {"t": "box", "layout": "rows", "gap": 0, "padding": 0, "children": [
+             {"t": "text", "text": "行业现状：增长见顶，存量竞争到来", "size": 22, "weight": "bold", "color": "#061F32"},
+             {"t": "text", "text": "渗透率逼近天花板，获客成本三年翻倍，行业从抢增量转向留存量。", "size": 18, "color": "#44546A"}
+           ]}
+         ]},
+        {"t": "box", "layout": "cols", "gap": 24, "padding": 0,
+         "children": [
+           {"t": "text", "text": "02", "size": 30, "weight": "bold", "color": "#08A6F6", "width": 60},
+           {"t": "box", "layout": "rows", "gap": 0, "padding": 0, "children": [
+             {"t": "text", "text": "核心问题：流失率吞噬增长利润", "size": 22, "weight": "bold", "color": "#061F32"},
+             {"t": "text", "text": "年客户流失率长期高于 15%，新增收入被续费缺口持续抵消。", "size": 18, "color": "#44546A"}
+           ]}
+         ]},
+        {"t": "box", "layout": "cols", "gap": 24, "padding": 0,
+         "children": [
+           {"t": "text", "text": "03", "size": 30, "weight": "bold", "color": "#08A6F6", "width": 60},
+           {"t": "box", "layout": "rows", "gap": 0, "padding": 0, "children": [
+             {"t": "text", "text": "关键证据：续费与扩张决定 LTV", "size": 22, "weight": "bold", "color": "#061F32"},
+             {"t": "text", "text": "头部厂商净收入留存率超 120%，增长主要来自老客户增购而非新签。", "size": 18, "color": "#44546A"}
+           ]}
+         ]},
+        {"t": "box", "layout": "cols", "gap": 24, "padding": 0,
+         "children": [
+           {"t": "text", "text": "04", "size": 30, "weight": "bold", "color": "#08A6F6", "width": 60},
+           {"t": "box", "layout": "rows", "gap": 0, "padding": 0, "children": [
+             {"t": "text", "text": "策略建议：构建客户成功组织", "size": 22, "weight": "bold", "color": "#061F32"},
+             {"t": "text", "text": "以健康度模型、分层运营和增购路径，把留存率做成核心增长引擎。", "size": 18, "color": "#44546A"}
+           ]}
+         ]},
+        {"t": "box", "layout": "cols", "gap": 24, "padding": 0,
+         "children": [
+           {"t": "text", "text": "05", "size": 30, "weight": "bold", "color": "#08A6F6", "width": 60},
+           {"t": "box", "layout": "rows", "gap": 0, "padding": 0, "children": [
+             {"t": "text", "text": "落地路线：90 天完成体系切换", "size": 22, "weight": "bold", "color": "#061F32"},
+             {"t": "text", "text": "分三阶段上线指标、组织和流程，在两个季度内验证留存改善效果。", "size": 18, "color": "#44546A"}
+           ]}
+         ]}
+      ]
+    },
+    {
+      "type": "section",
+      "children": [
+        {"t": "box", "layout": "rows", "gap": 24, "padding": 60, "children": [
+          {"t": "spacer", "flex": 1},
+          {"t": "text", "text": "03", "size": 200, "weight": "bold", "color": "#08A6F6"},
+          {"t": "text", "text": "关键证据", "size": 48, "weight": "bold", "color": "#FFFFFF"},
+          {"t": "text", "text": "Retention Drives Sustainable Growth", "size": 20, "color": "#99BDED"},
+          {"t": "spacer", "flex": 1}
+        ]}
+      ]
+    },
+    {
+      "type": "content",
+      "layout": "rows",
+      "sparse": true,
+      "title": "高留存厂商依靠三条护城河甩开行业平均水平",
+      "children": [
+        {"t": "spacer", "flex": 1},
+        {
+          "t": "box", "layout": "cols", "gap": 32, "padding": 0,
+          "children": [
+            {"t": "card", "fill": "#FFFFFF", "border": "#E5E7EB", "padding": 24, "children": [
+              {"t": "text", "text": "01", "size": 18, "weight": "bold", "color": "#08A6F6"},
+              {"t": "text", "text": "健康度前置预警", "size": 24, "weight": "bold", "color": "#061F32"},
+              {"t": "text", "text": "用登录频次、功能深度和工单数据预测续费风险，在客户表达不满前介入，把被动救火变为主动经营，显著降低到期流失。", "size": 18, "color": "#44546A"}
+            ]},
+            {"t": "card", "fill": "#FFFFFF", "border": "#E5E7EB", "padding": 24, "children": [
+              {"t": "text", "text": "02", "size": 18, "weight": "bold", "color": "#08A6F6"},
+              {"t": "text", "text": "客户分层运营", "size": 24, "weight": "bold", "color": "#061F32"},
+              {"t": "text", "text": "按ARR和潜力把客户分成战略、成长、自助三层，匹配不同频率的成功经理资源，让高价值客户得到高触达、长尾客户实现规模化服务。", "size": 18, "color": "#44546A"}
+            ]},
+            {"t": "card", "fill": "#FFFFFF", "border": "#E5E7EB", "padding": 24, "children": [
+              {"t": "text", "text": "03", "size": 18, "weight": "bold", "color": "#08A6F6"},
+              {"t": "text", "text": "增购路径设计", "size": 24, "weight": "bold", "color": "#061F32"},
+              {"t": "text", "text": "把模块加购、席位扩张和用量计费嵌入客户使用旅程，在客户价值兑现的节点自然触发扩张销售，使净收入留存率持续高于100%。", "size": 18, "color": "#44546A"}
+            ]}
+          ]
+        },
+        {"t": "spacer", "flex": 1}
+      ]
+    },
+    {
+      "type": "chart",
+      "layout": "cols",
+      "title": "净收入留存率每提升 10 个百分点，三年营收差距扩大近一倍",
+      "footer": {"source": "来源：行业公开财报与团队测算，2026（示例数据）"},
+      "children": [
+        {"t": "chart", "kind": "column", "flex": 1,
+         "categories": ["第1年", "第2年", "第3年"],
+         "series": [
+           {"name": "NRR 100%", "values": [100, 100, 100]},
+           {"name": "NRR 120%", "values": [100, 120, 144]}
+         ],
+         "colors": ["#99BDED", "#08A6F6"]},
+        {"t": "box", "layout": "rows", "gap": 24, "padding": 24, "width": 360, "fill": "#061F32", "children": [
+          {"t": "text", "text": "核心洞察", "size": 24, "weight": "bold", "color": "#FFFFFF"},
+          {"t": "text", "text": "复利效应使高留存厂商在第三年营收接近对手的1.4倍，且差距无需额外获客预算即可持续扩大。资源应从拉新转向老客户经营。", "size": 18, "color": "#FFFFFF"},
+          {"t": "spacer", "flex": 1},
+          {"t": "kpi", "value": "1.4×", "label": "第三年相对营收倍数", "vsize": 80, "lsize": 18, "color": "#08A6F6", "lcolor": "#99BDED"}
+        ]}
+      ]
+    },
+    {
+      "type": "closing",
+      "children": [
+        {"t": "box", "layout": "rows", "gap": 24, "padding": 60, "children": [
+          {"t": "spacer", "flex": 1},
+          {"t": "text", "text": "谢谢", "size": 80, "weight": "bold", "color": "#FFFFFF"},
+          {"t": "text", "text": "欢迎围绕增长策略与客户成功体系进一步交流", "size": 22, "color": "#99BDED"},
+          {"t": "text", "text": "领导者管理笔记 · 战略咨询", "size": 18, "color": "#FFFFFF"},
+          {"t": "spacer", "flex": 1}
+        ]}
+      ]
+    }
+  ]
+}

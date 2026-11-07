@@ -1,0 +1,61 @@
+{
+  "scenario": "consulting",
+  "transition": "fade",
+  "assets_base": "examples/assets",
+  "slides": [
+    {"template": "cover", "data": {
+      "title": "增长策略配图方案演示",
+      "subtitle": "三种配图通道：程序化矢量 / 网页授权图片 / 生成式图片",
+      "org": "领导者管理笔记 · 战略咨询",
+      "date": "2026年11月",
+      "bg_image": "cover-bg.png"
+    }},
+    {"template": "agenda", "data": {
+      "items": [
+        {"title": "矢量配图：增长曲线", "summary": "程序化生成，可编辑 SVG，无水印无授权问题。"},
+        {"title": "矢量配图：转化漏斗", "summary": "同一套配色与版式语言，风格强一致。"},
+        {"title": "网页配图：真实场景照片", "summary": "Unsplash License，下载到本地并登记来源。"},
+        {"title": "数据图表与结论", "summary": "原生可编辑图表，图表页强制带来源。"}
+      ]
+    }},
+    {"template": "image_text", "data": {
+      "title": "矢量配图让抽象增长概念保持品牌级一致性",
+      "heading": "通道一 · 程序化矢量",
+      "body": "增长曲线插图由 engine/vector_art.py 按同一套图形模型同时输出 PNG 与可编辑 SVG。它的配色锁定咨询调色板，不依赖外部素材，因此没有水印，也没有版权风险。需要换色或改形状时，直接改 SVG 或场景参数后重新生成即可。",
+      "image": "vec-growth.png"
+    }},
+    {"template": "image_text", "data": {
+      "title": "漏斗类示意图用矢量表达比照片更清晰",
+      "heading": "通道一 · 漏斗 motif",
+      "body": "转化漏斗、循环、盾牌、网络等结构型信息适合矢量图形。矢量图在任意缩放下都不糊，且层级配色与正文、图表完全统一。当前内置 growth、dashboard、network、funnel、cycle、shield 六个 motif，可按主题继续扩展。",
+      "image": "vec-funnel.png"
+    }},
+    {"template": "image_text", "data": {
+      "title": "需要真实场景照片时走网页授权通道并留痕",
+      "heading": "通道二 · 网页图片",
+      "body": "引擎按清单从授权图源下载到本地 assets，校验为真实图片后写入 sources.json 台账，记录标题、授权协议与来源页。deck 只引用本地文件，且本页脚强制标注来源，保证授权可审计。搜索时优先 Wikimedia Commons、Unsplash License 与 CC 素材，避免随意抓图。",
+      "image": "earth.jpg",
+      "source": "图片来源：Unsplash（Unsplash License），unsplash.com/photos/1451187580459-43490279c0fa"
+    }},
+    {"template": "chart_insight", "data": {
+      "title": "净收入留存率每提升 10 个百分点，三年营收差距扩大近一倍",
+      "insight": "复利效应使高留存厂商在第三年营收接近对手的1.4倍，且差距无需额外获客预算即可持续扩大。",
+      "kpi": {"value": "1.4×", "label": "第三年相对营收倍数"},
+      "source": "来源：行业公开财报与团队测算，2026（示例数据）",
+      "chart": {
+        "kind": "column",
+        "categories": ["第1年", "第2年", "第3年"],
+        "series": [
+          {"name": "NRR 100%", "values": [100, 100, 100]},
+          {"name": "NRR 120%", "values": [100, 120, 144]}
+        ]
+      }
+    }},
+    {"template": "closing", "data": {
+      "title": "谢谢",
+      "subtitle": "配图优先级建议：矢量 > 授权网图 > 生成式（带标识）",
+      "org": "领导者管理笔记 · 战略咨询",
+      "bg_image": "cover-bg.png"
+    }}
+  ]
+}

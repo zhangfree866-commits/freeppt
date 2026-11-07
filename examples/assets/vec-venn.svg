@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+<rect width="1200" height="800" fill="#FFFFFF"/>
+  <circle cx="500" cy="380" r="200" fill="#08A6F6" fill-opacity="0.42"/>
+  <circle cx="700" cy="380" r="200" fill="#001965" fill-opacity="0.42"/>
+  <circle cx="600" cy="240" r="200" fill="#061F32" fill-opacity="0.42"/>
+  <text x="600" y="430" fill="#FFFFFF" font-size="34" text-anchor="middle" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">交集</text>
+  <text x="320" y="400" fill="#44546A" font-size="40" text-anchor="start" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">A</text>
+  <text x="860" y="400" fill="#44546A" font-size="40" text-anchor="start" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">B</text>
+  <text x="600" y="120" fill="#44546A" font-size="40" text-anchor="start" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">C</text>
+</svg>

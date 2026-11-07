@@ -1,0 +1,6 @@
+# FreePPT runtime dependencies — generic open-source libraries only.
+# No third-party / vendor PPT skill is referenced or required.
+# Versions pinned to the validated local environment.
+python-pptx==1.0.2
+Pillow==12.3.0
+lxml==6.1.3

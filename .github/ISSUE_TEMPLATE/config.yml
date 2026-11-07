@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and showcase
+    url: https://github.com/<owner>/<repo>/discussions
+    about: Ask usage questions, share decks, or discuss design decisions.

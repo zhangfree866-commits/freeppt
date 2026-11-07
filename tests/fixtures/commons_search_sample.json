@@ -1,0 +1,126 @@
+{
+  "batchcomplete": "",
+  "continue": {
+    "gsroffset": 6,
+    "continue": "gsroffset||"
+  },
+  "query": {
+    "pages": {
+      "101": {
+        "pageid": 101,
+        "ns": 6,
+        "title": "File:Wind turbines Iowa.jpg",
+        "index": 4,
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Wind_turbines_Iowa.jpg/1280px-Wind_turbines_Iowa.jpg",
+            "thumbwidth": 1280,
+            "thumbheight": 853,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/8/8a/Wind_turbines_Iowa.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Wind_turbines_Iowa.jpg",
+            "extmetadata": {
+              "ImageDescription": {
+                "value": "<p>Wind farm in Iowa at sunset, three turbines.</p>",
+                "source": "commons-templates"
+              },
+              "Artist": {
+                "value": "<a href=\"//commons.wikimedia.org/wiki/User:JaneR\" title=\"User:JaneR\">Jane Roe</a>"
+              },
+              "LicenseShortName": { "value": "CC BY-SA 4.0" },
+              "LicenseUrl": { "value": "https://creativecommons.org/licenses/by-sa/4.0/" }
+            }
+          }
+        ]
+      },
+      "102": {
+        "pageid": 102,
+        "ns": 6,
+        "title": "File:Solar panel array.png",
+        "index": 2,
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Solar_panel_array.png/1280px-Solar_panel_array.png",
+            "thumbwidth": 1280,
+            "thumbheight": 960,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/1/1c/Solar_panel_array.png",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Solar_panel_array.png",
+            "extmetadata": {
+              "ImageDescription": { "value": "<p>Utility-scale solar&nbsp;PV array &amp; inverters</p>" },
+              "Artist": { "value": "" },
+              "LicenseShortName": { "value": "CC0 1.0" },
+              "LicenseUrl": { "value": "https://creativecommons.org/publicdomain/zero/1.0/" }
+            }
+          }
+        ]
+      },
+      "103": {
+        "pageid": 103,
+        "ns": 6,
+        "title": "File:Vendor proprietary chart.jpg",
+        "index": 5,
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Vendor_proprietary_chart.jpg/1280px-Vendor_proprietary_chart.jpg",
+            "thumbwidth": 1280,
+            "thumbheight": 720,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/4/4e/Vendor_proprietary_chart.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Vendor_proprietary_chart.jpg",
+            "extmetadata": {
+              "ImageDescription": { "value": "<p>Restricted vendor illustration</p>" },
+              "Artist": { "value": "ACME Corp" },
+              "LicenseShortName": { "value": "All Rights Reserved" },
+              "LicenseUrl": { "value": "" }
+            }
+          }
+        ]
+      },
+      "104": {
+        "pageid": 104,
+        "ns": 6,
+        "title": "File:Broken record no imageinfo.jpg",
+        "index": 6
+      },
+      "105": {
+        "pageid": 105,
+        "ns": 6,
+        "title": "File:Old hydro map 1900.jpg",
+        "index": 1,
+        "imageinfo": [
+          {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/3/33/Old_hydro_map_1900.jpg",
+            "width": 2000,
+            "height": 1500,
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Old_hydro_map_1900.jpg",
+            "extmetadata": {
+              "ImageDescription": { "value": "Historical hydroelectric map, 1900" },
+              "Artist": { "value": "U.S. Geological Survey" },
+              "LicenseShortName": { "value": "Public domain" },
+              "LicenseUrl": { "value": "" }
+            }
+          }
+        ]
+      },
+      "106": {
+        "pageid": 106,
+        "ns": 6,
+        "title": "File:Hydro & water station.jpg",
+        "index": 3,
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Hydro_%26_water_station.jpg/1280px-Hydro_%26_water_station.jpg",
+            "thumbwidth": 1280,
+            "thumbheight": 800,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/9/9b/Hydro_%26_water_station.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Hydro_%26_water_station.jpg",
+            "extmetadata": {
+              "ImageDescription": { "value": "<b>Pumped-storage</b> hydro station" },
+              "Artist": { "value": "National Grid" },
+              "LicenseShortName": { "value": "CC BY 2.0" },
+              "LicenseUrl": { "value": "https://creativecommons.org/licenses/by/2.0/" }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

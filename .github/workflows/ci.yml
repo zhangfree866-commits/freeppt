@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: tests / py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Lint every example deck
+        run: |
+          set -e
+          for f in examples/*.json; do
+            case "$(basename "$f")" in
+              web_manifest.json|notes_*.json|style_*.json|structure_*.json|edits_*.json) continue ;;
+            esac
+            echo "lint $f"
+            python engine/cli.py lint "$f" > /dev/null
+          done
+      - name: Creative composition smoke test
+        run: |
+          set -e
+          python engine/cli.py compose examples/notes_renqing_mianzi.json \
+            --out /tmp/composed.json --ledger /tmp/style.json
+          python engine/cli.py lint /tmp/composed.json
+          python engine/cli.py build /tmp/composed.json /tmp/composed.pptx
+      - name: Pure CLI smoke test
+        run: |
+          set -e
+          python engine/cli.py make "本周完成 3 项交付；客户满意度提升到 92%；上线新版引导流程" \
+            --type weekly --out /tmp/brief.pptx
+      - name: Determinism check
+        run: |
+          set -e
+          python engine/cli.py compose examples/notes_renqing_mianzi.json --out /tmp/a.json
+          python engine/cli.py compose examples/notes_renqing_mianzi.json --out /tmp/b.json
+          diff /tmp/a.json /tmp/b.json
+      - name: Benchmark
+        run: python tools/benchmark.py --out /tmp/benchmark.json
+      - name: Upload artifacts
+        if: matrix.python-version == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: freeppt-smoke-${{ github.sha }}
+          path: |
+            /tmp/composed.pptx
+            /tmp/brief.pptx
+            /tmp/benchmark.json
+          if-no-files-found: warn
+
+  render-regression:
+    name: LibreOffice render regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Install LibreOffice and poppler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libreoffice-impress poppler-utils fonts-noto-cjk
+      - name: Build deck
+        run: python engine/cli.py build examples/deck_notes_composed.json /tmp/render.pptx
+      - name: Render to PDF/PNG and verify
+        run: |
+          set -e
+          python tools/render_check.py /tmp/render.pptx \
+            --out /tmp/render_report.json --png-dir /tmp/render_png
+          python - <<'PY'
+          import json
+          d = json.load(open("/tmp/render_report.json"))
+          assert d["status"] == "ok", d
+          print(json.dumps(d, ensure_ascii=False))
+          PY
+      - name: Upload rendered pages
+        uses: actions/upload-artifact@v4
+        with:
+          name: freeppt-rendered-${{ github.sha }}
+          path: /tmp/render_png
+          if-no-files-found: error

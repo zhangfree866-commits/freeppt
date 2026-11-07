@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+<rect width="1200" height="800" fill="#FFFFFF"/>
+  <rect x="280" y="170" width="318" height="318" rx="14" fill="#99BDED" fill-opacity="1.0"/>
+  <text x="306" y="226" fill="#FFFFFF" font-size="40" text-anchor="start" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">Q1</text>
+  <text x="306" y="290" fill="#FFFFFF" font-size="30" text-anchor="start" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">优先投入</text>
+  <rect x="610" y="170" width="318" height="318" rx="14" fill="#08A6F6" fill-opacity="1.0"/>
+  <text x="636" y="226" fill="#FFFFFF" font-size="40" text-anchor="start" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">Q2</text>
+  <text x="636" y="290" fill="#FFFFFF" font-size="30" text-anchor="start" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">快速试点</text>
+  <rect x="280" y="500" width="318" height="318" rx="14" fill="#061F32" fill-opacity="1.0"/>
+  <text x="306" y="556" fill="#FFFFFF" font-size="40" text-anchor="start" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">Q3</text>
+  <text x="306" y="620" fill="#FFFFFF" font-size="30" text-anchor="start" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">维持观察</text>
+  <rect x="610" y="500" width="318" height="318" rx="14" fill="#001965" fill-opacity="1.0"/>
+  <text x="636" y="556" fill="#FFFFFF" font-size="40" text-anchor="start" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">Q4</text>
+  <text x="636" y="620" fill="#FFFFFF" font-size="30" text-anchor="start" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">果断退出</text>
+  <polyline points="250,660 250,120" fill="none" stroke="#44546A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="250,660 980,660" fill="none" stroke="#44546A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="250,108 238,132 262,132" fill="#44546A"/>
+  <polygon points="992,660 968,648 968,672" fill="#44546A"/>
+  <text x="150" y="150" fill="#44546A" font-size="28" text-anchor="start" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">重要性</text>
+  <text x="880" y="700" fill="#44546A" font-size="28" text-anchor="start" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">紧迫度</text>
+</svg>

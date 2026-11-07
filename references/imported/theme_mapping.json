@@ -1,0 +1,55 @@
+{
+  "_comment": "FreePPT semantic role -> source DESIGN.md color token key. Every key must exist in design_tokens.json for that source; design_md_import.semantic_from_mapping() raises on a missing key. No guessed values.",
+  "stripe": {
+    "surface_dark": "brand-dark-900",
+    "surface_light": "canvas",
+    "card_fill": "canvas-soft",
+    "ink": "ink",
+    "ink_on_dark": "on-primary",
+    "body": "ink-secondary",
+    "muted": "ink-mute",
+    "line": "hairline",
+    "accent": "primary",
+    "accent_2": "primary-deep",
+    "accent_soft": "primary-bg-subdued-hover"
+  },
+  "vercel": {
+    "surface_dark": "primary",
+    "surface_light": "canvas",
+    "card_fill": "canvas-soft-2",
+    "ink": "ink",
+    "ink_on_dark": "on-primary",
+    "body": "body",
+    "muted": "mute",
+    "line": "hairline",
+    "accent": "link",
+    "accent_2": "link-deep",
+    "accent_soft": "link-bg-soft"
+  },
+  "wired": {
+    "surface_dark": "ink",
+    "surface_light": "canvas",
+    "card_fill": "canvas-soft",
+    "ink": "ink",
+    "ink_on_dark": "on-primary",
+    "body": "ink-soft",
+    "muted": "body",
+    "line": "hairline",
+    "accent": "link",
+    "accent_2": "primary",
+    "accent_soft": "canvas-soft"
+  },
+  "ibm": {
+    "surface_dark": "inverse-canvas",
+    "surface_light": "canvas",
+    "card_fill": "surface-1",
+    "ink": "ink",
+    "ink_on_dark": "inverse-ink",
+    "body": "ink-muted",
+    "muted": "ink-subtle",
+    "line": "hairline",
+    "accent": "primary",
+    "accent_2": "blue-60",
+    "accent_soft": "surface-2"
+  }
+}

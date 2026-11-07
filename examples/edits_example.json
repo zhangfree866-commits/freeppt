@@ -1,0 +1,10 @@
+{
+  "note": "Example edit map for `cli.py retext`. Always run `inspect` first to obtain real shape_id values; ids differ per file.",
+  "edits": [
+    {
+      "slide": 1,
+      "shape_id": 5,
+      "text": "改稿后的标题文字"
+    }
+  ]
+}

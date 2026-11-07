@@ -1,0 +1,35 @@
+name: Feature request
+description: Propose a capability that keeps the five-stage pipeline intact
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+    validations:
+      required: true
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Which layer does it touch?
+      options:
+        - planning / content
+        - DSL / layout
+        - lint rules
+        - compiler / rendering
+        - themes / masters / archetypes
+        - host integration
+        - docs
+    validations:
+      required: true
+  - type: textarea
+    id: gate
+    attributes:
+      label: Which lint rule or test will guard it?
+      description: FreePPT does not merge capabilities without a guard
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

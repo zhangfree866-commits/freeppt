@@ -1,0 +1,44 @@
+name: Bug report
+description: Report a lint failure, layout defect, or broken PPTX output
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please include a minimal reproducible deck JSON. A screenshot alone
+        cannot reproduce a deterministic layout issue.
+  - type: input
+    id: command
+    attributes:
+      label: Exact command
+      placeholder: "python3 engine/cli.py build examples/demo.json out.pptx"
+    validations:
+      required: true
+  - type: textarea
+    id: deck
+    attributes:
+      label: Minimal deck JSON
+      description: Paste the smallest DSL that reproduces the problem
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Full lint / error output
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "macOS 15.x / Python 3.13 / python-pptx 1.0.2"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs. actual
+    validations:
+      required: true

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+<rect width="1200" height="800" fill="#FFFFFF"/>
+  <rect x="470.0" y="110" width="260" height="86" rx="14" fill="#061F32" fill-opacity="1.0"/>
+  <text x="600" y="162.1" fill="#FFFFFF" font-size="26" text-anchor="middle" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">管理层</text>
+  <line x1="600" y1="196" x2="600" y2="240" stroke="#808080" stroke-width="3" stroke-linecap="round"/>
+  <line x1="280" y1="240" x2="600" y2="240" stroke="#808080" stroke-width="3" stroke-linecap="round"/>
+  <line x1="280" y1="240" x2="280" y2="300" stroke="#808080" stroke-width="3" stroke-linecap="round"/>
+  <rect x="170.0" y="300" width="220" height="80" rx="14" fill="#001965" fill-opacity="1.0"/>
+  <text x="280" y="349.1" fill="#FFFFFF" font-size="26" text-anchor="middle" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">业务线</text>
+  <line x1="600" y1="196" x2="600" y2="240" stroke="#808080" stroke-width="3" stroke-linecap="round"/>
+  <line x1="600" y1="240" x2="600" y2="240" stroke="#808080" stroke-width="3" stroke-linecap="round"/>
+  <line x1="600" y1="240" x2="600" y2="300" stroke="#808080" stroke-width="3" stroke-linecap="round"/>
+  <rect x="490.0" y="300" width="220" height="80" rx="14" fill="#001965" fill-opacity="1.0"/>
+  <text x="600" y="349.1" fill="#FFFFFF" font-size="26" text-anchor="middle" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">业务线</text>
+  <line x1="600" y1="196" x2="600" y2="240" stroke="#808080" stroke-width="3" stroke-linecap="round"/>
+  <line x1="920" y1="240" x2="600" y2="240" stroke="#808080" stroke-width="3" stroke-linecap="round"/>
+  <line x1="920" y1="240" x2="920" y2="300" stroke="#808080" stroke-width="3" stroke-linecap="round"/>
+  <rect x="810.0" y="300" width="220" height="80" rx="14" fill="#001965" fill-opacity="1.0"/>
+  <text x="920" y="349.1" fill="#FFFFFF" font-size="26" text-anchor="middle" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">业务线</text>
+  <line x1="280" y1="380" x2="280" y2="470" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <line x1="202" y1="470" x2="280" y2="470" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <line x1="202" y1="470" x2="202" y2="520" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <rect x="127.0" y="520" width="150" height="72" rx="14" fill="#08A6F6" fill-opacity="1.0"/>
+  <text x="202" y="563.7" fill="#FFFFFF" font-size="22" text-anchor="middle" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">团队</text>
+  <line x1="280" y1="380" x2="280" y2="470" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <line x1="358" y1="470" x2="280" y2="470" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <line x1="358" y1="470" x2="358" y2="520" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <rect x="283.0" y="520" width="150" height="72" rx="14" fill="#08A6F6" fill-opacity="1.0"/>
+  <text x="358" y="563.7" fill="#FFFFFF" font-size="22" text-anchor="middle" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">团队</text>
+  <line x1="600" y1="380" x2="600" y2="470" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <line x1="522" y1="470" x2="600" y2="470" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <line x1="522" y1="470" x2="522" y2="520" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <rect x="447.0" y="520" width="150" height="72" rx="14" fill="#08A6F6" fill-opacity="1.0"/>
+  <text x="522" y="563.7" fill="#FFFFFF" font-size="22" text-anchor="middle" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">团队</text>
+  <line x1="600" y1="380" x2="600" y2="470" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <line x1="678" y1="470" x2="600" y2="470" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <line x1="678" y1="470" x2="678" y2="520" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <rect x="603.0" y="520" width="150" height="72" rx="14" fill="#08A6F6" fill-opacity="1.0"/>
+  <text x="678" y="563.7" fill="#FFFFFF" font-size="22" text-anchor="middle" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">团队</text>
+  <line x1="920" y1="380" x2="920" y2="470" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <line x1="842" y1="470" x2="920" y2="470" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <line x1="842" y1="470" x2="842" y2="520" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <rect x="767.0" y="520" width="150" height="72" rx="14" fill="#08A6F6" fill-opacity="1.0"/>
+  <text x="842" y="563.7" fill="#FFFFFF" font-size="22" text-anchor="middle" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">团队</text>
+  <line x1="920" y1="380" x2="920" y2="470" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <line x1="998" y1="470" x2="920" y2="470" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <line x1="998" y1="470" x2="998" y2="520" stroke="#E5E7EB" stroke-width="3" stroke-linecap="round"/>
+  <rect x="923.0" y="520" width="150" height="72" rx="14" fill="#08A6F6" fill-opacity="1.0"/>
+  <text x="998" y="563.7" fill="#FFFFFF" font-size="22" text-anchor="middle" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">团队</text>
+</svg>
