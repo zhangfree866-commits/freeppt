@@ -14,17 +14,24 @@ has **not** been pushed to any remote. Publishing is a manual, external action.
    The address follows GitHub's documented `ID+USERNAME` format for accounts
    created after 18 July 2017; it combines the public numeric user id
    `338116425` with the public login `zhangfree866-commits` (public
-   `created_at` is 2026-10-05). The account owner selected this address
+   `created_at` is 2026-10-05).    The account owner selected this address
    instead of a personal mailbox, so this document records no personal email
-   address. Before pushing, open <https://github.com/settings/emails>, enable
-   **Keep my email addresses private** (or deselect and reselect it), and
-   confirm the exact noreply address shown there matches. GitHub attributes
-   commits only when the author email is connected to the account or is the
-   noreply address provided in email settings (GitHub Docs). History has
-   **not** been rewritten: the first three commits carry `freeppt@localhost`,
-   one commit carries this noreply address, and one commit (`26bd61a`) was
-   authored with a personal mailbox that also appears in that commit's version
-   of this file. Pushing without a history rewrite still exposes that mailbox.
+   address. **Confirmed 2026-11-08**: the account owner's screenshot of
+   <https://github.com/settings/emails> shows **Keep my email addresses
+   private = On** and displays the exact noreply address above. The same page
+   states that command-line Git operations use the address configured in Git
+   (GitHub), which matches the repository-level setting above. **Block command
+   line pushes that expose my email** was **Off** in that screenshot; enabling
+   it adds a push-time guard against future commits authored with a private
+   mailbox. GitHub attributes commits only when the author email is connected
+   to the account or is the noreply address provided in email settings (GitHub
+   Docs). History has **not** been rewritten: the first three commits carry
+   `freeppt@localhost`, one commit carries this noreply address, and one
+   commit (`26bd61a`) was authored with a personal mailbox that also appears
+   in that commit's version of this file. The settings page explicitly notes
+   that previously authored commits associated with a public email remain
+   public (GitHub), so the privacy toggle does **not** hide `26bd61a`. Pushing
+   without a history rewrite still exposes that mailbox.
 1. Replace the placeholder `https://github.com/<owner>/<repo>/discussions` in
    `.github/ISSUE_TEMPLATE/config.yml` with the real Discussions URL.
 2. Add the CI badge to `README.md` only after the repository exists; do not
@@ -148,3 +155,6 @@ api.github.com/users/zhangfree866-commits. Accessed 8 Nov. 2026.
 
 Google. "Manage Your Email Addresses." *Google Account Help*,
 support.google.com/accounts/answer/6316959. Accessed 8 Nov. 2026.
+
+GitHub. "Emails." *GitHub Settings*, github.com/settings/emails. Accessed 8
+Nov. 2026 (content supplied as an account-owner screenshot).
