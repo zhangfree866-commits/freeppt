@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, an offline native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261108.6"
+version: "20261109.1"
 author: "张三峯"
 ---
 
@@ -25,7 +25,10 @@ author: "张三峯"
 | 任务 | 路径 |
 |---|---|
 | 从零 / 基于材料生成 | 遵循本文件五阶段主干（6 步落地） |
+| **长内容（30 页以上 / 分章 / 培训课件 / 读书笔记 / 方法论手册）** | **走 `docs/LONGFORM_SOP.md` 12 道工序**，不按 6 步裸跑 |
 | 读书笔记 / 品牌叙事 / 演讲稿（要版式变化、可附封面图） | 走「创作式编排」：`cli.py compose` → `lint` → `build` |
+| **定风格位 / 配色 / 封面 / 页眉页脚 / 内容页构图** | 查 `docs/DESIGN_GRAMMAR.md` 设计语法库 |
+| **单页不知道画什么 / 要"去 AI 味"** | 查 `docs/CONTENT_GRAPHICS.md` 逐单元图形化（40 条概念→图形映射） |
 | 周报 / 月报 / 经营分析等结构稳定报告 | 走 `reports.py` 骨架 + 10 套母版；无宿主可用 `cli.py make` 纯 CLI 出片 |
 | 编辑已有 pptx | `cli.py inspect` 导出结构 → `cli.py retext` 改文字；边界见 references/edit-existing.md |
 | 单节点局部改稿 | `cli.py patch deck.json --set "path=value" --build out.pptx`（改完仍走 lint） |
@@ -52,6 +55,11 @@ python3 engine/cli.py inspect out.pptx
 # 手搓 SOP（坐标约定、icon chip、decor/bleed/role 语义标记、双端渲染避坑）见
 # docs/FREEFORM_PLAYBOOK.md，可运行样例见 examples/deck_freeform_handbuilt.json
 
+# 三级验收报告：blocker / advisory / info 分组 + 已裁定项
+python3 engine/cli.py verify deck.json            # 人类可读，按严重级别分组
+python3 engine/cli.py verify deck.json --strict   # advisory 未裁定则退出码 2
+python3 engine/cli.py verify deck.json --json     # severity_summary 机器可读
+
 # 改一个节点就重编译（仍受 lint 闸门约束）
 python3 engine/cli.py patch out.json --set "slides.0.data.title=新结论" --build revised.pptx
 
@@ -60,6 +68,20 @@ bash tools/check_all.sh
 python3 tools/benchmark.py --out bench.json
 ./install.sh --host all --scope user
 ```
+
+## 三份方法论文档（长篇 deck 的作业规程）
+
+三份文档构成一套完整工序：**怎么做（SOP）→ 长什么样（设计语法）→ 每页画什么（图形化）**。写 30 页以上的内容前先读，能把返工挡在开头。
+
+| 文档 | 解决什么 | 核心内容 |
+|---|---|---|
+| [`docs/LONGFORM_SOP.md`](docs/LONGFORM_SOP.md) | **做的顺序** | 12 道工序：读规范 → 读素材 → 出大纲（先同步缺口）→ 定设计系统（含**禁用清单**）→ 先做样本页截图核对 → 分章批量（校验通过才写入）→ lint 闸门 → **误报裁定** → 回读核对 → **素材核验** → 截图抽查 → **缺口如实上报** → 交付自述。含每步判据、失败处理、最小可行 8 步版 |
+| [`docs/DESIGN_GRAMMAR.md`](docs/DESIGN_GRAMMAR.md) | **长什么样** | 风格光谱（9.8–31.1 形状/页按选题选位）、语义色编码（色数由维度数派生）、仪式页用图内容页用形状、页眉页脚三件套、封面文字框四范式、内容页六种经典构图、视觉基因提取、渐变/阴影正确口径、六条铁律、数值速查表 |
+| [`docs/CONTENT_GRAPHICS.md`](docs/CONTENT_GRAPHICS.md) | **每页画什么** | 「这个概念天然长什么样」主问题 + 三追问、**20 种原生图形原型**（金字塔/漏斗/台阶/嵌套框/四象限/编号卡链/chevron/时间轴/循环回路/S曲线/柱状降序/区间带/占比条/天平/双卡对照/异质双栏/引线/表格/全景地图/超级编号）、**40 条概念→图形映射表**、附件框架图原生重绘五步法、去 AI 味检查清单 |
+| [`docs/GAP_ASSESSMENT.md`](docs/GAP_ASSESSMENT.md) | **还差多少** | 六维加权评分（当前约 42/100）、已追平项清单、四项真实差距、下一步唯一该做的事 |
+
+这三份文档的依据是 11 份 85–115 页高完成度成品的结构解剖 + 9 条制作过程取证，非推测；每条实测结论都在文档内标注了出处。
+
 
 | 模块 | 职责 |
 |---|---|
@@ -126,6 +148,8 @@ python3 tools/benchmark.py --out bench.json
 
 **新增硬闸门（阶段 4，不通过就回到 DSL 返工）**：
 
+- **三级严重度**（`engine/lint.py`）：每条诊断带 `severity` 字段，分 `blocker`（硬缺陷，必须修源头，**不可豁免**）/ `advisory`（检测器存疑，需人裁定）/ `info`（纯测量，无需动作）。`ok` 恒等于「零 blocker」；返回结构保留 `errors`/`warnings` 原意（`warnings` = 尚未裁定的 advisory），另加 `acked`（已裁定项）与 `severity_summary`（各级计数），旧调用方与旧测试不受影响。
+- **advisory 人工裁定（`lint_ack`）**：deck 顶层写 `lint_ack:[{code, slide?, reason}]` 可把某条 advisory 判为"设计意图"。三条约束让它成为「裁定」而非「静音」：① `reason` 必填，裸压制直接判 `LINT_ACK_INVALID`；② 只能裁定 advisory，对 blocker 写 ack 会被 `LINT_ACK_ON_BLOCKER` 驳回（阻断项必须改源头）；③ 未匹配任何诊断的 ack 报 `LINT_ACK_UNUSED`（info 级），防止过期裁定累积。裁定理由会出现在 `verify` 报告的 ADJUDICATED 段落，随交付一起可见。
 - `LAYOUT_REPETITION`：相邻两页构图原型相同 → 错误；
 - `LAYOUT_VARIETY`：按章节计算，每章内容页原型数少于 `min(章页数, max(3, ⌈章页数/2⌉))` → 错误；
 - `RESEARCH_LEDGER`：声明 research 的页缺来源台账 → 错误；
@@ -139,6 +163,8 @@ python3 tools/benchmark.py --out bench.json
 - `CONTENT_DENSITY`：composed 内容页可见文字过薄（< 60 字）→ 警告（非阻断，特殊/数据原型豁免）；
 - `FREEFORM_RECT` / `OUT_OF_CANVAS` / `TEXT_OVERFLOW` / `RICHCARD_OVERFLOW` / `CONTRAST` / `PALETTE` / `FONT_SIZE`：几何、溢出、可读性、配色照旧拦；
 - 自由画布**不受**旧母版教条约束（安全区、固定间距、底部留白、32–40px 标题），但仍可用 `on` 字段声明文字底色以做 WCAG 对比度校验。
+
+**误报裁定的作业口径**（详见 `docs/LONGFORM_SOP.md` §8）：几何类 advisory 是**估算**，会误报。裁定流程固定三步——`render` 出该页 PNG → 看图判断是真缺陷还是假阳性 → 真缺陷改 DSL、假阳性写 `lint_ack` 留痕。**禁止用 `--force` 代替裁定**（`--force` 会往产物写入 `FreePPTForcedBuildMarker`，是最后手段而非常规路径）。
 
 **从笔记到成片**（五阶段顺序不变，compose 属于阶段 1–2，编译仍在阶段 5）：
 

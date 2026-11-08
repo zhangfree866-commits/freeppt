@@ -3,6 +3,79 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261109.1] - 2026-11-09
+
+Three-tier lint severity with human adjudication, plus the long-form craft
+documentation distilled from an 11-deck / 9-thread external benchmark. Purely
+additive: `ok`, `errors` and `warnings` keep their historical meaning, the
+default pipeline is byte-identical, and the suite grows from 222 to 236.
+
+### Added — lint severity tiers and adjudication (`engine/lint.py`)
+
+- Every diagnostic now carries a `severity`: `blocker` (hard defect, build
+  refused), `advisory` (detector suspicion needing a human call), `info`
+  (measurement, no action). `blocking_codes` names the codes that can never be
+  suppressed; any other warning defaults to advisory, so a newly added check
+  is adjudicable without touching the table.
+- `lint_ack` — a deck-level list of `{code, slide?, reason}` records that
+  adjudicate a specific advisory as intentional. Three constraints keep it an
+  adjudication rather than a mute button: `reason` is mandatory
+  (`LINT_ACK_INVALID`), blockers are refused (`LINT_ACK_ON_BLOCKER`), and a
+  record that matches nothing surfaces as `LINT_ACK_UNUSED` so stale
+  adjudications cannot accumulate silently. Matching is per-slide when `slide`
+  is given and deck-wide otherwise.
+- The return dict gains `acked` (adjudicated records, each carrying its
+  `acked_reason`) and `severity_summary` (`blockers`/`advisories`/`infos`/
+  `acked` counts). `warnings` now means "advisories not yet adjudicated", so
+  `--strict` still means "nothing outstanding".
+
+### Added — acceptance report by tier (`engine/cli.py`)
+
+- `verify` groups output into BLOCKERS / ADVISORIES / INFOS with distinct
+  badges, and appends an ADJUDICATED section listing every accepted
+  advisory with its written reason, so the reasoning ships with the deck.
+
+### Added — long-form production documentation (`docs/`)
+
+- `docs/LONGFORM_SOP.md` — the 12-step production SOP for 30+ page decks:
+  read spec, read materials, outline first (surface gaps early), design system
+  with an explicit **forbidden list**, build 5-6 sample pages and check them
+  by screenshot, batch by chapter (lint-clean before writing the next batch),
+  lint gate, **false-positive adjudication**, read-back page-count check,
+  asset verification, screenshot spot-check, honest gap disclosure, delivery
+  statement. Each step carries its acceptance criterion and failure handling;
+  a minimum-viable 8-step path is included for time-boxed runs.
+- `docs/DESIGN_GRAMMAR.md` — visual grammar: the style spectrum (9.8-31.1
+  shapes/page, chosen by subject matter rather than a single "best" density),
+  semantic colour coding derived from the number of content dimensions, images
+  reserved for ceremonial pages while content pages stay native shape,
+  header/footer three-piece layout, four cover text-frame patterns, six
+  content-page compositions, visual-gene extraction, the corrected gradient
+  and shadow picture, six invariants, and a numeric quick-reference table.
+- `docs/CONTENT_GRAPHICS.md` — per-unit graphical treatment, the concrete
+  method for removing the "AI look": ask of every content unit "what does this
+  concept naturally look like?", with 20 native-shape prototypes, a 40-entry
+  concept-to-graphic map, a five-step procedure for redrawing an attachment's
+  framework diagram natively, and a pre-delivery check list. Includes the
+  discrimination test — cover the text and the shapes must still carry the
+  logic.
+- `docs/GAP_ASSESSMENT.md` — weighted six-dimension distance measurement
+  against the benchmark, with every figure reproducible from the workspace.
+
+### Changed
+
+- `SKILL.md` routes long-form work to the new SOP and binds the three craft
+  documents by task; the layout-gate section documents the tiers and the
+  adjudication workflow. Version bumped to `20261109.1`.
+- `.gitignore` excludes `/scratch/` (local working output).
+
+### Verified
+
+- 236 tests pass (222 prior + 14 new in `tests/test_lint_severity.py`),
+  `tools/check_all.sh` reports ALL CHECKS PASSED, and all nine example decks
+  report zero blockers with no adjudications needed — the tier split surfaced
+  no false positives on known-good input.
+
 ## [20261108.6] - 2026-11-08
 
 Deterministic layout-engine upgrade closing the three "dead token / random

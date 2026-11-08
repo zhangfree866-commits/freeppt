@@ -25,6 +25,124 @@ def _gradient_colors(node):
 SHADOW_LEVELS = {"none", "soft", "medium"}
 
 
+# --- Severity tiers ---------------------------------------------------------
+# Three tiers, mirroring the acceptance language a finished deck is signed off
+# in: "0 blocking errors, N non-blocking notes (intentional whitespace)".
+#
+#   blocker   a hard defect. The build is refused until the source is fixed;
+#             no acknowledgement can suppress it.
+#   advisory  a detector's suspicion that needs a human call. The geometric
+#             checks are estimates and *do* produce false positives, so this
+#             tier is explicitly adjudicable via `lint_ack`.
+#   info      a measured fact requiring no action (e.g. an ack that matched
+#             nothing because the issue was already fixed).
+#
+# `errors` / `warnings` keep their historical meaning so every existing caller
+# and test stays correct: warnings lists every advisory that has NOT been
+# adjudicated yet.
+SEVERITY_BLOCKER = "blocker"
+SEVERITY_ADVISORY = "advisory"
+SEVERITY_INFO = "info"
+
+# Warning codes that are pure measurements rather than judgements.
+INFO_CODES = frozenset({"LINT_ACK_UNUSED"})
+
+# Warning codes that a human may legitimately adjudicate as intentional.
+# Anything not listed here and not in INFO_CODES defaults to advisory too, so
+# a newly added warning is adjudicable without touching this table.
+BLOCKING_CODES = frozenset({
+    "ASSET_MISSING", "CJK_KINSHOKU", "COMPOSED_METADATA", "CONTRAST",
+    "FOOTER_POS", "FONT_SIZE", "FREEFORM_RECT", "GRID_COLUMN", "ICON_NAME",
+    "LAYOUT_REPETITION", "LAYOUT_VARIETY", "NOTES_COVERAGE", "OUT_OF_CANVAS",
+    "PALETTE", "RESEARCH_LEDGER", "RICHCARD_OVERFLOW", "SAFE_AREA",
+    "SHADOW_VALUE", "SHAPE_KIND", "TABLE_SHAPE", "TEXT_OVERFLOW",
+    "WEB_CREDIT",
+})
+
+
+def severity_of(code, is_error):
+    """Tier of a diagnostic code. Errors are always blockers."""
+    if is_error:
+        return SEVERITY_BLOCKER
+    if code in INFO_CODES:
+        return SEVERITY_INFO
+    return SEVERITY_ADVISORY
+
+
+def _apply_acks(warns, acks, blocker_codes):
+    """Split warnings into adjudicated (`acked`) and still open.
+
+    An ack is a record that a human looked at one specific advisory and
+    decided it was intentional. Three rules make it an adjudication rather
+    than a mute button:
+
+    * a written `reason` is mandatory — a bare suppression is rejected;
+    * only advisories can be acked; a blocker is fixed at the source, and an
+      ack aimed at one is reported back as a complaint;
+    * an ack that matches nothing is reported as info, so stale adjudications
+      surface instead of silently accumulating.
+
+    Returns (kept, acked, complaints).
+    """
+    valid, complaints = [], []
+    for ack in acks or []:
+        if not isinstance(ack, dict):
+            complaints.append({"slide": 0, "code": "LINT_ACK_INVALID",
+                               "msg": f"lint_ack 条目必须是对象，收到 {type(ack).__name__}"})
+            continue
+        code = str(ack.get("code") or "").strip()
+        reason = str(ack.get("reason") or "").strip()
+        if not code:
+            complaints.append({"slide": 0, "code": "LINT_ACK_INVALID",
+                               "msg": "lint_ack 条目缺少 code"})
+            continue
+        if not reason:
+            complaints.append({
+                "slide": 0, "code": "LINT_ACK_INVALID",
+                "msg": f"lint_ack「{code}」缺少 reason：裁定必须写明为何它不是问题"})
+            continue
+        if code in blocker_codes:
+            complaints.append({
+                "slide": 0, "code": "LINT_ACK_ON_BLOCKER",
+                "msg": f"lint_ack 不能豁免阻断错误「{code}」："
+                       "阻断项必须修源头（改 DSL / 补内容），不能靠裁定放过"})
+            continue
+        valid.append((code, ack.get("slide"), reason))
+
+    kept, acked, used = [], [], set()
+    for w in warns:
+        hit = None
+        for idx, (code, slide, reason) in enumerate(valid):
+            if w["code"] != code:
+                continue
+            if slide in (None, 0, ""):
+                hit = (idx, reason)
+                break
+            try:
+                same_slide = int(slide) == int(w["slide"])
+            except (TypeError, ValueError):
+                same_slide = False
+            if same_slide:
+                hit = (idx, reason)
+                break
+        if hit:
+            used.add(hit[0])
+            rec = dict(w)
+            rec["acked_reason"] = hit[1]
+            acked.append(rec)
+        else:
+            kept.append(w)
+
+    for idx, (code, slide, reason) in enumerate(valid):
+        if idx not in used:
+            scope = f"第 {slide} 页" if slide not in (None, 0, "") else "全篇"
+            complaints.append({
+                "slide": 0, "code": "LINT_ACK_UNUSED",
+                "msg": f"lint_ack「{code}」({scope}) 未匹配任何诊断，"
+                       "可能已修复或 code 拼写有误，建议清理"})
+    return kept, acked, complaints
+
+
 def _shadow_invalid(node):
     """True when a node explicitly declares an unsupported shadow value."""
     raw = node.get("shadow")
@@ -800,4 +918,34 @@ def lint_deck(deck):
     # Closing-consistency gate: page-number order and leftover placeholder /
     # debug markers in on-stage text. Warning-level and layout-agnostic.
     _closing_gate(deck, all_warn)
-    return {"ok": len(all_err) == 0, "errors": all_err, "warnings": all_warn}
+
+    # Severity tiers + human adjudication of advisories. Blockers are tagged
+    # first (they can never be suppressed); the remaining warnings are split
+    # into adjudicated and still-open by the deck's `lint_ack` records.
+    acks = deck.get("lint_ack") or []
+    if isinstance(acks, dict):          # tolerate a single record, not a list
+        acks = [acks]
+    open_warn, acked, ack_complaints = _apply_acks(all_warn, acks, BLOCKING_CODES)
+    all_warn = open_warn
+
+    for item in all_err:
+        item["severity"] = severity_of(item["code"], True)
+    for item in all_warn + ack_complaints:
+        item["severity"] = severity_of(item["code"], False)
+    all_warn += ack_complaints
+
+    extras = [w for w in all_warn if w["severity"] == SEVERITY_ADVISORY]
+    blockers = [e for e in all_err if e["severity"] == SEVERITY_BLOCKER]
+    summary = {
+        "blockers": len(blockers),
+        "advisories": len(extras),
+        "infos": len([w for w in all_warn if w["severity"] == SEVERITY_INFO]),
+        "acked": len(acked),
+    }
+    return {
+        "ok": len(blockers) == 0,
+        "errors": all_err,
+        "warnings": all_warn,
+        "acked": acked,
+        "severity_summary": summary,
+    }

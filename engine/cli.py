@@ -50,9 +50,13 @@ def _verify_report(deck, result):
     """Human-readable acceptance report aggregating every lint gate.
 
     Covers layout, geometry integrity and the closing-consistency gate in one
-    read, mirroring the final QA sign-off before a deck ships.
+    read, mirroring the final QA sign-off before a deck ships. Diagnostics are
+    grouped by severity tier so a reader can separate "must fix" from "needs a
+    human call" from "just a measurement".
     """
     errors, warnings = result["errors"], result["warnings"]
+    acked = result.get("acked") or []
+    summary = result.get("severity_summary") or {}
     lines = [f"FreePPT verify — {len(deck['slides'])} slide(s)", "=" * 52]
 
     def emit(items, badge, heading):
@@ -64,16 +68,44 @@ def _verify_report(deck, result):
             for it in group:
                 lines.append(f"  {badge} {where:>9}  {it['code']}: {it['msg']}")
 
-    emit(errors, "[E]", "ERRORS — build-blocking")
-    emit(warnings, "[W]", "WARNINGS — advisory (never block build)")
+    def tier(items, want):
+        return [it for it in items if it.get("severity") == want]
+
+    blockers = tier(errors, "blocker")
+    advisories = tier(warnings, "advisory")
+    infos = tier(warnings, "info")
+
+    emit(blockers, "[B]", "BLOCKERS — build refused until fixed at the source")
+    emit(advisories, "[A]", "ADVISORIES — needs a human call (see lint_ack)")
+    emit(infos, "[I]", "INFOS — measurements, no action needed")
+
+    if acked:
+        lines.append(f"ADJUDICATED ({len(acked)}) — reviewed and accepted as-is")
+        for slide, group in sorted(_group_by_slide(acked).items()):
+            where = f"slide {slide}" if slide else "deck"
+            for it in group:
+                lines.append(f"  [ok] {where:>9}  {it['code']}: "
+                             f"{it.get('acked_reason', '')}")
+
+    if summary:
+        lines.append("-" * 52)
+        lines.append(
+            f"{summary.get('blockers', 0)} blocker / "
+            f"{summary.get('advisories', 0)} advisory / "
+            f"{summary.get('infos', 0)} info / "
+            f"{summary.get('acked', 0)} adjudicated")
 
     lines.append("-" * 52)
-    if errors:
-        lines.append(f"FAIL — {len(errors)} error(s) must be fixed before build")
-    elif warnings:
-        lines.append(f"PASS — no errors; {len(warnings)} advisory warning(s) to review")
+    if blockers:
+        lines.append(f"FAIL — {len(blockers)} blocking error(s) must be fixed before build")
+    elif advisories:
+        lines.append(f"PASS — 0 blockers; {len(advisories)} advisor"
+                     f"{'y' if len(advisories) == 1 else 'ies'} awaiting a call")
+    elif acked:
+        lines.append(f"PASS — 0 blockers, 0 open advisories; "
+                     f"{len(acked)} adjudicated with reasons")
     else:
-        lines.append("PASS — no errors, no warnings")
+        lines.append("PASS — 0 blockers, 0 advisories, nothing adjudicated")
     return "\n".join(lines)
 
 

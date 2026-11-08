@@ -16,6 +16,7 @@ dist/
 # local scratch output (example .pptx files ARE part of the repo)
 /out/
 /tmp/
+/scratch/
 *.tmp.pptx
 *.bak
 
