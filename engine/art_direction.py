@@ -86,6 +86,14 @@ def _o(x, y, d, fill, **kw):
     return n
 
 
+def _ic(x, y, size, name, color, **kw):
+    """Native-shape icon node (offline, editable, theme-accent tinted)."""
+    n = {"t": "icon", "name": name, "color": str(color).upper(),
+         "rect": [round(x, 1), round(y, 1), round(size, 1), round(size, 1)]}
+    n.update({k: v for k, v in kw.items() if v is not None})
+    return n
+
+
 def _rc(x, y, w, h, blocks, fill=None, border=None, pad=24, **kw):
     n = {"t": "richcard", "blocks": blocks, "padding": pad}
     if fill:
@@ -185,6 +193,80 @@ def _motif(S, x, y, scale=1.0, variant=0):
             for i in range(3)] + [
            _d(x + i * 50 * s, y, 1, S["line"], vertical=True, h=80 * s)
            for i in range(4)]
+
+
+# ---------------------------------------------------------------------------
+# offline speaker-notes generation (deterministic; no LLM, no network)
+# ---------------------------------------------------------------------------
+
+# Connective tissue for turning bullet content into spoken prose. The notes
+# restate only what the page already contains — they never invent data — so a
+# deck stays reproducible and the presenter gets a ready, on-message script.
+_NOTE_OPENERS = ["首先", "其次", "再次", "另外", "还有一点", "最后要强调的是"]
+
+
+def _speaker_notes(page, arch, ctx):
+    """Build a presentable, deterministic speaker script from page content."""
+    kind = page.get("kind", "content")
+    book = ctx.get("book", {})
+    title = _head(page)
+    parts = []
+
+    if kind == "cover":
+        parts.append("各位好，今天分享的是《" + str(book.get("title", "本书")) + "》。")
+        if book.get("subtitle"):
+            parts.append("这本书围绕「" + book["subtitle"] + "」展开。")
+        if page.get("lead"):
+            parts.append(str(page["lead"]))
+        parts.append("下面我们正式进入内容。")
+        return "".join(parts)
+
+    if kind == "chapter":
+        no = str(page.get("no") or f"{ctx['idx'] + 1:02d}")
+        parts.append("接下来进入第 " + no + " 部分：" + title + "。")
+        if page.get("en"):
+            parts.append("这一章对应的英文主题是 " + str(page["en"]) + "。")
+        if page.get("lead"):
+            parts.append(str(page["lead"]))
+        parts.append("我们先建立整体认识，再逐个展开关键概念。")
+        return "".join(parts)
+
+    if kind == "closing":
+        parts.append("最后做一个收束。" + (title + "。" if title else ""))
+        if page.get("quote"):
+            parts.append("留一句话给大家：" + str(page["quote"]))
+        parts.append("建议把今天的要点带回实际工作，挑一条立刻实践。谢谢大家。")
+        return "".join(parts)
+
+    if kind == "quote" or page.get("quote"):
+        parts.append("这一页想传达的核心观点是：" + str(_quote(page)) + "。")
+        att = page.get("attribution") or book.get("author")
+        if att:
+            parts.append("这句话出自" + str(att) + "，值得结合自身处境体会。")
+        return "".join(parts)
+
+    # generic content page: title lead-in, then each point as spoken prose
+    if title:
+        parts.append("这一页的主题是「" + title + "」。")
+    if page.get("lead"):
+        parts.append(str(page["lead"]))
+    pts = _points(page)
+    real = [pt for pt in pts if pt.get("head") or pt.get("body")][:4]
+    for i, pt in enumerate(real):
+        lead = _NOTE_OPENERS[min(i, len(_NOTE_OPENERS) - 1)]
+        if pt.get("head") and pt.get("body"):
+            parts.append(lead + "是" + pt["head"] + "，" + pt["body"])
+        elif pt.get("body"):
+            parts.append(lead + "，" + pt["body"])
+        elif pt.get("head"):
+            parts.append(lead + "看" + pt["head"])
+    if page.get("value") or page.get("kpi"):
+        parts.append("关键数字是 " + str(page.get("value") or page.get("kpi"))
+                     + ("（" + str(page.get("label")) + "）" if page.get("label") else ""))
+    if not real and not page.get("lead"):
+        parts.append("我们结合这一页的结构，梳理其中的逻辑关系与重点。")
+    parts.append("讲解时可以结合实际案例，帮助大家理解。")
+    return "".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -609,6 +691,120 @@ def a_table_board(p, S, c):
     return kids, S["paper"], "light", "dense"
 
 
+# Deterministic icon cycle for card archetypes (no semantic guessing, no rng).
+ICON_CYCLE = ["target", "chart", "bulb", "gear", "shield", "users", "clock",
+              "rocket", "book", "flag", "search", "layers", "check", "folder"]
+
+
+def _card_icon(i, color):
+    return ICON_CYCLE[i % len(ICON_CYCLE)]
+
+
+def a_glass_panel(p, S, c):
+    """Frosted-glass cards over a dark gradient (the benchmark's hero language)."""
+    pts = _points(p)[:3]
+    n = max(1, len(pts))
+    kids = [_t(64, 60, 1080, _head(p), 36, S["ondark"], max_h=80,
+               min_size=26, weight="bold", on=S["deep"])]
+    kids += _motif(S, 1090, 66, 0.8, 2)
+    gap = 30
+    cw = (W - 128 - gap * (n - 1)) / n
+    cy, chh = 196, 388
+    for i, pt in enumerate(pts):
+        cx = 64 + i * (cw + gap)
+        card = _b(cx, cy, cw, chh, S["white"], opacity=8,
+                  border=S["white"], border_opacity=20, radius=16)
+        inner = [_ic(32, 34, 64, _card_icon(i, S["accent"]), S["accent"])]
+        ty = 128
+        if pt["head"]:
+            hn = _t(32, ty, cw - 64, pt["head"], 24, S["ondark"],
+                    max_h=72, min_size=18, weight="bold", on=S["deep"])
+            inner.append(hn)
+            ty += hn["rect"][3] + 14
+        if pt["body"]:
+            inner.append(_t(32, ty, cw - 64, pt["body"], 17, S["ondark"],
+                            max_h=chh - (ty - 0) - 28, min_size=17,
+                            opacity=80, on=S["deep"]))
+        card["children"] = inner
+        kids.append(card)
+    if p.get("note"):
+        kids.append(_t(64, 610, 1100, p["note"], 16, S["soft"],
+                       max_h=44, on=S["deep"]))
+    kids += _chrome(S, c, 1060, 666, on=S["deep"], align="right", w=160)
+    return kids, S["deep"], "dark", "dense"
+
+
+def a_icon_grid(p, S, c):
+    """Light card grid, each cell led by a native editable icon."""
+    pts = _points(p)[:4]
+    n = max(1, len(pts))
+    kids = [_t(64, 56, 1100, _head(p), 36, S["ink"], max_h=76,
+               min_size=26, weight="bold", on=S["paper"])]
+    kids += _motif(S, 1100, 64, 0.7, 3)
+    gap = 28
+    if n <= 3:
+        cw = (W - 128 - gap * (n - 1)) / n
+        cols, rows = n, 1
+    else:
+        cw = (W - 128 - gap) / 2
+        cols, rows = 2, 2
+    chh = 200 if rows == 1 else 214
+    cy0 = 168
+    for i, pt in enumerate(pts):
+        col, row = (i % cols, i // cols)
+        cx = 64 + col * (cw + gap)
+        cy = cy0 + row * (chh + gap)
+        card = _b(cx, cy, cw, chh, S["card"], border=S["line"], radius=14)
+        inner = [_ic(28, 28, 58, _card_icon(i, S["accent"]), S["accent"])]
+        ty = 104
+        if pt["head"]:
+            hn = _t(28, ty, cw - 56, pt["head"], 22, S["ink"],
+                    max_h=56, min_size=18, weight="bold", on=S["card"])
+            inner.append(hn)
+            ty += hn["rect"][3] + 8
+        if pt["body"]:
+            inner.append(_t(28, ty, cw - 56, pt["body"], 17, S["body"],
+                            max_h=chh - ty - 20, min_size=17, on=S["card"]))
+        card["children"] = inner
+        kids.append(card)
+    kids += _chrome(S, c, 64, 666, on=S["paper"])
+    return kids, S["paper"], "light", "dense"
+
+
+def a_numbered_cards(p, S, c):
+    """Editorial numbered cards with an accent rail (strong serif-magazine feel)."""
+    pts = _points(p)[:3]
+    n = max(1, len(pts))
+    kids = [_t(64, 58, 1080, _head(p), 36, S["ink"], max_h=80,
+               min_size=26, weight="bold", on=S["paper"])]
+    kids += _motif(S, 1090, 64, 0.8, 1)
+    gap = 28
+    cw = (W - 128 - gap * (n - 1)) / n
+    cy, chh = 184, 404
+    for i, pt in enumerate(pts):
+        cx = 64 + i * (cw + gap)
+        card = _b(cx, cy, cw, chh, S["card"], border=S["line"], radius=12)
+        inner = [
+            _b(0, 0, 6, chh, S["accent"]),  # accent rail
+            _t(28, 28, 120, f"{i + 1:02d}", 54, S["accent"], decor=True,
+               weight="bold", on=S["card"]),
+        ]
+        ty = 118
+        if pt["head"]:
+            hn = _t(28, ty, cw - 56, pt["head"], 23, S["ink"],
+                    max_h=64, min_size=18, weight="bold", on=S["card"])
+            inner.append(hn)
+            ty += hn["rect"][3] + 14
+        if pt["body"]:
+            inner.append(_t(28, ty, cw - 56, pt["body"], 17, S["body"],
+                            max_h=chh - ty - 24, min_size=17, on=S["card"]))
+        card["children"] = inner
+        kids.append(card)
+    kids += _source(S, p, 64, 628, 760, on=S["paper"])
+    kids += _chrome(S, c, 1060, 660, on=S["paper"], align="right", w=160)
+    return kids, S["paper"], "light", "dense"
+
+
 ARCHETYPES = {
     "cover-editorial": {"density": "airy", "build": a_cover_editorial},
     "chapter-opener": {"density": "airy", "build": a_chapter_opener},
@@ -624,7 +820,16 @@ ARCHETYPES = {
     "closing-echo": {"density": "airy", "build": a_closing_echo},
     "chart-story": {"density": "mid", "build": a_chart_story},
     "table-board": {"density": "dense", "build": a_table_board},
+    # Card-system archetypes (post-benchmark): registered as valid layouts but
+    # kept out of the default shuffle so legacy decks stay byte-identical. They
+    # enter the candidate pool only when compose(..., card_system=True).
+    "glass-panel": {"density": "dense", "build": a_glass_panel, "card": True},
+    "icon-grid": {"density": "dense", "build": a_icon_grid, "card": True},
+    "numbered-cards": {"density": "dense", "build": a_numbered_cards, "card": True},
 }
+
+# The card-system pool, used only when explicitly enabled.
+CARD_ARCHETYPES = ["glass-panel", "icon-grid", "numbered-cards"]
 
 # A single 12+2 archetype file can only carry so many pages before the
 # pigeonhole principle forces repeats. Beyond the cap, chapter pages are
@@ -653,6 +858,8 @@ DEFAULT_PREFS = ["editorial-spread", "margin-notes", "offset-triptych",
 # archetypes that genuinely need several content blocks to look intentional
 MIN_POINTS = {"offset-triptych": 3, "grid-mosaic": 3,
               "stair-list": 3, "timeline-ribbon": 3}
+# card-system archetypes need a couple of real blocks to read as intentional
+MIN_POINTS.update({"glass-panel": 2, "icon-grid": 2, "numbered-cards": 2})
 
 
 def chapter_of(index, boundaries):
@@ -660,13 +867,17 @@ def chapter_of(index, boundaries):
     return sum(1 for b in boundaries if index >= b)
 
 
-def plan_archetypes(pages, rng):
+def plan_archetypes(pages, rng, card_system=False):
     """Greedy diversity, chapter-aware.
 
     Within a chapter: prefer unused archetypes, never repeat a neighbour.
     Across chapters the used-set resets, so a long deck can reuse an
     archetype legitimately as long as each chapter stays varied. Pages that
     carry native chart/table data are routed to the matching archetype first.
+
+    When card_system is True, the card archetypes (glass/icon/numbered) join
+    the candidate pool for ordinary content pages; they remain excluded from
+    the default path so legacy output is byte-identical.
     """
     prefs = []
     for p in pages:
@@ -678,6 +889,8 @@ def plan_archetypes(pages, rng):
         if p.get("table"):
             cand = ["table-board"] + [a for a in cand if a != "table-board"]
         n = len(_points(p))
+        if card_system and p.get("kind") not in ("cover", "chapter", "closing"):
+            cand = [a for a in CARD_ARCHETYPES if MIN_POINTS.get(a, 0) <= n] + cand
         cand = [a for a in cand if MIN_POINTS.get(a, 0) <= n]
         if not cand:
             cand = list(DEFAULT_PREFS)
@@ -729,8 +942,15 @@ def _style(derived, base):
     }
 
 
-def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None):
-    """Return (deck DSL, provenance ledger). Pure function of its inputs."""
+def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
+            card_system=False, speaker_notes=True):
+    """Return (deck DSL, provenance ledger). Pure function of its inputs.
+
+    card_system opt-in: adds the glass-panel / icon-grid / numbered-cards
+    archetypes to the planning pool. Off by default to preserve determinism.
+    speaker_notes: generate an offline speaker script for every page (a page's
+    own `notes` field always wins). Default on for composed decks.
+    """
     book = notes.get("book") or {}
     pages = notes.get("pages") or []
     if not pages:
@@ -794,8 +1014,11 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None):
     seed = seed or hashlib.sha256((book.get("title", "") + raw +
                                    (ledger.get("cover_sha256", ""))).encode()).hexdigest()[:16]
     rng = random.Random(int(seed, 16))
-    plan = plan_archetypes(pages, rng)
+    plan = plan_archetypes(pages, rng, card_system=card_system)
     S = _style(derived, base)
+    # In card mode, dark slides may borrow the base theme's signature gradient
+    # (derived themes inherit the base visual tokens unless they override them).
+    theme_grad = T.get_theme(base)["visual"].get("background_gradient")
 
     slides = []
     for i, (page, arch) in enumerate(zip(pages, plan)):
@@ -808,6 +1031,12 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None):
             "role": page.get("kind", "content"),
             "children": kids,
         }
+        if card_system and tone == "dark" and theme_grad:
+            slide["gradient"] = "theme"
+        # A page may carry its own verbatim notes; otherwise the offline
+        # generator derives a deterministic spoken script from its content.
+        if speaker_notes:
+            slide["notes"] = page.get("notes") or _speaker_notes(page, arch, ctx)
         # Research demand and provenance pass through to the slide level so
         # the lint gate can verify them (the engine itself stays offline).
         if page.get("research") is not None:
@@ -833,6 +1062,8 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None):
             "long_deck_forced": forced and len(pages) > CHAPTER_PAGE_CAP,
             "motif": S["motif"],
             "cover": ledger.get("cover_path"),
+            "card_system": bool(card_system),
+            "speaker_notes": bool(speaker_notes),
             "engine_version": 3,
         },
     }
@@ -854,6 +1085,8 @@ def main(argv=None):
     p.add_argument("--cover")
     p.add_argument("--base", default="magazine")
     p.add_argument("--seed")
+    p.add_argument("--card-system", action="store_true",
+                   help="enable glass-panel / icon-grid / numbered-cards archetypes")
     p.add_argument("--out")
     p.add_argument("--ledger")
     args = ap.parse_args(argv)
@@ -861,7 +1094,7 @@ def main(argv=None):
     notes_path = os.path.abspath(args.notes)
     notes = json.load(open(notes_path, encoding="utf-8"))
     deck, ledger = compose(notes, os.path.dirname(notes_path), args.cover,
-                           args.base, args.seed)
+                           args.base, args.seed, card_system=args.card_system)
     out = json.dumps(deck, ensure_ascii=False, indent=2) + "\n"
     if args.out:
         open(args.out, "w", encoding="utf-8").write(out)

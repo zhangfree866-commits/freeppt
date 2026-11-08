@@ -24,7 +24,7 @@
 | `assets_base` | string | 图片相对路径的基准目录 |
 | `slides` | array | 页面数组，必填 |
 | `composed` | bool | 是否由 `art_direction.compose()` 产出；开启分章版式多样性硬闸门与研究台账校验 |
-| `art_direction` | object | 原型序列、seed、去重统计、`chapter_boundaries`、`chapters`、`long_deck_forced` |
+| `art_direction` | object | 原型序列、seed、去重统计、`chapter_boundaries`、`chapters`、`long_deck_forced`、`card_system`、`speaker_notes` |
 | `derived_theme` | object | 封面图派生主题规格（含 semantic / palette_extra / source） |
 | `typography` | object | `kinsoku`（默认 true）、字体回退栈、`latin_cjk_spacing` |
 | `_cli_brief` | object | `cli.py make` 的原始要点记录，`no_llm: true` |
@@ -47,10 +47,12 @@ image_text / process / timeline / closing`。
 | `tone` | `"light" \| "dark"` | 决定默认文字色 |
 | `surface` | hex | 显式指定整页底色 |
 | `background` | object | `{image, overlay}`，支持封面图与蒙层 |
-| `archetype` | string | 构图原型 id（composed deck 必填，相邻页不得相同；共 14 种，含 chart-story / table-board） |
+| `gradient` | object/string | 整页背景渐变 `{stops:[{color,pos,opacity?}],angle}`（angle 单位 1/60000 度）；字符串 `"theme"` 解析为当前主题的 `background_gradient`（仅 magazine/tech/oriental 有定义） |
+| `archetype` | string | 构图原型 id（composed deck 必填，相邻页不得相同；共 17 种 = 14 常规 + glass-panel / icon-grid / numbered-cards 三个卡片原型，后三者仅 `card_system` 开启时入池，含 chart-story / table-board） |
 | `density` | string | 疏密标记，全篇不得完全一致 |
 | `research` | bool/string | 该页需要外部研究；为真时必须附 `sources` 或 `source`，否则 RESEARCH_LEDGER 阻断 |
 | `sources` | array | 研究来源台账 `[{title, url, publisher}]`，每项须有 title 且至少有 url 或 publisher |
+| `notes` | string | 演讲者备注，编译为 notesSlide；compose 默认离线生成（只重组本页文字），可显式覆盖，`speaker_notes:false` 关闭 |
 | `children` | array | 绝对定位节点；子节点 `rect` 以父节点左上角为局部原点 |
 
 ## 3. 节点类型
@@ -65,12 +67,30 @@ image_text / process / timeline / closing`。
 | `chart` | 原生图表 | `kind, categories, series, colors, legend`；`chart_insight` 页须给 `source`；创作链路经 chart-story 原型产出 |
 | `table` | 原生表格 | `headers:[...], rows:[[...]]`，可选 `header_fill/header_color/body_color/zebra/border`；行列数必须一致（TABLE_SHAPE）；创作链路经 table-board 原型产出 |
 | `shape` | 几何形 | `kind: rect/oval/roundrect, fill, rotate, opacity` |
+| `icon` | 程序化原生图标 | `name`（14 规范名 + 27 别名，见 `engine/icons.py`）、`size`/`width`/`height`、`color`（默认主题 accent）、`rotate`；恒正方形，非法 name 触发 ICON_NAME |
 | `divider` | 分隔线 | `color, thickness, vertical` |
 | `spacer` | 占位 | 高度 0 |
 
-freeform 节点通用可选字段：`rect`（必填）、`fill`、`border`、`rotate`、
-`opacity`（0–100，写入 OOXML alpha）、`valign`、`on`（声明文字底色，用于 WCAG
-对比度校验）、`decor`（装饰元素，不参与部分内容规则）、`bleed`（出血）。
+freeform 节点通用可选字段：`rect`（必填）、`fill`、`border`、`border_opacity`
+（描边不透明度 0–100）、`gradient`（渐变填充，与 fill 同时存在时渐变优先）、
+`rotate`、`opacity`（0–100，写入 OOXML alpha；形状/文字 run/描边各有独立 alpha 通道）、
+`valign`、`on`（声明文字底色，用于 WCAG 对比度校验）、`decor`（装饰元素，不参与部分内容规则）、`bleed`（出血）。
+
+### 3.1 视觉原语（渐变 / alpha / 图标）
+
+- **渐变 `gradient`**：`{"stops":[{"color":"#1E3A5F","pos":0},{"color":"#1C1917","pos":1}],"angle":90}`。
+  编译为真实 OOXML `a:gradFill`，angle 以 1/60000 度计（90° = 5400000，自上而下）；
+  色标可选 `opacity`（0–100）。页面级写 `"theme"` 哨兵时由 layout 解析为主题 token，
+  主题未定义则视为无渐变（旧主题默认平面，保证零回归）。
+- **三类 alpha**：形状填充 `opacity` → `solidFill/srgbClr/a:alpha`；文字 run `opacity` →
+  `rPr/solidFill/.../a:alpha`；描边 `border_opacity` → `ln/solidFill/.../a:alpha`。
+  取值 0–100，编译为 val = opacity × 1000。毛玻璃卡典型值：白填充 `opacity:8` +
+  白描边 `border_opacity:20`。
+- **图标 `icon`**：`{"t":"icon","name":"gear","size":56}`。14 个图标（target/chart/
+  check/bulb/gear/shield/users/clock/folder/rocket/book/flag/search/layers）在 100×100
+  逻辑网格上用 MSO 原生形状拼合，零素材、可编辑、主题 accent 单色驱动；`resolve(name)`
+  负责 trim/大小写归一与 27 个语义别名解析。图标无显式 width 时按 `size`（默认 56）
+  取正方形，布局不会把它拉扁。
 
 ## 4. 五阶段与硬闸门
 
@@ -102,9 +122,12 @@ freeform 节点通用可选字段：`rect`（必填）、`fill`、`border`、`ro
 | `RESEARCH_LEDGER` | 页面声明了 research 但没有可用来源台账 |
 | `TABLE_SHAPE` | 原生表格缺 headers/rows 或行列数不一致 |
 | `CJK_KINSHOKU` | 换行处违反避头尾禁则或拆开 `——` / `……` |
+| `ICON_NAME` | `icon` 节点的 `name` 在图标库（含别名）中解析不到 |
+| `NOTES_COVERAGE` | 开启讲稿覆盖（composed deck 且 `speaker_notes` 未关）的页面缺 `notes` |
 
 **警告级（不阻断）**：`ACTION_TITLE`、`DENSITY_FLAT`、`LONG_DECK_FORCED`、`CLICHE`、`WEAK_CLAIM`
-（后两者来自 `content_ai.check_content()`）。
+（后两者来自 `content_ai.check_content()`）、`NOTES_THIN`（讲稿不足 40 字）、
+`CONTENT_DENSITY`（composed 内容页可见文字 < 60 字；封面/章节/封底/引文/图表/表格原型豁免）。
 
 ## 6. 中文排版
 

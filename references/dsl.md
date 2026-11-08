@@ -17,7 +17,9 @@
 }
 ```
 - `layout`: `rows`（纵向）/ `cols`（横向）/ `stack`（绝对定位，少见）
-- 容器可设 `gap`（24|32）、`padding`、`fill`（背景色）、`radius`、`border`。
+- 容器可设 `gap`（24|32）、`padding`、`fill`（背景色）、`radius`、`border`、`border_opacity`（描边不透明度 0–100）。
+- 渐变：容器或页面可写 `gradient:{"stops":[{"color":"#1E3A5F","pos":0},{"color":"#1C1917","pos":1}],"angle":90}`，编译为真实 OOXML 渐变填充（角度单位 1/60000 度，90° 即自上而下）；页面写字符串 `"theme"` 时解析为当前主题内置的标志性渐变（仅 magazine/tech/oriental 三主题有定义，其余主题视为无渐变）。
+- 透明度：形状 `opacity`（填充 0–100）、文字 run `opacity`、描边 `border_opacity` 分别注入 OOXML alpha；毛玻璃卡典型写法为白填充 `opacity:8` + 白描边 `border_opacity:20`。
 
 ## 节点类型
 - `text`: `{"t":"text","text":"…","size":20,"weight":"bold|regular","color":"#061F32","align":"left","wrap":true}`
@@ -61,6 +63,12 @@
 ## shape（原生形状，流程图/徽标）
 `{"t":"shape","kind":"oval|chevron|arrow|roundrect","size":58,"fill":"#08A6F6","text":"01"}`
 
+## icon（程序化原生图标，零素材）
+`{"t":"icon","name":"gear","size":56,"color":"#08A6F6"}`
+- 图标在 100×100 逻辑网格上用 PowerPoint 原生形状拼合，可编辑、可改色，无位图/SVG 素材与授权面。
+- `name` 支持 14 个规范名（target/chart/check/bulb/gear/shield/users/clock/folder/rocket/book/flag/search/layers）与 27 个语义别名（如 `goal`→target、`risk`→shield、`kpi`→chart），权威列表见 `engine/icons.py` 的 `ALIASES`。
+- 非法名字触发 `ICON_NAME` 错误；布局保证图标恒为正方形，无显式 width 时按 `size`（默认 56）取正方形，不会被行宽拉扁。
+
 ## richcard（单形状多段文本，可整体做动画）
 ```json
 {"t":"richcard","fill":"#FFFFFF","border":"#E5E7EB","padding":24,"_name":"card1",
@@ -103,12 +111,13 @@ deck 可写成模板形式，`slides:[{template,data}]`，由 engine/templates.p
 }
 ```
 
-- **slide 级**：`composition:"freeform"` 关闭固定骨架；`tone`（light/dark）决定默认文字色；`surface` 指定整页底色；`archetype` 标记构图原型；`density`（airy/mid/dense）记录疏密节奏；`research` 声明研究需求、`sources` 附来源台账。`composed:true` 会启用分章版式多样性校验与研究台账校验。
+- **slide 级**：`composition:"freeform"` 关闭固定骨架；`tone`（light/dark）决定默认文字色；`surface` 指定整页底色；`gradient` 指定整页背景渐变（或写 `"theme"` 用主题渐变，与 `surface` 二选一）；`archetype` 标记构图原型；`density`（airy/mid/dense）记录疏密节奏；`research` 声明研究需求、`sources` 附来源台账；`notes` 是该页演讲者备注（字符串），compose 未显式给定时会按页面已有文字离线生成。`composed:true` 会启用分章版式多样性校验与研究台账校验。
 - **节点级 `rect:[x,y,w,h]`**：freeform 下每个节点必填；子节点坐标**以父矩形左上角为局部原点**，布局时换算为绝对坐标。文本节点高度由分词换行实测自动收缩，不需要手工算。
-- **自由画布新增字段**：`rotate`（旋转角度）、`opacity`（填充不透明度 0–100）、`valign`（top/middle/bottom）、`on`（声明文字所在底色，用于 WCAG 对比度校验）、`decor`（装饰性文字，豁免字号/对比度）、`bleed`（允许出血、豁免越界）、divider 的 `vertical`/`thickness`、box 的 `kind:"roundrect"`/`radius`。
+- **自由画布新增字段**：`rotate`（旋转角度）、`opacity`（填充不透明度 0–100）、`border_opacity`（描边不透明度 0–100）、`gradient`（渐变填充，与 fill 同时存在时渐变优先）、`valign`（top/middle/bottom）、`on`（声明文字所在底色，用于 WCAG 对比度校验）、`decor`（装饰性文字，豁免字号/对比度）、`bleed`（允许出血、豁免越界）、divider 的 `vertical`/`thickness`、box 的 `kind:"roundrect"`/`radius`。
 - **box 带 fill 在 freeform 下会被真实渲染为色块**（旧母版里 box 仅作透明布局容器，行为不变）。
-- **lint 规则切换**：freeform 页仍强制越界、缺 rect、文本/卡片溢出、最小字号、对比度、调色板自洽、图片资产与网图来源、TABLE_SHAPE；不再套用 SAFE_AREA / DENSITY / GAP / TITLE_SIZE / REGIONS / CARD_CHARS 这些母版教条。全篇另查 `LAYOUT_REPETITION`（相邻页同原型）、分章 `LAYOUT_VARIETY`（每章内原型种类不足）、`RESEARCH_LEDGER`（research 页缺来源台账）、`DENSITY_FLAT`（密度无起伏，警告）。
+- **lint 规则切换**：freeform 页仍强制越界、缺 rect、文本/卡片溢出、最小字号、对比度、调色板自洽（含渐变色标与图标色）、图片资产与网图来源、TABLE_SHAPE、`ICON_NAME`（图标名非法）；不再套用 SAFE_AREA / DENSITY / GAP / TITLE_SIZE / REGIONS / CARD_CHARS 这些母版教条。全篇另查 `LAYOUT_REPETITION`（相邻页同原型）、分章 `LAYOUT_VARIETY`（每章内原型种类不足）、`RESEARCH_LEDGER`（research 页缺来源台账）、`DENSITY_FLAT`（密度无起伏，警告）；composed deck 还查 `NOTES_COVERAGE`（缺演讲者备注，错误）、`NOTES_THIN`（备注不足 40 字，警告）、`CONTENT_DENSITY`（内容页可见文字 < 60 字，警告，封面/章节/封底/引文/图表/表格原型豁免）。
 - **长 deck 护栏**：单个扁平文件超过 24 页且无 `kind:"chapter"` 章节页时，compose 直接 `COMPOSE BLOCKED`；分章后每章独立计算多样性预算，跨章可复用原型。`allow_long_deck:true` 可显式绕过但会产生 `LONG_DECK_FORCED` 警告，build 仍需 `--force` 且产物带 `FreePPTForcedBuildMarker`。
 - **数据原语**：notes 页面携带 `chart`（kind/categories/series）或 `table`（headers/rows）时，自动路由到 chart-story / table-board 原型，编译为原生可编辑图表/表格。
-- **生成方式**：`engine/art_direction.py` 按内容语义 + seed 逐页选 14 种原型之一，`engine/cover_style.py` 从参考封面派生 `derived_theme`；两者都只产出标准 DSL，后续仍走同一套 layout → lint → build 管线。
-- CLI：`python3 engine/cli.py compose notes.json --cover cover.jpg --out deck.json --ledger style.json`；单独派生主题用 `cli.py style cover.jpg --book "书名"`。示例见 `examples/notes_renqing_mianzi.json` 与 `examples/deck_notes_composed.json`。
+- **生成方式**：`engine/art_direction.py` 按内容语义 + seed 逐页选 17 种原型之一（14 个常规原型 + 玻璃卡 `glass-panel` / 图标网格 `icon-grid` / 编号卡 `numbered-cards` 三个卡片原型），`engine/cover_style.py` 从参考封面派生 `derived_theme`；两者都只产出标准 DSL，后续仍走同一套 layout → lint → build 管线。
+- **两个 compose 开关**：`--card-system`（或 `card_system:true`）把三个卡片原型纳入候选池并让深色卡片页自动套主题渐变，默认关闭以保持历史产物逐字节不变；`speaker_notes:false` 关闭演讲者备注自动生成（默认开启，生成逻辑只重组本页已有文字、不编造数据）。
+- CLI：`python3 engine/cli.py compose notes.json --cover cover.jpg --out deck.json --ledger style.json [--card-system]`；单独派生主题用 `cli.py style cover.jpg --book "书名"`。示例见 `examples/notes_renqing_mianzi.json` 与 `examples/deck_notes_composed.json`。

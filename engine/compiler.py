@@ -10,6 +10,7 @@ from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
 from pptx.oxml.ns import qn
 from .layout import _img_path
 from . import themes as _themes
+from . import icons as _icons
 
 EMU_PER_PX = 914400 / 96.0
 ALIGN = {"left": PP_ALIGN.LEFT, "center": PP_ALIGN.CENTER, "right": PP_ALIGN.RIGHT}
@@ -100,6 +101,8 @@ def add_text(slide, node, color_default):
         r.font.bold = bold
         r.font.color.rgb = rgb(color)
         _apply_typeface(r, heading=heading)
+        if node.get("opacity") is not None:
+            _set_run_alpha(r, node["opacity"])
 
 
 def _text_w_px(text, size):
@@ -158,16 +161,13 @@ def add_rect(slide, node):
     radius = _effective_radius(node)
     kind = MSO_SHAPE.ROUNDED_RECTANGLE if radius and radius > 0 else MSO_SHAPE.RECTANGLE
     shape = slide.shapes.add_shape(kind, E(x), E(y), E(w), E(max(h, 1)))
-    fill = node.get("fill")
-    if fill:
-        shape.fill.solid()
-        shape.fill.fore_color.rgb = rgb(fill)
-    else:
-        shape.fill.background()
+    _apply_fill(shape, node)
     border = node.get("border")
     if border:
         shape.line.color.rgb = rgb(border)
         shape.line.width = Pt(1)
+        if node.get("border_opacity") is not None:
+            _set_line_alpha(shape, node["border_opacity"])
     else:
         shape.line.fill.background()
     shape.shadow.inherit = False
@@ -176,8 +176,6 @@ def add_rect(slide, node):
         shape.adjustments[0] = min(0.16, radius / max(min(w, h), 1))
     if node.get("rotate") is not None:
         shape.rotation = float(node["rotate"])
-    if node.get("opacity") is not None and node.get("fill"):
-        _set_fill_alpha(shape, max(0.0, min(100.0, float(node["opacity"]))))
     return shape
 
 
@@ -206,12 +204,171 @@ def _set_fill_alpha(shape, pct):
     clr.append(alpha)
 
 
+_FILL_TAGS = ("a:noFill", "a:solidFill", "a:gradFill", "a:blipFill",
+              "a:pattFill", "a:grpFill")
+
+
+def _set_gradient(shape, grad):
+    """Inject an OOXML gradFill.
+
+    grad = {"stops": [{"color": "#RRGGBB", "pos": 0..100000,
+                       "opacity": 0..100 (optional)}],
+            "angle": degrees (0 = left-to-right, 90 = top-to-bottom)}
+    Replaces any existing fill on the shape. Deterministic, no network.
+    """
+    spPr = shape._element.spPr
+    for tag in _FILL_TAGS:
+        for el in spPr.findall(qn(tag)):
+            spPr.remove(el)
+    grad_fill = spPr.makeelement(qn("a:gradFill"), {})
+    gs_lst = grad_fill.makeelement(qn("a:gsLst"), {})
+    stops = grad.get("stops") or []
+    n = max(1, len(stops) - 1)
+    for i, st in enumerate(stops):
+        pos = st.get("pos")
+        if pos is None:
+            pos = int(100000 * i / n)
+        gs = gs_lst.makeelement(qn("a:gs"), {"pos": str(int(pos))})
+        clr = gs.makeelement(qn("a:srgbClr"),
+                             {"val": str(st["color"]).lstrip("#").upper()})
+        if st.get("opacity") is not None:
+            clr.append(clr.makeelement(
+                qn("a:alpha"), {"val": str(int(float(st["opacity"]) * 1000))}))
+        gs.append(clr)
+        gs_lst.append(gs)
+    grad_fill.append(gs_lst)
+    angle = int(grad.get("angle", 90))
+    grad_fill.append(grad_fill.makeelement(
+        qn("a:lin"), {"ang": str(angle * 60000), "scaled": "1"}))
+    ln = spPr.find(qn("a:ln"))
+    if ln is not None:
+        ln.addprevious(grad_fill)
+    else:
+        spPr.append(grad_fill)
+    try:
+        shape.shadow.inherit = False
+    except Exception:
+        pass
+
+
+def _apply_fill(shape, node):
+    """Single fill entry point: gradient beats solid; opacity tunes solid."""
+    grad = node.get("gradient")
+    if grad:
+        _set_gradient(shape, grad)
+    elif node.get("fill"):
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = rgb(node["fill"])
+        if node.get("opacity") is not None:
+            _set_fill_alpha(shape, max(0.0, min(100.0, float(node["opacity"]))))
+    else:
+        shape.fill.background()
+
+
+def _set_run_alpha(run, pct):
+    """Inject a:alpha into a text run's solidFill srgbClr (opacity 0..100)."""
+    rPr = run._r.get_or_add_rPr()
+    sf = rPr.find(qn("a:solidFill"))
+    if sf is None:
+        return
+    clr = sf.find(qn("a:srgbClr"))
+    if clr is None:
+        return
+    for old in clr.findall(qn("a:alpha")):
+        clr.remove(old)
+    clr.append(clr.makeelement(
+        qn("a:alpha"), {"val": str(int(max(0.0, min(100.0, float(pct))) * 1000))}))
+
+
+def _set_line_alpha(shape, pct):
+    """Inject a:alpha into a shape outline solidFill (opacity 0..100)."""
+    ln = shape._element.spPr.find(qn("a:ln"))
+    if ln is None:
+        return
+    clr = ln.find(qn("a:solidFill") + "/" + qn("a:srgbClr"))
+    if clr is None:
+        return
+    for old in clr.findall(qn("a:alpha")):
+        clr.remove(old)
+    clr.append(clr.makeelement(
+        qn("a:alpha"), {"val": str(int(max(0.0, min(100.0, float(pct))) * 1000))}))
+
+
 SHAPE_KINDS = {
     "oval": MSO_SHAPE.OVAL,
     "chevron": MSO_SHAPE.CHEVRON,
     "arrow": MSO_SHAPE.RIGHT_ARROW,
     "roundrect": MSO_SHAPE.ROUNDED_RECTANGLE,
 }
+
+# Logical grid shape names (engine.icons specs) -> native MSO autoshape.
+# There is no literal shield in the MSO set; PLAQUE is the closest badge.
+ICON_SHAPES = {
+    "oval": MSO_SHAPE.OVAL,
+    "rect": MSO_SHAPE.RECTANGLE,
+    "roundrect": MSO_SHAPE.ROUNDED_RECTANGLE,
+    "gear6": MSO_SHAPE.GEAR_6,
+    "shield": MSO_SHAPE.PLAQUE,
+    "triangle": MSO_SHAPE.ISOSCELES_TRIANGLE,
+    "diamond": MSO_SHAPE.DIAMOND,
+    "chevron": MSO_SHAPE.CHEVRON,
+}
+
+
+def add_icon(slide, node, color_default):
+    """Render a native-shape icon, scaling the 100x100 logical grid to _rect.
+
+    node: {"t": "icon", "name": <canonical or alias>, "color"? ,
+           "stroke_w"? , "_rect": [x, y, w, h], ...}
+    Every icon is a group of editable autoshapes/lines tinted with one accent
+    color, so it stays fully offline and theme-driven (no bitmap/SVG assets).
+    """
+    from .icons import GRID
+    specs = _icons.specs(node.get("name", ""))
+    if not specs:
+        return None
+    x, y, w, h = node["_rect"]
+    sx, sy = w / GRID, h / GRID
+    color = node.get("color", _sem("accent", "#08A6F6"))
+    # Real geometric subtraction is unavailable through OOXML autoshapes, so a
+    # knock-out is painted solid in a surface-ish highlight color (white by
+    # default, overridable per node) to read as a punched hub/porthole.
+    knock_color = node.get("knock_color", "#FFFFFF")
+    stroke_w = node.get("stroke_w", 1.75)
+    group_shapes = []
+    for sp in specs:
+        if sp.get("k") == "line":
+            conn = slide.shapes.add_connector(
+                1,
+                E(x + sp["x1"] * sx), E(y + sp["y1"] * sy),
+                E(x + sp["x2"] * sx), E(y + sp["y2"] * sy))
+            conn.line.color.rgb = rgb(color)
+            conn.line.width = Pt(stroke_w)
+            group_shapes.append(conn)
+            continue
+        kind = ICON_SHAPES.get(sp["k"], MSO_SHAPE.OVAL)
+        sw, sh = max(1.0, sp["w"] * sx), max(1.0, sp["h"] * sy)
+        autoshape = slide.shapes.add_shape(
+            kind, E(x + sp["x"] * sx), E(y + sp["y"] * sy),
+            E(sw), E(sh))
+        autoshape.shadow.inherit = False
+        if sp.get("rot") is not None:
+            autoshape.rotation = float(sp["rot"])
+        # knock-out: a highlight hub/porthole painted on the glyph beneath it
+        if sp.get("knock"):
+            autoshape.fill.solid()
+            autoshape.fill.fore_color.rgb = rgb(knock_color)
+            autoshape.line.fill.background()
+        elif sp.get("mode") == "stroke":
+            autoshape.fill.background()
+            autoshape.line.color.rgb = rgb(color)
+            autoshape.line.width = Pt(stroke_w)
+        else:
+            autoshape.fill.solid()
+            autoshape.fill.fore_color.rgb = rgb(color)
+            autoshape.line.fill.background()
+        group_shapes.append(autoshape)
+    return group_shapes
 
 
 def add_richcard(slide, node):
@@ -224,21 +381,17 @@ def add_richcard(slide, node):
     sh = slide.shapes.add_shape(kind, E(x), E(y), E(w), E(h))
     if kind == MSO_SHAPE.ROUNDED_RECTANGLE:
         sh.adjustments[0] = min(0.16, radius / max(min(w, h), 1))
-    if node.get("fill"):
-        sh.fill.solid()
-        sh.fill.fore_color.rgb = rgb(node["fill"])
-    else:
-        sh.fill.background()
+    _apply_fill(sh, node)
     if node.get("border"):
         sh.line.color.rgb = rgb(node["border"])
         sh.line.width = Pt(1)
+        if node.get("border_opacity") is not None:
+            _set_line_alpha(sh, node["border_opacity"])
     else:
         sh.line.fill.background()
     sh.shadow.inherit = False
     if node.get("rotate") is not None:
         sh.rotation = float(node["rotate"])
-    if node.get("opacity") is not None and node.get("fill"):
-        _set_fill_alpha(sh, max(0.0, min(100.0, float(node["opacity"]))))
     _name(sh, node)
     pad = node.get("padding", 24)
     avail_w = w - 2 * pad
@@ -262,6 +415,8 @@ def add_richcard(slide, node):
         r.font.bold = b.get("weight") == "bold"
         r.font.color.rgb = rgb(b.get("color", _sem("body", "#44546A")))
         _apply_typeface(r, heading=_is_heading(b, bsize))
+        if b.get("opacity") is not None:
+            _set_run_alpha(r, b["opacity"])
     return sh
 
 
@@ -270,19 +425,20 @@ def add_shape_node(slide, node, color_default):
     kind = node.get("kind", "oval")
     sh = slide.shapes.add_shape(SHAPE_KINDS.get(kind, MSO_SHAPE.OVAL),
                                 E(x), E(y), E(w), E(max(h, 10)))
-    fill = node.get("fill", color_default)
-    sh.fill.solid()
-    sh.fill.fore_color.rgb = rgb(fill)
+    eff = dict(node)
+    if "fill" not in eff and "gradient" not in eff:
+        eff["fill"] = color_default
+    _apply_fill(sh, eff)
     if node.get("border"):
         sh.line.color.rgb = rgb(node["border"])
         sh.line.width = Pt(1)
+        if node.get("border_opacity") is not None:
+            _set_line_alpha(sh, node["border_opacity"])
     else:
         sh.line.fill.background()
     sh.shadow.inherit = False
     if node.get("rotate") is not None:
         sh.rotation = float(node["rotate"])
-    if node.get("opacity") is not None:
-        _set_fill_alpha(sh, max(0.0, min(100.0, float(node["opacity"]))))
     _name(sh, node)
     label = node.get("text")
     if label:
@@ -421,6 +577,17 @@ def _name(shape, node):
             pass
 
 
+def add_notes(slide, text):
+    """Write speaker notes to the slide's notes master placeholder."""
+    if not text:
+        return
+    notes_tf = slide.notes_slide.notes_text_frame
+    notes_tf.text = str(text)
+    for para in notes_tf.paragraphs:
+        for r in para.runs:
+            _apply_typeface(r, heading=False)
+
+
 def render_node(slide, node, color_default, freeform=False):
     t = node["t"]
     if t in ("card", "box"):
@@ -446,6 +613,8 @@ def render_node(slide, node, color_default, freeform=False):
         add_shape_node(slide, node, color_default)
     elif t == "richcard":
         add_richcard(slide, node)
+    elif t == "icon":
+        add_icon(slide, node, color_default)
 
 
 def build_pptx(deck, out_path, force=False):
@@ -467,13 +636,16 @@ def build_pptx(deck, out_path, force=False):
             pic_el = pic._element
         bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width,
                                     prs.slide_height)
-        bg.fill.solid()
-        bg.fill.fore_color.rgb = rgb(root.get("fill", _sem("surface_light", "#FFFFFF")))
+        if root.get("gradient") and pic_el is None:
+            _set_gradient(bg, root["gradient"])
+        else:
+            bg.fill.solid()
+            bg.fill.fore_color.rgb = rgb(root.get("fill", _sem("surface_light", "#FFFFFF")))
+            if pic_el is not None:
+                # image cover: make the base rect a semi-transparent navy overlay
+                _set_fill_alpha(bg, root.get("bg_overlay", 55))
         bg.line.fill.background()
         bg.shadow.inherit = False
-        if pic_el is not None:
-            # image cover: make the base rect a semi-transparent navy overlay
-            _set_fill_alpha(bg, root.get("bg_overlay", 55))
         # send overlay rect and bg image to back
         for el in ([bg._element] + ([pic_el] if pic_el is not None else [])):
             el.getparent().remove(el)
@@ -488,6 +660,9 @@ def build_pptx(deck, out_path, force=False):
                 add_divider(slide, fl)
             elif fl["t"] == "text":
                 add_text(slide, fl, text_default)
+        # speaker notes (offline deliverable; never rendered on the slide)
+        if sdef.get("notes"):
+            add_notes(slide, sdef["notes"])
         metas.append({"anims": sdef.get("anims"),
                       "transition": sdef.get("transition")})
     apply_animations(prs, metas)

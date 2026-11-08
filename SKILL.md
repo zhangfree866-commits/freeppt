@@ -2,11 +2,11 @@
 name: freeppt
 display_name: "FreePPT"
 display_name_en: "FreePPT"
-description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、零散要点或读书笔记（可附参考封面图），产出逐页创作编排、原生可编辑的 .pptx；内置 14 种构图原型（含原生图表/表格页）、封面图配色派生、16 套视觉主题、8 类企业固定报告、长 deck 分章护栏、研究来源台账校验、纯 CLI 出片与已有 pptx 文字改稿。触发词：FreePPT、freeppt、做PPT、生成PPT、改PPT、读书笔记、幻灯片、pptx。"
+description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、零散要点或读书笔记（可附参考封面图），产出逐页创作编排、原生可编辑的 .pptx；内置 17 种构图原型（含原生图表/表格页与玻璃卡/图标卡/编号卡）、渐变与毛玻璃 alpha、离线原生图标库、演讲者备注自动生成、封面图配色派生、16 套视觉主题、8 类企业固定报告、长 deck 分章护栏、研究来源台账与内容密度校验、纯 CLI 出片与已有 pptx 文字改稿。触发词：FreePPT、freeppt、做PPT、生成PPT、改PPT、读书笔记、幻灯片、pptx。"
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
-description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 14 layout archetypes (including native chart/table pages), chapter-based long-deck guardrails and a research-source ledger, while structured reports use 16 themes, 10 masters and 8 templates."
+description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, an offline native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261108.4"
+version: "20261108.5"
 author: "张三峯"
 ---
 
@@ -84,7 +84,7 @@ python3 tools/benchmark.py --out bench.json
 | 层 | 新机制 |
 |---|---|
 | 画布 | `composition: freeform`：每个节点自带 `rect:[x,y,w,h]` 绝对定位，子矩形以父矩形左上角为局部原点；不再自动加标题横线与页脚带 |
-| 构图 | `engine/art_direction.py` 14 种原型（封面编辑式 / 章节页 / 跨页编辑式 / 整页引文 / 错位三栏 / 左右对开 / 页边批注 / 阶梯列表 / 数字焦点 / 不等网格 / 时间轴 / 封底呼应 / 原生图表叙事 / 原生表格看板），按内容语义候选 + 确定性 seed 逐页分配，相邻页不重样；页面携带 `chart`/`table` 数据时自动路由到对应数据原型，编译为原生可编辑图表与表格 |
+| 构图 | `engine/art_direction.py` 17 种原型（封面编辑式 / 章节页 / 跨页编辑式 / 整页引文 / 错位三栏 / 左右对开 / 页边批注 / 阶梯列表 / 数字焦点 / 不等网格 / 时间轴 / 封底呼应 / 原生图表叙事 / 原生表格看板，以及卡片体系的玻璃卡 `glass-panel` / 图标网格 `icon-grid` / 编号卡 `numbered-cards`），按内容语义候选 + 确定性 seed 逐页分配，相邻页不重样；页面携带 `chart`/`table` 数据时自动路由到对应数据原型，编译为原生可编辑图表与表格 |
 | 参考图 | `engine/cover_style.py` 从图书封面/品牌主视觉提取主色（按彩度×占比×中间调打分，避开大面积纸底色）、浅色纸底、主色块位置 → 派生调色板、字体气质与贯穿全篇的母题（band / vertical-rule / arc / dots / grid） |
 | 几何 | 文本节点高度由自身分词换行实测得出，长文自动缩字号；栏数/格数随实际内容块数变化，不填空卡片 |
 | 色彩一致性 | 派生主题由 `themes.build_derived()` 注册，PALETTE 规则仍强制所有色落在派生调色板内 |
@@ -100,6 +100,20 @@ python3 tools/benchmark.py --out bench.json
 - notes 页面可声明 `research:true`（或研究问题字符串）与 `sources:[{title,url,publisher}]`；compose 透传到 slide 级。
 - lint 规则 `RESEARCH_LEDGER`：声明了 research 的页必须带来源台账（含 title 且至少有 url 或 publisher），否则阻断 build。引擎本身不联网、不代做研究，研究动作仍是宿主 agent 在 Step 2 的职责，这条规则把该职责变成可判定的交付物。
 
+**视觉设计系统（对标商业生成式 PPT 的设计语言，仍纯离线、原生可编辑）**：
+
+- **渐变填充**：节点或页面可写 `gradient:{stops:[{color,pos,opacity?}],angle}`，编译为真实 OOXML `a:gradFill`（角度单位 1/60000 度）；页面写 `gradient:"theme"` 时解析为当前主题的标志性渐变。`magazine`/`tech`/`oriental` 三主题内置调色板内安全的背景渐变，其余主题默认平面（零回归）。
+- **三类透明度（毛玻璃基础）**：形状填充 `opacity`、文字 run `opacity`、描边 `border_opacity`，统一注入 OOXML `a:alpha`。玻璃卡典型值为白填充 `opacity:8` + 白描边 `border_opacity:20`。
+- **离线原生图标库**（`engine/icons.py`）：14 个图标用 PowerPoint 原生形状在 100×100 逻辑网格拼合，另带 27 个语义别名（`goal`→target、`risk`→shield 等）；DSL 节点 `{"t":"icon","name":"gear"}`，主题 accent 单色驱动，无位图/SVG 素材、无授权面；`ICON_NAME` 校验图标名，布局保证图标恒为正方形不被拉伸。
+- **卡片体系（opt-in）**：`compose --card-system`（或 `card_system:true`）才把玻璃卡/图标网格/编号卡三个原型纳入编排候选，默认关闭以保持历史产物逐字节不变。深色卡片页在该模式下自动套用主题渐变背景。
+- 以上原语贯穿 layout / lint / compiler / debug_render 全链路；调试接触表（`debug_render.py`）支持渐变近似、alpha 混合与图标/圆角绘制。
+
+**演讲者备注（speaker notes）**：
+
+- compose 默认对每页生成**离线、确定性**的讲稿（`_speaker_notes`）：只把该页已有的标题/导语/要点/引文重组为口语化串场，不编造数据；页面自带 `notes` 字段时原样优先。讲稿编译为真实 `notesSlide`，不出现在画面上。
+- lint：开启讲稿覆盖时（composed deck 默认），缺讲稿触发阻断规则 `NOTES_COVERAGE`；讲稿不足 40 字给 `NOTES_THIN` 提示（非阻断）。可用 `speaker_notes:false` 关闭生成。
+- 内容密度：composed 内容页可见文字少于 60 字时给 `CONTENT_DENSITY` 警告，引导结合研究台账向页均 150–250 字靠拢；封面/章节/封底/引文/图表/表格原型豁免，警告不阻断构建。
+
 **新增硬闸门（阶段 4，不通过就回到 DSL 返工）**：
 
 - `LAYOUT_REPETITION`：相邻两页构图原型相同 → 错误；
@@ -108,6 +122,9 @@ python3 tools/benchmark.py --out bench.json
 - `TABLE_SHAPE`：原生表格缺 headers/rows 或行列数不一致 → 错误；
 - `LONG_DECK_FORCED`：长 deck 护栏被显式绕过 → 警告（非阻断）；
 - `DENSITY_FLAT`：全篇密度一致 → 警告；
+- `NOTES_COVERAGE`：开启讲稿覆盖的页缺演讲者备注 → 错误；`NOTES_THIN`：讲稿不足 40 字 → 警告；
+- `ICON_NAME`：icon 节点引用了图标库不存在的名字 → 错误；
+- `CONTENT_DENSITY`：composed 内容页可见文字过薄（< 60 字）→ 警告（非阻断，特殊/数据原型豁免）；
 - `FREEFORM_RECT` / `OUT_OF_CANVAS` / `TEXT_OVERFLOW` / `RICHCARD_OVERFLOW` / `CONTRAST` / `PALETTE` / `FONT_SIZE`：几何、溢出、可读性、配色照旧拦；
 - 自由画布**不受**旧母版教条约束（安全区、固定间距、底部留白、32–40px 标题），但仍可用 `on` 字段声明文字底色以做 WCAG 对比度校验。
 
@@ -186,17 +203,20 @@ deck 顶层用 `"theme": "<id>"` 选主题（兼容旧 `"scenario"`，theme 优�
 
 ## 已具备能力
 
-- 原生图形/文本/图表 + KPI + 卡片 + 原生形状流程图（oval/chevron/arrow）。
+- 原生图形/文本/图表 + KPI + 卡片 + 原生形状流程图（oval/chevron/arrow）+ 程序化原生图标节点（`icon`，14 图标 / 27 别名，零素材可编辑）。
 - **自动配图（三通道，优先级从高到低）**：
   1. 程序化矢量 `engine/vector_art.py`：PNG+可编辑 SVG，10 个 motif（growth/dashboard/network/funnel/cycle/shield + matrix/org/map/venn），无水印无授权问题；
   2. 网页授权图：`engine/web_search.py` 按关键词检索 Wikimedia Commons（出直链/授权/作者/来源页，可 `--manifest` 直接产清单，`--permissive` 只留 CC/CC0/公有领域），再由 `engine/web_images.py` 下载到本地 + `sources.json` 台账，lint 强制来源标注（WEB_CREDIT）；
   3. 生成式 ImageGen（需显式选用）：标识由生成服务方按法规添加，FreePPT 不修改、不擦除；仅在前两条通道无法覆盖写实场景时使用。
   封面可用背景图+蒙层；image 节点 center-cover 裁剪。
 - **母版版式库**：10 套模板（cover/agenda/section/three_cards/kpi_row/chart_insight/image_text/process/timeline/closing），写数据即出片，见 engine/templates.py。
-- **自由画布 + 创作式编排**：`composition:freeform` 绝对定位、节点 `rect/rotate/opacity/valign/on/decor/bleed`、竖向分隔线；14 种逐页构图原型、封面图派生配色与母题、版式重复硬拦截、长 deck 分章护栏，见 engine/art_direction.py 与 engine/cover_style.py。
+- **自由画布 + 创作式编排**：`composition:freeform` 绝对定位、节点 `rect/rotate/opacity/border_opacity/valign/on/decor/bleed`、竖向分隔线；17 种逐页构图原型（含玻璃卡/图标网格/编号卡三个 opt-in 卡片原型）、封面图派生配色与母题、版式重复硬拦截、长 deck 分章护栏，见 engine/art_direction.py 与 engine/cover_style.py。
+- **渐变与毛玻璃视觉系统**：节点/页面 `gradient`（含 `"theme"` 哨兵）编译为真实 OOXML `gradFill`；形状/文字/描边三类 alpha 通道统一注入，可做毛玻璃卡；深色卡片页自动套主题渐变。
+- **演讲者备注**：compose 离线确定性生成每页讲稿（只重组页面已有文字，不编造数据），编译为真实 notesSlide；`NOTES_COVERAGE`/`NOTES_THIN` 闸门管覆盖与厚度，`speaker_notes:false` 可关。
 - **原生数据原语**：页面携带 `chart`（kind/categories/series）或 `table`（headers/rows）数据时，compose 自动路由到 chart-story / table-board 原型，编译为 PowerPoint 原生可编辑图表与表格（非贴图、非文本框伪装）；inspect 可回读图表/表格结构。
 - **动画与转场**：slide 级 `transition:"fade"` 与 `anims`（fade / fly-up，按 `_name` 定位），由 engine/animator.py 注入 OOXML（python-pptx 本身不支持）。
-- 离线验收：`python3 engine/debug_render.py deck.json outdir` 出全页 PNG。
+- **内容质量闸门**：`CONTENT_DENSITY` 警告薄内容页（< 60 字，引导向页均 150–250 字靠拢）、`RESEARCH_LEDGER` 拦截有研究标记无来源台账的页、`ICON_NAME` 拦截非法图标名。
+- 离线验收：`python3 engine/debug_render.py deck.json outdir` 出全页 PNG（接触表支持渐变近似、alpha 混合与图标/圆角绘制）。
 
 ### 配图标识合规边界（强制）
 

@@ -5,7 +5,38 @@ import os
 
 from . import layout as layout_mod
 from . import themes as _themes
+from . import icons as _icons
 from .layout import CANVAS_W, CANVAS_H, PAD, _img_path
+
+
+def _gradient_colors(node):
+    """All stop colors declared by a node's gradient (uppercased hex)."""
+    grad = node.get("gradient")
+    if not grad:
+        return []
+    return [str(st.get("color", "")).lstrip("#").upper()
+            for st in grad.get("stops", []) if st.get("color")]
+
+
+def _visible_chars(slide):
+    """Count non-decorative on-slide characters (text + richcard blocks)."""
+    total = 0
+    for node in walk(slide["_root"]):
+        if node.get("decor"):
+            continue
+        if node.get("t") == "text":
+            total += len("".join(str(node.get("text", "")).split()))
+        elif node.get("t") == "richcard":
+            for b in node.get("blocks", []):
+                total += len("".join(str(b.get("text", "")).split()))
+    return total
+
+
+# Archetypes where low word count is intentional, not a density defect.
+DENSITY_EXEMPT = {
+    "cover-editorial", "chapter-opener", "closing-echo", "quote-bleed",
+    "chart-story", "table-board",
+}
 
 
 def _load_ledger(deck):
@@ -94,7 +125,8 @@ def _lint_freeform_slide(slide, s_idx, th, ledger):
     root = slide["_root"]
     nodes = list(walk(root))
     leaves = [n for n in nodes if n["t"] in (
-        "text", "kpi", "chart", "table", "divider", "image", "shape", "richcard")]
+        "text", "kpi", "chart", "table", "divider", "image", "shape", "richcard",
+        "icon")]
 
     def err(code, msg): errs.append({"slide": s_idx + 1, "code": code, "msg": msg})
     def warn(code, msg): warns.append({"slide": s_idx + 1, "code": code, "msg": msg})
@@ -102,6 +134,8 @@ def _lint_freeform_slide(slide, s_idx, th, ledger):
     for n in nodes:
         if n.get("_freeform_error"):
             err("FREEFORM_RECT", f"{n['t']} {n['_freeform_error']}")
+        if n["t"] == "icon" and not _icons.resolve(n.get("name", "")):
+            err("ICON_NAME", f"未知图标名: {n.get('name')!r}（见 engine.icons 库）")
 
     for n in leaves:
         x, y, w, h = n["_rect"]
@@ -163,9 +197,11 @@ def _lint_freeform_slide(slide, s_idx, th, ledger):
     if palette:
         used = set()
         for n in nodes:
-            for key in ("color", "fill", "border", "text_color", "lcolor", "on"):
+            for key in ("color", "fill", "border", "text_color", "lcolor", "on",
+                        "knock_color"):
                 if n.get(key):
                     used.add(str(n[key]).upper())
+            used |= {c for c in _gradient_colors(n) if c}
             if n["t"] == "richcard":
                 used |= {b.get("color", "").upper()
                          for b in n.get("blocks", []) if b.get("color")}
@@ -200,10 +236,15 @@ def lint_slide(slide, s_idx, sc, ledger=None):
     dark = root["dark"]
     nodes = list(walk(root))
     leaves = [n for n in nodes if n["t"] in (
-        "text", "kpi", "chart", "table", "divider", "image", "shape", "richcard")]
+        "text", "kpi", "chart", "table", "divider", "image", "shape", "richcard",
+        "icon")]
 
     def err(code, msg): errs.append({"slide": s_idx + 1, "code": code, "msg": msg})
     def warn(code, msg): warns.append({"slide": s_idx + 1, "code": code, "msg": msg})
+
+    for n in nodes:
+        if n["t"] == "icon" and not _icons.resolve(n.get("name", "")):
+            err("ICON_NAME", f"未知图标名: {n.get('name')!r}（见 engine.icons 库）")
 
     # 1. canvas bounds
     for n in leaves:
@@ -299,9 +340,11 @@ def lint_slide(slide, s_idx, sc, ledger=None):
     if palette:
         used = set()
         for n in nodes:
-            for key in ("color", "fill", "border", "text_color", "lcolor"):
+            for key in ("color", "fill", "border", "text_color", "lcolor",
+                        "knock_color"):
                 if n.get(key):
                     used.add(n[key].upper())
+            used |= {c for c in _gradient_colors(n) if c}
             if n["t"] == "richcard":
                 used |= {b.get("color", "").upper() for b in n.get("blocks", []) if b.get("color")}
             if n["t"] == "chart":
@@ -455,4 +498,36 @@ def lint_deck(deck):
                 "slide": 0, "code": "LONG_DECK_FORCED",
                 "msg": "长 deck 护栏被 allow_long_deck 显式绕过；"
                        "build 时仍需 --force，且产物会带 FORCED_BUILD 标记"})
+
+    # Speaker-notes coverage. Triggered by an explicit deck flag or by a
+    # composed deck whose art-direction metadata promised generated scripts.
+    meta = deck.get("art_direction") or {}
+    require_notes = bool(deck.get("require_notes")) or (
+        deck.get("composed") and meta.get("speaker_notes"))
+    if require_notes:
+        for i, s in enumerate(deck["slides"]):
+            text = (s.get("notes") or "").strip()
+            if not text:
+                all_err.append({
+                    "slide": i + 1, "code": "NOTES_COVERAGE",
+                    "msg": "该页缺少演讲者备注（notes）；开启讲稿覆盖后每页都需有讲稿"})
+            elif len(text) < 40:
+                all_warn.append({
+                    "slide": i + 1, "code": "NOTES_THIN",
+                    "msg": f"演讲者备注仅 {len(text)} 字，建议补充到 40 字以上的完整讲稿"})
+
+    # Content-density advisory (composed decks only, warning-level so it never
+    # blocks a valid sparse page). The benchmark decks average 200+ on-slide
+    # chars per content page; a thin page signals under-developed research.
+    if deck.get("composed"):
+        for i, s in enumerate(deck["slides"]):
+            arch = s.get("archetype", "")
+            if arch in DENSITY_EXEMPT:
+                continue
+            chars = _visible_chars(s)
+            if chars < 60:
+                all_warn.append({
+                    "slide": i + 1, "code": "CONTENT_DENSITY",
+                    "msg": f"内容页仅 {chars} 个可见字，建议结合研究台账补充阐述、"
+                           "案例或数据，向页均 150-250 字的信息密度靠拢"})
     return {"ok": len(all_err) == 0, "errors": all_err, "warnings": all_warn}

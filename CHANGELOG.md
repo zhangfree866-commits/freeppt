@@ -3,6 +3,62 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261108.5] - 2026-11-08
+
+Design-system and content-depth upgrade, driven by a head-to-head benchmark
+against commercial AI-generated decks (see `docs/BENCHMARK.md`). Closes the two
+hard gaps found there — flat visuals with no design-system layer, and thin
+on-slide content with no speaker script. Everything stays offline and
+deterministic; the default pipeline output is byte-identical and all legacy
+tests remain green (new visual languages are opt-in).
+
+### Added — visual primitives
+- OOXML gradient fills (`engine/compiler.py::_set_gradient`): a node or slide
+  `gradient: {stops:[{color,pos,opacity?}], angle}` compiles to a real
+  `a:gradFill` (angle in 1/60000-degree units). A slide may pass
+  `gradient: "theme"` to resolve the active theme's signature gradient.
+- Three independent alpha channels: shape fill `opacity`, text-run `opacity`,
+  and outline `border_opacity`, injected as OOXML `a:alpha` — the basis of
+  frosted-glass cards (e.g. white fill at 8% + white border at 20%).
+- Theme gradient token `visual.background_gradient` (default `None`, so legacy
+  themes keep flat surfaces); `magazine`, `tech` and `oriental` ship
+  palette-safe signature gradients. Gradient stop colors are enforced by the
+  PALETTE lint gate.
+- `gradient`/`opacity`/`icon` branches across the full pipeline: layout
+  propagation, lint palette + bounds checks, and the offline PNG contact-sheet
+  renderer (`debug_render.py`, with real alpha blending approximation).
+
+### Added — native offline icon system
+- `engine/icons.py`: 14 icons composed from native PowerPoint autoshapes on a
+  100x100 logical grid, plus 27 semantic aliases (`goal`→target, `risk`→shield,
+  …). No bitmap/SVG assets — fully editable, theme-accent tinted, zero network
+  and licensing surface. New DSL node `{"t":"icon","name":...}` with a
+  dedicated `ICON_NAME` lint rule and square-glyph layout handling.
+
+### Added — card composition archetypes (opt-in)
+- `glass-panel` (dark gradient + frosted-glass icon cards), `icon-grid`
+  (light 1xN / 2x2 icon cards) and `numbered-cards` (editorial ordinal cards
+  with an accent rail). The archetype pool grows from 14 to 17, but the new
+  three enter the planning shuffle only with `compose --card-system`
+  (`card_system=true`), preserving legacy determinism.
+
+### Added — speaker notes and content depth
+- Offline, deterministic speaker-script generator (`_speaker_notes`): restates
+  each page's own title/lead/points/quote into spoken prose without inventing
+  data; a page's verbatim `notes` always wins. Scripts compile to real
+  `notesSlide` parts. New lint: `NOTES_COVERAGE` (blocking, when notes are
+  required) and `NOTES_THIN` (advisory under 40 chars).
+- `CONTENT_DENSITY` advisory lint: composed content pages under 60 visible
+  characters warn and point toward the 150-250 chars/page benchmark band;
+  cover/section/closing/quote/chart/table archetypes are exempt. Works
+  alongside the existing blocking `RESEARCH_LEDGER` source rule.
+
+### Tests
+- `tests/test_visual_primitives.py`: 34 new tests (icon library/aliases,
+  gradient OOXML + angle units, all three alpha channels, notes slides,
+  card archetypes, theme gradients, density and research lint). Full suite
+  grows from 117 to 151 tests, all green.
+
 ## [20261108.4] - 2026-11-08
 
 Long-deck guardrails, research ledger, and native data archetypes. Responds

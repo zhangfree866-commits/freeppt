@@ -66,6 +66,10 @@ _BASE_VISUAL = {
     "density": "strict",            # strict | relaxed
     "grid_columns": 12,
     "chart_gap_width": 80,
+    # Optional signature background gradient for dark slides. None means the
+    # theme keeps a flat surface (legacy themes stay pixel-identical). Stops
+    # only reference colors already in the theme palette so lint PALETTE passes.
+    "background_gradient": None,
 }
 
 
@@ -119,6 +123,10 @@ THEMES["magazine"] = _theme(
         radius=2, shadow="none", line_spacing=1.32,
         density="relaxed", accent_budget=0.06,
         chart_colors=["#9A3412", "#1E3A5F", "#C8A27C"],
+        # editorial deep-indigo to warm-ink vertical gradient for dark slides
+        background_gradient={
+            "stops": [{"color": "#1E3A5F", "pos": 0},
+                      {"color": "#1C1917", "pos": 100000}], "angle": 90},
     ),
     extra_palette=["#C8A27C", "#FFFFFF"],
 )
@@ -137,6 +145,10 @@ THEMES["tech"] = _theme(
         radius=10, shadow="soft", line_spacing=1.18,
         accent_budget=0.10,
         chart_colors=["#0891B2", "#2563EB", "#7DD3FC"],
+        # cool navy-to-near-black tech gradient for dark slides
+        background_gradient={
+            "stops": [{"color": "#2563EB", "pos": 0},
+                      {"color": "#0A1628", "pos": 100000}], "angle": 90},
     ),
     extra_palette=["#7DD3FC", "#FFFFFF"],
 )
@@ -175,6 +187,10 @@ THEMES["oriental"] = _theme(
         radius=4, shadow="none", line_spacing=1.34,
         density="relaxed", accent_budget=0.06,
         chart_colors=["#8C2F28", "#2F4858", "#B89B5E"],
+        # dai-blue to ink-tea humanistic gradient for dark slides
+        background_gradient={
+            "stops": [{"color": "#2F4858", "pos": 0},
+                      {"color": "#22303C", "pos": 100000}], "angle": 90},
     ),
     extra_palette=["#B89B5E", "#FFFFFF", "#FDFBF6", "#F3ECE0"],
 )

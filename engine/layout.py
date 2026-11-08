@@ -139,6 +139,11 @@ def hug_h(node, width):
         if node.get("kind") == "oval":
             return float(node.get("size", min(width, 56)))
         return width * 0.5  # chevron / arrow
+    if t == "icon":
+        # Fixed-size glyph: explicit height, else square size, else a sane cap.
+        if node.get("height"):
+            return float(node["height"])
+        return float(node.get("size", min(width, 56)))
     if t == "richcard":
         pad = node.get("padding", 24)
         inner = width - 2 * pad
@@ -177,6 +182,10 @@ def hug_w(node, height):
     if node["t"] == "kpi":
         return sum(char_w(c, node.get("vsize", node.get("size", 96)))
                    for c in str(node.get("value", "")))
+    if node["t"] == "icon":
+        if node.get("width"):
+            return float(node["width"])
+        return float(node.get("size", 56))
     return 0.0
 
 
@@ -218,7 +227,8 @@ def place(node, x, y, w, h):
     if t == "kpi":
         node["_content_h"] = round(kpi_h(node, w), 1)
         return
-    if t in ("chart", "divider", "spacer", "image", "shape", "richcard", "table"):
+    if t in ("chart", "divider", "spacer", "image", "shape", "richcard",
+             "table", "icon"):
         return
 
     p = node.get("padding", 16)
@@ -249,8 +259,15 @@ def place(node, x, y, w, h):
             heights[i] = max(0.0, free * f / tf) if tf and free > 0 else 0.0
         oy = cy
         for k, kh in zip(kids, heights):
-            kw = float(k["width"]) if "width" in k else cw
-            kx = cx if "width" not in k else cx + (cw - kw) * {
+            if "width" in k:
+                kw = float(k["width"])
+            elif k["t"] == "icon":
+                # icons are fixed-size square glyphs, never stretched to row width
+                kw = float(k.get("width") or k.get("size", 56))
+            else:
+                kw = cw
+            sized = "width" in k or k["t"] == "icon"
+            kx = cx if not sized else cx + (cw - kw) * {
                 "left": 0, "center": 0.5, "right": 1.0
             }.get(k.get("align", "left"), 0)
             place(k, kx, oy, kw, kh)
@@ -316,6 +333,12 @@ def layout_slide(slide):
     stype = slide.get("type", "content")
     bg = slide.get("background") or {}
 
+    # A slide may either carry an explicit gradient dict or the "theme"
+    # sentinel, which resolves to the active theme's signature gradient.
+    grad = slide.get("gradient")
+    if grad == "theme":
+        grad = _themes.get_active()["visual"].get("background_gradient")
+
     if slide.get("composition") == "freeform":
         # No imposed skeleton: no auto title, no rule, no footer band.
         # Every element carries its own absolute rect; the art-direction layer
@@ -327,6 +350,7 @@ def layout_slide(slide):
         kids = slide.get("children", [])
         root = {"t": "slide", "stype": stype, "dark": dark,
                 "composition": "freeform", "fill": fill,
+                "gradient": grad,
                 "bg_image": bg.get("image"), "bg_overlay": bg.get("overlay"),
                 "layout": "rows", "padding": 0, "gap": 0, "children": kids}
         root["_rect"] = [0, 0, CANVAS_W, CANVAS_H]
@@ -338,6 +362,7 @@ def layout_slide(slide):
     dark = stype in ("cover", "section", "closing")
     root = {"t": "slide", "stype": stype, "dark": dark,
             "fill": sem["surface_dark"] if dark else sem["surface_light"],
+            "gradient": grad,
             "bg_image": bg.get("image"),
             "bg_overlay": bg.get("overlay"),
             "layout": "rows", "padding": 0, "gap": 0, "children": []}
