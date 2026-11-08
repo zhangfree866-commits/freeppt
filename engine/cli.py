@@ -111,6 +111,28 @@ def cmd_build(args):
     return 0
 
 
+def cmd_render(args):
+    """Render a deck DSL to a folder of PNG contact sheets (no pptx needed).
+
+    This is the per-page visual readback half of the hand-built freeform loop:
+    edit DSL -> `render` -> look at the PNG -> revise, without opening
+    PowerPoint. Lint is informational here (a --strict caller can gate on it);
+    PNGs are always written so geometry can be inspected even mid-fix.
+    """
+    from engine import debug_render
+    deck = prepare(load(args.deck))
+    result = lint_deck(deck)
+    if not result["ok"]:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        print("RENDER NOTE: lint errors present; PNGs emitted anyway for "
+              "debugging", file=sys.stderr)
+    paths = debug_render.render(deck, args.out_dir)
+    print(f"rendered {len(paths)} slide(s) -> {os.path.abspath(args.out_dir)}")
+    for p in paths:
+        print(p)
+    return 0
+
+
 def cmd_compose(args):
     """Stage 1-2: notes + reference cover -> per-page composed DSL."""
     from engine import art_direction
@@ -270,6 +292,11 @@ def main():
     p_build.add_argument("out")
     p_build.add_argument("--force", action="store_true")
     p_build.set_defaults(func=cmd_build)
+    p_rd = sub.add_parser(
+        "render", help="render a deck DSL to PNG contact sheets (visual readback)")
+    p_rd.add_argument("deck")
+    p_rd.add_argument("out_dir", help="folder to write slideNN.png into")
+    p_rd.set_defaults(func=cmd_render)
     p_cp = sub.add_parser("compose", help="creative page-by-page composition")
     p_cp.add_argument("notes", help="notes JSON (book + pages)")
     p_cp.add_argument("--cover", help="reference cover image (overrides notes)")

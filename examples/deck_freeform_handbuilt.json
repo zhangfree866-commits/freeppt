@@ -1,0 +1,57 @@
+{
+  "theme": "consulting",
+  "composed": false,
+  "slides": [
+    {
+      "type": "cover",
+      "tone": "dark",
+      "composition": "freeform",
+      "children": [
+        {"t": "shape", "kind": "oval", "rect": [1040, -120, 340, 340], "fill": "#08A6F6", "opacity": 12, "decor": true, "bleed": true},
+        {"t": "shape", "kind": "oval", "rect": [1150, 70, 88, 88], "fill": "#08A6F6", "opacity": 85, "decor": true},
+        {"t": "text", "rect": [520, 210, 640, 240], "text": "2026", "size": 190, "color": "#FFFFFF", "on": "#061F32", "weight": "bold", "align": "right", "valign": "middle", "opacity": 12, "decor": true},
+        {"t": "divider", "rect": [100, 116, 4, 30], "color": "#08A6F6", "vertical": true, "thickness": 4},
+        {"t": "text", "rect": [118, 116, 760, 30], "text": "年度经营回顾  ·  ANNUAL REVIEW", "size": 20, "color": "#99BDED", "on": "#061F32"},
+        {"t": "text", "rect": [100, 206, 1000, 76], "text": "规模与质量并进", "size": 54, "color": "#FFFFFF", "on": "#061F32", "weight": "bold"},
+        {"t": "text", "rect": [100, 300, 1000, 56], "text": "2026 财年经营全景回顾", "size": 40, "color": "#FFFFFF", "on": "#061F32", "weight": "bold"},
+        {"t": "text", "rect": [100, 392, 940, 34], "text": "营收持续走高，三大业务协同放量，盈利质量稳步改善", "size": 20, "color": "#99BDED", "on": "#061F32"},
+        {"t": "divider", "rect": [100, 474, 360, 1.5], "color": "#99BDED", "thickness": 1.5},
+        {"t": "text", "rect": [100, 556, 980, 28], "text": "汇报：经营分析组    |    示例数据，仅用于手绘能力验证", "size": 18, "color": "#99BDED", "on": "#061F32"}
+      ]
+    },
+    {
+      "type": "content",
+      "tone": "light",
+      "composition": "freeform",
+      "children": [
+        {"t": "divider", "rect": [60, 52, 4, 26], "color": "#08A6F6", "vertical": true, "thickness": 4},
+        {"t": "text", "rect": [78, 50, 800, 26], "text": "核心指标  ·  KEY METRICS", "size": 18, "color": "#44546A", "on": "#FFFFFF"},
+        {"t": "text", "rect": [60, 86, 1160, 44], "text": "两大核心指标双位数增长", "size": 32, "color": "#061F32", "on": "#FFFFFF", "weight": "bold"},
+        {"t": "divider", "rect": [60, 142, 1160, 1.5], "color": "#E5E7EB", "thickness": 1.5},
+
+        {"t": "shape", "kind": "roundrect", "rect": [60, 196, 568, 368], "fill": "#99BDED", "radius": 12, "opacity": 14, "shadow": "medium"},
+        {"t": "shape", "kind": "roundrect", "rect": [60, 196, 568, 6], "fill": "#08A6F6", "radius": 3, "decor": true},
+        {"t": "shape", "kind": "roundrect", "rect": [552, 224, 52, 52], "fill": "#001965", "radius": 11, "decor": true},
+        {"t": "icon", "name": "chart", "rect": [563, 235, 30, 30], "color": "#FFFFFF", "stroke_w": 2.0, "knock_color": "#FFFFFF"},
+        {"t": "text", "rect": [84, 224, 440, 52], "text": "全年营收（亿元）", "size": 18, "color": "#44546A", "on": "#FFFFFF", "valign": "middle"},
+        {"t": "text", "rect": [84, 304, 520, 72], "text": "5.10", "size": 54, "color": "#061F32", "on": "#FFFFFF", "weight": "bold"},
+        {"t": "divider", "rect": [84, 396, 520, 1.5], "color": "#E5E7EB", "thickness": 1.5},
+        {"t": "text", "rect": [84, 416, 520, 30], "text": "▲  +18.6%  同比", "size": 20, "color": "#177B57", "on": "#FFFFFF", "weight": "bold"},
+        {"t": "text", "rect": [84, 480, 520, 60], "text": "营收持续走高，规模再上台阶", "size": 18, "color": "#44546A", "on": "#FFFFFF"},
+
+        {"t": "shape", "kind": "roundrect", "rect": [652, 196, 568, 368], "fill": "#99BDED", "radius": 12, "opacity": 14, "shadow": "medium"},
+        {"t": "shape", "kind": "roundrect", "rect": [652, 196, 568, 6], "fill": "#08A6F6", "radius": 3, "decor": true},
+        {"t": "shape", "kind": "roundrect", "rect": [1144, 224, 52, 52], "fill": "#001965", "radius": 11, "decor": true},
+        {"t": "icon", "name": "target", "rect": [1155, 235, 30, 30], "color": "#FFFFFF", "stroke_w": 2.0, "knock_color": "#FFFFFF"},
+        {"t": "text", "rect": [676, 224, 440, 52], "text": "归母净利润（亿元）", "size": 18, "color": "#44546A", "on": "#FFFFFF", "valign": "middle"},
+        {"t": "text", "rect": [676, 304, 520, 72], "text": "0.86", "size": 54, "color": "#061F32", "on": "#FFFFFF", "weight": "bold"},
+        {"t": "divider", "rect": [676, 396, 520, 1.5], "color": "#E5E7EB", "thickness": 1.5},
+        {"t": "text", "rect": [676, 416, 520, 30], "text": "▲  +24.1%  同比", "size": 20, "color": "#177B57", "on": "#FFFFFF", "weight": "bold"},
+        {"t": "text", "rect": [676, 480, 520, 60], "text": "利润增速快于营收，增长更有质量", "size": 18, "color": "#44546A", "on": "#FFFFFF"},
+
+        {"t": "text", "rect": [60, 674, 860, 24], "text": "Source：公司财报（示例数据，仅用于手绘能力验证）", "size": 18, "color": "#44546A", "on": "#FFFFFF"},
+        {"t": "text", "rect": [1080, 674, 140, 24], "text": "01 / 02", "size": 18, "color": "#44546A", "on": "#FFFFFF", "align": "right"}
+      ]
+    }
+  ]
+}

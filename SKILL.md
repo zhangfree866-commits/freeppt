@@ -45,6 +45,13 @@ python3 engine/cli.py make "本周完成 3 项交付；满意度提升到 92%" \
 python3 engine/cli.py inspect old.pptx --out structure.json
 python3 engine/cli.py retext old.pptx --map edits.json --out revised.pptx
 
+# freeform 逐页手搓：DSL -> PNG 视觉回读（lint 有问题也照常出图，便于边修边看）
+python3 engine/cli.py render deck.json out_png_dir/
+# 定稿交叉验证：inspect 报告含 picture_count（手搓 deck 须为 0）与 shape_kind_totals
+python3 engine/cli.py inspect out.pptx
+# 手搓 SOP（坐标约定、icon chip、decor/bleed/role 语义标记、双端渲染避坑）见
+# docs/FREEFORM_PLAYBOOK.md，可运行样例见 examples/deck_freeform_handbuilt.json
+
 # 改一个节点就重编译（仍受 lint 闸门约束）
 python3 engine/cli.py patch out.json --set "slides.0.data.title=新结论" --build revised.pptx
 

@@ -12,8 +12,10 @@ This module is the "edit an existing pptx" capability's first, verifiable step.
 """
 
 import os
+from collections import Counter
 
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 
 EMU_PER_PX = 9525  # 96 dpi; python-pptx stores EMU
 
@@ -22,13 +24,40 @@ def _px(v):
     return round(v / EMU_PER_PX, 1) if v is not None else None
 
 
+def _shape_kind(sh):
+    """Classify a shape for the summary counts.
+
+    LINE shapes expose auto_shape_type but raising on access (lesson #91), so
+    the type is branched on shape_type first before any autoshape lookup.
+    """
+    st = sh.shape_type
+    if st == MSO_SHAPE_TYPE.PICTURE:
+        return "PICTURE"
+    if st == MSO_SHAPE_TYPE.LINE:
+        return "LINE connector"
+    if st == MSO_SHAPE_TYPE.AUTO_SHAPE:
+        try:
+            return str(sh.auto_shape_type)
+        except Exception:
+            return "AUTO_SHAPE"
+    return str(st)
+
+
 def inspect(path):
     """Return a JSON-serialisable structural report of a .pptx file."""
     prs = Presentation(path)
     slides = []
+    total_kinds = Counter()
+    total_pictures = 0
     for i, slide in enumerate(prs.slides):
         shapes = []
+        kind_counts = Counter()
         for sh in slide.shapes:
+            kind = _shape_kind(sh)
+            kind_counts[kind] += 1
+            total_kinds[kind] += 1
+            if kind == "PICTURE":
+                total_pictures += 1
             item = {
                 "id": sh.shape_id,
                 "name": sh.name,
@@ -59,11 +88,15 @@ def inspect(path):
                 }
             shapes.append(item)
         slides.append({"slide": i + 1, "shape_count": len(shapes),
+                       "shape_kinds": dict(sorted(kind_counts.items())),
+                       "picture_count": kind_counts.get("PICTURE", 0),
                        "shapes": shapes})
     return {
         "source": os.path.abspath(path),
         "slide_count": len(prs.slides),
         "canvas_px": [_px(prs.slide_width), _px(prs.slide_height)],
+        "picture_count": total_pictures,
+        "shape_kind_totals": dict(sorted(total_kinds.items())),
         "slides": slides,
         "note": "Text replacement keeps the first run's formatting; no DSL round-trip.",
     }
