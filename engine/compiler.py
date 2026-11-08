@@ -361,6 +361,58 @@ def add_chart(slide, node):
     return chart
 
 
+def add_table(slide, node):
+    """Render a native editable table; styling comes from DSL/theme tokens."""
+    x, y, w, h = node["_rect"]
+    headers = node.get("headers", [])
+    rows = node.get("rows", [])
+    ncols = len(headers)
+    if ncols == 0:
+        return None
+    nrows = len(rows) + 1
+    gf = slide.shapes.add_table(nrows, ncols, E(x), E(y), E(w), E(max(h, 60)))
+    _name(gf, node)
+    table = gf.table
+    # disable the built-in banded style so our explicit fills are authoritative
+    try:
+        table.first_row = False
+        table.horz_banding = False
+    except Exception:
+        pass
+    hfill = node.get("header_fill", _sem("surface_dark", "#061F32"))
+    hcolor = node.get("header_color", _sem("ink_on_dark", "#FFFFFF"))
+    body_color = node.get("body_color", _sem("ink", "#061F32"))
+    for j, head in enumerate(headers):
+        cell = table.cell(0, j)
+        cell.fill.solid()
+        cell.fill.fore_color.rgb = rgb(hfill)
+        cell.margin_left = cell.margin_right = E(10)
+        cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        p = cell.text_frame.paragraphs[0]
+        r = p.add_run()
+        r.text = str(head)
+        r.font.size = Pt(16)
+        r.font.bold = True
+        r.font.color.rgb = rgb(hcolor)
+        _apply_typeface(r, heading=True)
+    for i, row in enumerate(rows, start=1):
+        for j in range(ncols):
+            val = row[j] if j < len(row) else ""
+            cell = table.cell(i, j)
+            if node.get("zebra") and i % 2 == 0:
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = rgb(node["zebra"])
+            cell.margin_left = cell.margin_right = E(10)
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            cell.text_frame.word_wrap = True
+            r = cell.text_frame.paragraphs[0].add_run()
+            r.text = str(val)
+            r.font.size = Pt(15)
+            r.font.color.rgb = rgb(body_color)
+            _apply_typeface(r, heading=False)
+    return table
+
+
 def _name(shape, node):
     if node.get("_name"):
         try:
@@ -386,6 +438,8 @@ def render_node(slide, node, color_default, freeform=False):
         _name(add_divider(slide, node), node)
     elif t == "chart":
         add_chart(slide, node)  # name applied inside via graphicFrame
+    elif t == "table":
+        add_table(slide, node)
     elif t == "image":
         _name(add_image(slide, node), node)
     elif t == "shape":
@@ -394,7 +448,7 @@ def render_node(slide, node, color_default, freeform=False):
         add_richcard(slide, node)
 
 
-def build_pptx(deck, out_path):
+def build_pptx(deck, out_path, force=False):
     from .animator import apply_animations
     prs = Presentation()
     prs.slide_width = E(1280)
@@ -437,5 +491,21 @@ def build_pptx(deck, out_path):
         metas.append({"anims": sdef.get("anims"),
                       "transition": sdef.get("transition")})
     apply_animations(prs, metas)
+    if force and deck.get("composed"):
+        # A forced build bypassed the lint gate on purpose. Stamp the artifact
+        # so the bypass is visible in the file itself, not only in shell history.
+        try:
+            prs.core_properties.subject = "FreePPT forced build (lint --force)"
+            first = prs.slides[0]
+            box = first.shapes.add_textbox(E(24), E(692), E(760), E(22))
+            box.name = "FreePPTForcedBuildMarker"
+            run = box.text_frame.paragraphs[0].add_run()
+            run.text = ("FORCED BUILD: lint diagnostics were bypassed with "
+                        "--force; layout quality is not guaranteed.")
+            run.font.size = Pt(10)
+            run.font.color.rgb = rgb(_sem("muted", "#808080"))
+            _apply_typeface(run, heading=False)
+        except Exception:
+            pass
     prs.save(out_path)
     return out_path

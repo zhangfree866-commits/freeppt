@@ -46,6 +46,17 @@ def inspect(path):
                      "name": r.font.name}
                     for p in sh.text_frame.paragraphs for r in p.runs
                 ]
+            if sh.has_table:
+                tbl = sh.table
+                item["table"] = {
+                    "rows": len(tbl.rows), "cols": len(tbl.columns),
+                    "headers": [c.text for c in tbl.rows[0].cells],
+                }
+            if sh.has_chart:
+                item["chart"] = {
+                    "type": str(sh.chart.chart_type),
+                    "series": len(sh.chart.series),
+                }
             shapes.append(item)
         slides.append({"slide": i + 1, "shape_count": len(shapes),
                        "shapes": shapes})

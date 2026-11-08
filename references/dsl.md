@@ -103,10 +103,12 @@ deck 可写成模板形式，`slides:[{template,data}]`，由 engine/templates.p
 }
 ```
 
-- **slide 级**：`composition:"freeform"` 关闭固定骨架；`tone`（light/dark）决定默认文字色；`surface` 指定整页底色；`archetype` 标记构图原型；`density`（airy/mid/dense）记录疏密节奏。`composed:true` 会启用全篇版式多样性校验。
+- **slide 级**：`composition:"freeform"` 关闭固定骨架；`tone`（light/dark）决定默认文字色；`surface` 指定整页底色；`archetype` 标记构图原型；`density`（airy/mid/dense）记录疏密节奏；`research` 声明研究需求、`sources` 附来源台账。`composed:true` 会启用分章版式多样性校验与研究台账校验。
 - **节点级 `rect:[x,y,w,h]`**：freeform 下每个节点必填；子节点坐标**以父矩形左上角为局部原点**，布局时换算为绝对坐标。文本节点高度由分词换行实测自动收缩，不需要手工算。
 - **自由画布新增字段**：`rotate`（旋转角度）、`opacity`（填充不透明度 0–100）、`valign`（top/middle/bottom）、`on`（声明文字所在底色，用于 WCAG 对比度校验）、`decor`（装饰性文字，豁免字号/对比度）、`bleed`（允许出血、豁免越界）、divider 的 `vertical`/`thickness`、box 的 `kind:"roundrect"`/`radius`。
 - **box 带 fill 在 freeform 下会被真实渲染为色块**（旧母版里 box 仅作透明布局容器，行为不变）。
-- **lint 规则切换**：freeform 页仍强制越界、缺 rect、文本/卡片溢出、最小字号、对比度、调色板自洽、图片资产与网图来源；不再套用 SAFE_AREA / DENSITY / GAP / TITLE_SIZE / REGIONS / CARD_CHARS 这些母版教条。全篇另查 `LAYOUT_REPETITION`（相邻页同原型）、`LAYOUT_VARIETY`（原型种类不足）、`DENSITY_FLAT`（密度无起伏，警告）。
-- **生成方式**：`engine/art_direction.py` 按内容语义 + seed 逐页选 12 种原型之一，`engine/cover_style.py` 从参考封面派生 `derived_theme`；两者都只产出标准 DSL，后续仍走同一套 layout → lint → build 管线。
+- **lint 规则切换**：freeform 页仍强制越界、缺 rect、文本/卡片溢出、最小字号、对比度、调色板自洽、图片资产与网图来源、TABLE_SHAPE；不再套用 SAFE_AREA / DENSITY / GAP / TITLE_SIZE / REGIONS / CARD_CHARS 这些母版教条。全篇另查 `LAYOUT_REPETITION`（相邻页同原型）、分章 `LAYOUT_VARIETY`（每章内原型种类不足）、`RESEARCH_LEDGER`（research 页缺来源台账）、`DENSITY_FLAT`（密度无起伏，警告）。
+- **长 deck 护栏**：单个扁平文件超过 24 页且无 `kind:"chapter"` 章节页时，compose 直接 `COMPOSE BLOCKED`；分章后每章独立计算多样性预算，跨章可复用原型。`allow_long_deck:true` 可显式绕过但会产生 `LONG_DECK_FORCED` 警告，build 仍需 `--force` 且产物带 `FreePPTForcedBuildMarker`。
+- **数据原语**：notes 页面携带 `chart`（kind/categories/series）或 `table`（headers/rows）时，自动路由到 chart-story / table-board 原型，编译为原生可编辑图表/表格。
+- **生成方式**：`engine/art_direction.py` 按内容语义 + seed 逐页选 14 种原型之一，`engine/cover_style.py` 从参考封面派生 `derived_theme`；两者都只产出标准 DSL，后续仍走同一套 layout → lint → build 管线。
 - CLI：`python3 engine/cli.py compose notes.json --cover cover.jpg --out deck.json --ledger style.json`；单独派生主题用 `cli.py style cover.jpg --book "书名"`。示例见 `examples/notes_renqing_mianzi.json` 与 `examples/deck_notes_composed.json`。

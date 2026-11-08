@@ -10,7 +10,9 @@ This module replaces that step for creative decks:
 
 Guarantees (all deterministic, no LLM, no network):
   * adjacent pages never reuse an archetype (lint LAYOUT_REPETITION blocks it)
-  * a whole deck needs >= half its pages to be visually distinct
+  * each chapter needs >= half its content pages to be visually distinct;
+    beyond CHAPTER_PAGE_CAP pages a deck MUST declare chapters or compose()
+    refuses to run (the 14-archetype pool cannot carry a long flat file)
   * geometry is derived from the actual text length (auto-fit), not fixed boxes
   * a book cover yields a derived palette/motif that recurs at different
     scales and positions, so the deck feels branded without being repetitive
@@ -526,6 +528,87 @@ def a_closing_echo(p, S, c):
     return kids, S["paper"], "light", "airy"
 
 
+def _explicit_points(page):
+    """Like _points() but without the kind/lead fallback for empty pages."""
+    out = []
+    for it in (page.get("points") or page.get("items") or []):
+        if isinstance(it, str):
+            out.append({"head": "", "body": it})
+        elif isinstance(it, dict):
+            out.append({"head": it.get("head") or it.get("title") or "",
+                        "body": it.get("body") or it.get("text") or ""})
+    return out
+
+
+def a_chart_story(p, S, c):
+    """Native editable chart on the left, conclusion column on the right."""
+    kids = [_t(64, 62, 1080, _head(p), 34, S["ink"], max_h=80,
+               min_size=24, weight="bold", on=S["paper"])]
+    kids += _motif(S, 1090, 68, 0.8, 2)
+    spec = p.get("chart") or {}
+    if spec.get("series"):
+        colors = [S["accent"], S["deep"], S["soft"], S["accent2"]]
+        kids.append({
+            "t": "chart", "rect": [64, 150, 680, 430],
+            "kind": spec.get("kind", "column"),
+            "categories": spec.get("categories", []),
+            "series": spec.get("series", []),
+            "colors": colors[:max(1, len(spec.get("series", [])))],
+            "legend": spec.get("legend", len(spec.get("series", [])) > 1),
+            "_name": "chart1",
+        })
+    else:
+        kids.append(_b(64, 150, 680, 430, S["soft"]))
+        kids.append(_t(92, 330, 620, "未提供 chart 数据（categories/series）",
+                       20, S["muted"], on=S["soft"]))
+    x, y = 800, 160
+    lead = p.get("lead") or ""
+    if lead:
+        n = _t(x, y, 416, lead, 22, S["ink"], max_h=140,
+               weight="bold", on=S["paper"])
+        kids.append(n)
+        y = n["rect"][1] + n["rect"][3] + 24
+    # only real point blocks; no kind/lead fallback (that would duplicate lead)
+    for pt in _explicit_points(p)[:2]:
+        if pt["head"]:
+            n = _t(x, y, 416, pt["head"], 20, S["accent"],
+                   weight="bold", on=S["paper"])
+            kids.append(n)
+            y = n["rect"][1] + n["rect"][3] + 8
+        if pt["body"]:
+            n = _t(x, y, 400, pt["body"], 17, S["body"],
+                   max_h=120, on=S["paper"])
+            kids.append(n)
+            y = n["rect"][1] + n["rect"][3] + 22
+    kids += _source(S, p, 64, 610, 700, on=S["paper"])
+    kids += _chrome(S, c, 1060, 648, on=S["paper"], align="right", w=160)
+    return kids, S["paper"], "light", "mid"
+
+
+def a_table_board(p, S, c):
+    """Native editable table plus a takeaway strip underneath."""
+    kids = [_t(64, 56, 1100, _head(p), 34, S["ink"], max_h=80,
+               min_size=24, weight="bold", on=S["paper"])]
+    kids += _motif(S, 1100, 62, 0.7, 3)
+    spec = p.get("table") or {}
+    kids.append({
+        "t": "table", "rect": [64, 140, 1152, 400],
+        "headers": spec.get("headers", []),
+        "rows": spec.get("rows", []),
+        "header_fill": S["deep"], "header_color": S["paper"],
+        "body_color": S["ink"], "zebra": S["soft"],
+        "border": S["line"], "_name": "table1",
+    })
+    note = p.get("note") or p.get("lead") or ""
+    if note:
+        kids.append(_b(64, 570, 1152, 64, S["soft"]))
+        kids.append(_t(84, 584, 1112, note, 17, S["ink"],
+                       max_h=44, on=S["soft"]))
+    kids += _source(S, p, 64, 652, 800, on=S["paper"])
+    kids += _chrome(S, c, 1060, 652, on=S["paper"], align="right", w=160)
+    return kids, S["paper"], "light", "dense"
+
+
 ARCHETYPES = {
     "cover-editorial": {"density": "airy", "build": a_cover_editorial},
     "chapter-opener": {"density": "airy", "build": a_chapter_opener},
@@ -539,7 +622,16 @@ ARCHETYPES = {
     "grid-mosaic": {"density": "dense", "build": a_grid_mosaic},
     "timeline-ribbon": {"density": "mid", "build": a_timeline_ribbon},
     "closing-echo": {"density": "airy", "build": a_closing_echo},
+    "chart-story": {"density": "mid", "build": a_chart_story},
+    "table-board": {"density": "dense", "build": a_table_board},
 }
+
+# A single 12+2 archetype file can only carry so many pages before the
+# pigeonhole principle forces repeats. Beyond the cap, chapter pages are
+# mandatory: they reset the variety budget so archetypes may recur in a
+# different chapter.
+CHAPTER_PAGE_CAP = 24
+SPECIAL_ARCHETYPES = {"cover-editorial", "chapter-opener", "closing-echo"}
 
 KIND_PREFS = {
     "cover": ["cover-editorial"],
@@ -563,19 +655,45 @@ MIN_POINTS = {"offset-triptych": 3, "grid-mosaic": 3,
               "stair-list": 3, "timeline-ribbon": 3}
 
 
+def chapter_of(index, boundaries):
+    """Chapter ordinal (0-based); a chapter page starts a new chapter."""
+    return sum(1 for b in boundaries if index >= b)
+
+
 def plan_archetypes(pages, rng):
-    """Greedy diversity: prefer unused archetypes, never repeat a neighbour."""
+    """Greedy diversity, chapter-aware.
+
+    Within a chapter: prefer unused archetypes, never repeat a neighbour.
+    Across chapters the used-set resets, so a long deck can reuse an
+    archetype legitimately as long as each chapter stays varied. Pages that
+    carry native chart/table data are routed to the matching archetype first.
+    """
     prefs = []
     for p in pages:
         cand = list(KIND_PREFS.get(p.get("kind"), DEFAULT_PREFS))
+        # Data-bearing pages are routed to their native archetype BEFORE the
+        # generic shuffle; absent data never lands on these archetypes.
+        if p.get("chart"):
+            cand = ["chart-story"] + [a for a in cand if a != "chart-story"]
+        if p.get("table"):
+            cand = ["table-board"] + [a for a in cand if a != "table-board"]
         n = len(_points(p))
         cand = [a for a in cand if MIN_POINTS.get(a, 0) <= n]
         if not cand:
             cand = list(DEFAULT_PREFS)
         rng.shuffle(cand)
+        # data-bearing archetypes are an explicit routing decision; the
+        # shuffle must not demote them back into the generic pool
+        if p.get("chart"):
+            cand = ["chart-story"] + [a for a in cand if a != "chart-story"]
+        if p.get("table"):
+            cand = ["table-board"] + [a for a in cand if a != "table-board"]
         prefs.append(cand)
-    used, plan, prev = set(), [], None
-    for cand in prefs:
+    boundaries = [i for i, p in enumerate(pages) if p.get("kind") == "chapter"]
+    plan, prev = [], None
+    used_by_chapter = {}
+    for i, cand in enumerate(prefs):
+        used = used_by_chapter.setdefault(chapter_of(i, boundaries), set())
         fresh = [a for a in cand if a not in used and a != prev]
         if fresh:
             pick = fresh[0]
@@ -617,6 +735,20 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None):
     pages = notes.get("pages") or []
     if not pages:
         raise ValueError("notes.pages is empty")
+
+    # Long-deck guard: a flat 14-archetype file cannot satisfy the variety
+    # gate past the chapter cap. Require chapter pages (or an explicit
+    # override) BEFORE any geometry work, so the failure is a planning error
+    # instead of a 40-error lint dump at build time.
+    chapter_count = sum(1 for p in pages if p.get("kind") == "chapter")
+    forced = bool(notes.get("allow_long_deck"))
+    if len(pages) > CHAPTER_PAGE_CAP and chapter_count == 0 and not forced:
+        raise ValueError(
+            f"notes.pages has {len(pages)} pages but no chapter pages "
+            f"(kind='chapter'); the {len(ARCHETYPES)}-archetype pool caps a "
+            f"single flat file at {CHAPTER_PAGE_CAP} pages. Split the notes "
+            f"into chapters, or set notes.allow_long_deck=true to accept the "
+            f"lint diagnostics and build with --force.")
 
     # resolve cover relative to the notes file (offline, no network)
     cover = cover_path or notes.get("cover") or book.get("cover")
@@ -670,13 +802,23 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None):
         ctx = {"idx": i, "total": len(pages), "rng": rng, "book": book,
                "cover_file": cover_file, "cover_credit": page.get("source")}
         kids, surface, tone, density = ARCHETYPES[arch]["build"](page, S, ctx)
-        slides.append({
+        slide = {
             "type": "content", "tone": tone, "surface": surface,
             "composition": "freeform", "archetype": arch, "density": density,
             "role": page.get("kind", "content"),
             "children": kids,
-        })
+        }
+        # Research demand and provenance pass through to the slide level so
+        # the lint gate can verify them (the engine itself stays offline).
+        if page.get("research") is not None:
+            slide["research"] = page["research"]
+        if page.get("sources"):
+            slide["sources"] = page["sources"]
+        if page.get("source"):
+            slide["source"] = page["source"]
+        slides.append(slide)
 
+    boundaries = [i for i, p in enumerate(pages) if p.get("kind") == "chapter"]
     deck = {
         "composed": True,
         "composition": "freeform",
@@ -686,15 +828,21 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None):
         "art_direction": {
             "seed": seed, "archetypes": plan,
             "distinct": len(set(plan)), "pages": len(plan),
+            "chapters": len(boundaries) + (1 if pages else 0),
+            "chapter_boundaries": boundaries,
+            "long_deck_forced": forced and len(pages) > CHAPTER_PAGE_CAP,
             "motif": S["motif"],
             "cover": ledger.get("cover_path"),
-            "engine_version": 2,
+            "engine_version": 3,
         },
     }
     deck["derived_theme"] = derived
     ledger["archetypes"] = plan
     ledger["distinct"] = len(set(plan))
     ledger["seed"] = seed
+    ledger["chapter_boundaries"] = boundaries
+    ledger["chapters"] = len(boundaries) + (1 if pages else 0)
+    ledger["long_deck_forced"] = forced and len(pages) > CHAPTER_PAGE_CAP
     return deck, ledger
 
 

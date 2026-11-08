@@ -23,8 +23,8 @@
 | `transition` | string | 转场类型，写入 OOXML |
 | `assets_base` | string | 图片相对路径的基准目录 |
 | `slides` | array | 页面数组，必填 |
-| `composed` | bool | 是否由 `art_direction.compose()` 产出；开启全篇版式多样性硬闸门 |
-| `art_direction` | object | 原型序列、seed、去重统计 |
+| `composed` | bool | 是否由 `art_direction.compose()` 产出；开启分章版式多样性硬闸门与研究台账校验 |
+| `art_direction` | object | 原型序列、seed、去重统计、`chapter_boundaries`、`chapters`、`long_deck_forced` |
 | `derived_theme` | object | 封面图派生主题规格（含 semantic / palette_extra / source） |
 | `typography` | object | `kinsoku`（默认 true）、字体回退栈、`latin_cjk_spacing` |
 | `_cli_brief` | object | `cli.py make` 的原始要点记录，`no_llm: true` |
@@ -47,8 +47,10 @@ image_text / process / timeline / closing`。
 | `tone` | `"light" \| "dark"` | 决定默认文字色 |
 | `surface` | hex | 显式指定整页底色 |
 | `background` | object | `{image, overlay}`，支持封面图与蒙层 |
-| `archetype` | string | 构图原型 id（composed deck 必填，相邻页不得相同） |
+| `archetype` | string | 构图原型 id（composed deck 必填，相邻页不得相同；共 14 种，含 chart-story / table-board） |
 | `density` | string | 疏密标记，全篇不得完全一致 |
+| `research` | bool/string | 该页需要外部研究；为真时必须附 `sources` 或 `source`，否则 RESEARCH_LEDGER 阻断 |
+| `sources` | array | 研究来源台账 `[{title, url, publisher}]`，每项须有 title 且至少有 url 或 publisher |
 | `children` | array | 绝对定位节点；子节点 `rect` 以父节点左上角为局部原点 |
 
 ## 3. 节点类型
@@ -60,7 +62,8 @@ image_text / process / timeline / closing`。
 | `richcard` | 富文本卡片 | `blocks:[{text,size,weight,space_before,...}]` |
 | `card` / `box` | 容器 | `fill, border, padding, radius, children`；freeform 下带 `fill` 的 box 也会渲染 |
 | `image` | 图片 | `src, fit`；外部来源须登记 `sources.json` |
-| `chart` | 原生图表 | `kind, categories, series`；`chart_insight` 页须给 `source` |
+| `chart` | 原生图表 | `kind, categories, series, colors, legend`；`chart_insight` 页须给 `source`；创作链路经 chart-story 原型产出 |
+| `table` | 原生表格 | `headers:[...], rows:[[...]]`，可选 `header_fill/header_color/body_color/zebra/border`；行列数必须一致（TABLE_SHAPE）；创作链路经 table-board 原型产出 |
 | `shape` | 几何形 | `kind: rect/oval/roundrect, fill, rotate, opacity` |
 | `divider` | 分隔线 | `color, thickness, vertical` |
 | `spacer` | 占位 | 高度 0 |
@@ -94,11 +97,13 @@ freeform 节点通用可选字段：`rect`（必填）、`fill`、`border`、`ro
 | `GAP` / `DENSITY` | 间距档位与密度 |
 | `PALETTE` / `CONTRAST` | 颜色必须落在主题调色板内；文字/底色对比度 |
 | `SOURCE` / `WEB_CREDIT` / `ASSET_MISSING` | 数据来源、网图署名、素材文件存在性 |
-| `LAYOUT_REPETITION` / `LAYOUT_VARIETY` | 相邻页构图重复 / 全篇原型种类不足 |
+| `LAYOUT_REPETITION` / `LAYOUT_VARIETY` | 相邻页构图重复 / 章节内原型种类不足（按章计算） |
 | `COMPOSED_METADATA` | composed deck 缺 `archetype` |
+| `RESEARCH_LEDGER` | 页面声明了 research 但没有可用来源台账 |
+| `TABLE_SHAPE` | 原生表格缺 headers/rows 或行列数不一致 |
 | `CJK_KINSHOKU` | 换行处违反避头尾禁则或拆开 `——` / `……` |
 
-**警告级（不阻断）**：`ACTION_TITLE`、`DENSITY_FLAT`、`CLICHE`、`WEAK_CLAIM`
+**警告级（不阻断）**：`ACTION_TITLE`、`DENSITY_FLAT`、`LONG_DECK_FORCED`、`CLICHE`、`WEAK_CLAIM`
 （后两者来自 `content_ai.check_content()`）。
 
 ## 6. 中文排版

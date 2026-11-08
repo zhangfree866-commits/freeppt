@@ -45,7 +45,7 @@ Then, for whatever you changed:
 |---|---|
 | New theme | `tests/test_themes.py` case, palette self-consistency, a built + rendered sample |
 | New master | example deck JSON, lint zero errors, PNG preview |
-| New layout archetype | `tests/test_art_direction.py` case proving diversity and determinism |
+| New layout archetype | `tests/test_art_direction.py` case proving diversity and determinism; data archetypes also need a `tests/test_long_deck_guard.py` case with a built pptx |
 | New lint rule | a fixture that FAILS without the rule and PASSES with it |
 | Compiler change | before/after PNG or PPTX shape-count comparison |
 | Imported design tokens | source URL, license, SHA256, mapping rationale |

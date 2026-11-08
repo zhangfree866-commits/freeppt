@@ -13,7 +13,7 @@ FreePPT takes a topic, a set of rough notes, or a reading-notes file (optionally
 Two paths, chosen by content type:
 
 - Fixed-structure reports (weekly, monthly, quarterly, annual, performance reviews, retrospectives, business analysis) use 10 masters.
-- Reading notes, brand narratives, and talks use page-by-page composition. The engine assigns one of 12 layout archetypes to each page from content semantics and a deterministic seed, and can derive a palette and motif from a supplied cover image. `lint` treats adjacent-page repetition and insufficient archetype variety as hard errors.
+- Reading notes, brand narratives, and talks use page-by-page composition. The engine assigns one of 14 layout archetypes to each page from content semantics and a deterministic seed, and can derive a palette and motif from a supplied cover image; pages carrying chart/table data compile to native editable charts and tables. `lint` treats adjacent-page repetition and insufficient per-chapter archetype variety as hard errors; flat files longer than 24 pages are rejected at the planning stage until split into chapters.
 
 ## Five stages
 
@@ -28,7 +28,9 @@ Two paths, chosen by content type:
 | Themes (16) | Changing `theme` switches palette, CJK/Latin font pairs, corner radius, line spacing, and chart colors. Six general themes (consulting default, magazine, dark tech, Swiss minimal, new-Chinese, unlocked); six enterprise-style themes (McKinsey, BCG, PwC, Roland Berger, Microsoft, Apple); four data-driven themes (Stripe, Vercel, WIRED, IBM) built from public design tokens with traceable color values. |
 | Report types (8) | Weekly, monthly, quarterly, annual, performance review, competition, retrospective, business analysis. Each has a narrative structure, a 6–10 page plan, and a matched theme. |
 | Content assistance | The engine routes rough notes to KPI, trend, diagnosis, and action pages. Prose expansion is done by the host agent following `references/content-playbook.md`; the code supplies constraints (conclusion-style headings, MECE, data-to-conclusion, a cliché blacklist, no invented numbers) and a content gate. |
-| Page-by-page composition | 12 archetypes: editorial cover, section page, cross-page spread, full-page quote, offset three-column, split spread, margin annotation, stepped list, number focus, uneven grid, timeline, closing echo. Text height is computed from actual line wrapping. |
+| Page-by-page composition | 14 archetypes: editorial cover, section page, cross-page spread, full-page quote, offset three-column, split spread, margin annotation, stepped list, number focus, uneven grid, timeline, closing echo, native chart story, native table board. Text height is computed from actual line wrapping; the variety budget is evaluated per chapter so the same archetype may legitimately recur across chapters. |
+| Long-deck guardrails | A flat file is capped at 24 pages; beyond that, compose refuses to run without chapter pages and prints the fix. An explicit override leaves a forced-build marker inside the produced pptx, so `--force` is no longer a silent back door. |
+| Research source ledger | Pages can declare a `research` demand with a `sources` ledger (title plus URL/publisher); lint blocks any researched page without a usable source. The engine stays offline; the host still performs the actual research. |
 | Cover-derived art direction | `engine/cover_style.py` scores the accent by chroma × coverage × mid-tone so large paper areas do not win, then derives semantic colors, type personality, and a recurring motif (band, rule, arc, dot, grid). The cover SHA256 and extracted palette are written to a provenance ledger. |
 | Masters (10) | Cover, contents, section, three cards, KPI row, chart insight, image + text, process, timeline, closing. |
 | Freeform DSL | `composition: freeform` supports absolute `rect`, bleed blocks, vertical rules, rotation, opacity, and vertical alignment. The engine does not impose a title + rule + footer skeleton. |
@@ -83,7 +85,7 @@ A report type gives you the full chapter structure; a theme id changes the visua
 - `engine/cli.py lint`: all 8 example decks pass with zero errors.
 - `bash tools/check_all.sh`: all four stages green, including compose → lint → build (9 pages, 9 archetypes) and a pure-CLI 6-page deck.
 - `tools/benchmark.py`: 0 layout errors, mean editable-shape ratio 0.9647, 0.0 overflow rate, 0 network hits in the core pipeline (static scan). Method: `docs/BENCHMARK.md`.
-- Registered: 16 themes, 8 report types, 10 masters, 12 archetypes, 10 vector sets (PNG + SVG). All 14 non-default themes passed a switch-and-lint check.
+- Registered: 16 themes, 8 report types, 10 masters, 14 archetypes, 10 vector sets (PNG + SVG). All 14 non-default themes passed a switch-and-lint check.
 - The 9-page reading-notes example yields 9 distinct archetypes and 4 density levels; derived ink-on-paper contrast is 16.2:1.
 - Remote GitHub Actions: two successful workflow runs on 2026-11-08 across a 4-version Python matrix and a LibreOffice render regression. The first run failed because an example deck contained the author's local absolute path; commit `be35af8` fixed it.
 
@@ -99,7 +101,7 @@ Reproduce with `bash tools/check_all.sh` and `python3 tools/benchmark.py --out b
 - Editing an existing .pptx means structure export and format-preserving text replacement. A full existing-pptx → DSL round trip is not implemented (`references/edit-existing.md`). Gradient fills, controlled shadows, a 12-column grid, and chart-to-infographic conversion remain on the backlog.
 - `soffice` is absent locally, so the LibreOffice regression is skipped here; skipped is not passed. Remote CI installs the dependency and asserts `status=ok`. Pixel-level baseline diffing is not implemented.
 - Host install paths come from official documentation or official repositories. Only WorkBuddy was installed and tested on this machine; the other four have official sources behind them but were not tested locally (`docs/PUBLISHING.md`).
-- Page-by-page composition is deterministic rule-driven, not an end-to-end generative design model. The archetype library has 12 entries, varied by seed and content semantics. The reference image contributes color values and compositional position only; the engine neither copies the cover artwork nor OCRs its text. Unbounded layouts still require hand-written freeform DSL.
+- Page-by-page composition is deterministic rule-driven, not an end-to-end generative design model. The archetype library has 14 entries, varied by seed and content semantics. The reference image contributes color values and compositional position only; the engine neither copies the cover artwork nor OCRs its text. Unbounded layouts still require hand-written freeform DSL.
 
 ## Implementation and dependencies
 

@@ -165,6 +165,34 @@ def draw_node(draw, node, default_color, img=None):
                 bx = x + 10 + i * (w / max(len(vals), 1))
                 draw.rectangle([bx, y + h - 20 - bh, bx + bw, y + h - 20],
                                fill=rgb(colors[i % len(colors)]))
+    elif t == "table":
+        headers, rows = node.get("headers", []), node.get("rows", [])
+        ncols = max(len(headers), 1)
+        nrows = len(rows) + 1
+        rh = h / max(nrows, 1)
+        cw = w / ncols
+        hfill = rgb(node.get("header_fill", "#061F32"))
+        draw.rectangle([x, y, x + w, y + rh], fill=hfill)
+        if node.get("zebra"):
+            zc = rgb(node["zebra"])
+            for i in range(1, nrows):
+                if i % 2 == 0:
+                    draw.rectangle([x, y + i * rh, x + w, y + (i + 1) * rh], fill=zc)
+        for i in range(nrows + 1):
+            gy = y + i * rh
+            draw.line([x, gy, x + w, gy], fill=(150, 150, 150))
+        for j in range(ncols + 1):
+            gx = x + j * cw
+            draw.line([gx, y, gx, y + h], fill=(150, 150, 150))
+        f_hd, f_bd = font(14, True), font(13, False)
+        for j, head in enumerate(headers):
+            draw.text((x + j * cw + 6, y + 4), str(head),
+                      fill=rgb(node.get("header_color", "#FFFFFF")), font=f_hd)
+        for i, row in enumerate(rows, start=1):
+            for j in range(ncols):
+                val = row[j] if j < len(row) else ""
+                draw.text((x + j * cw + 6, y + i * rh + 4), str(val),
+                          fill=rgb(node.get("body_color", "#061F32")), font=f_bd)
 
     for k in node.get("children", []):
         draw_node(draw, k, default_color, img)

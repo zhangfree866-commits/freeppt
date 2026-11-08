@@ -46,8 +46,11 @@ def cmd_build(args):
         print(json.dumps(result, ensure_ascii=False, indent=2))
         print("BUILD BLOCKED: fix diagnostics or pass --force", file=sys.stderr)
         return 1
-    out = build_pptx(deck, args.out)
+    out = build_pptx(deck, args.out, force=bool(args.force))
     print(f"built: {out} ({len(deck['slides'])} slides)")
+    if args.force:
+        print("WARNING: built with --force; marker written into the pptx",
+              file=sys.stderr)
     return 0
 
 
@@ -56,8 +59,12 @@ def cmd_compose(args):
     from engine import art_direction
     notes_path = os.path.abspath(args.notes)
     notes = load(notes_path)
-    deck, ledger = art_direction.compose(
-        notes, os.path.dirname(notes_path), args.cover, args.base, args.seed)
+    try:
+        deck, ledger = art_direction.compose(
+            notes, os.path.dirname(notes_path), args.cover, args.base, args.seed)
+    except ValueError as exc:
+        print(f"COMPOSE BLOCKED: {exc}", file=sys.stderr)
+        return 1
     out = args.out or os.path.splitext(notes_path)[0] + "_composed.json"
     with open(out, "w", encoding="utf-8") as f:
         json.dump(deck, f, ensure_ascii=False, indent=2)
@@ -118,7 +125,7 @@ def cmd_patch(args):
             print(json.dumps(result, ensure_ascii=False, indent=2))
             print("PATCH BUILD BLOCKED: fix diagnostics", file=sys.stderr)
             return 1
-        out = build_pptx(deck, args.build)
+        out = build_pptx(deck, args.build, force=bool(args.force))
         print(f"rebuilt: {out} ({len(deck['slides'])} slides)")
     if not args.out and not args.build:
         print(text)
@@ -166,7 +173,7 @@ def cmd_make(args):
         print(json.dumps(result, ensure_ascii=False, indent=2))
         print("MAKE BLOCKED: fix diagnostics or pass --force", file=sys.stderr)
         return 1
-    out = build_pptx(deck, args.out)
+    out = build_pptx(deck, args.out, force=bool(args.force))
     print(f"made: {out} ({len(deck['slides'])} slides, "
           f"type={args.type}, llm=off, network=off)")
     return 0

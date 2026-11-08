@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Questions and showcase
-    url: https://github.com/zhangfree866-commits/freeppt/discussions
-    about: Ask usage questions, share decks, or discuss design decisions.
+  - name: Report a bug or request a feature
+    url: https://github.com/zhangfree866-commits/freeppt/issues/new/choose
+    about: Use one of the issue templates. Discussions are not enabled yet.

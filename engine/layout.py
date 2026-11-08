@@ -148,6 +148,8 @@ def hug_h(node, width):
         return h
     if t == "chart":
         return min(width * 0.52, 460)
+    if t == "table":
+        return float(node.get("rect", [0, 0, 0, 260])[3]) if node.get("rect") else 260.0
     if t == "text":
         return leaf_text_h(node, width)
     if t == "kpi":
@@ -185,7 +187,7 @@ def alloc_widths(cw, kids, gap):
             fixed[i] = float(k["width"])
         elif k.get("flex"):
             flex_idx.append((i, float(k["flex"])))
-        elif k["t"] in CONTAINERS or k["t"] in ("chart", "image", "richcard"):
+        elif k["t"] in CONTAINERS or k["t"] in ("chart", "image", "richcard", "table"):
             flex_idx.append((i, 1.0))  # implicit equal split
     free = cw - sum(fixed.values()) - gap * max(0, len(kids) - 1)
     total_flex = sum(f for _, f in flex_idx)
@@ -216,7 +218,7 @@ def place(node, x, y, w, h):
     if t == "kpi":
         node["_content_h"] = round(kpi_h(node, w), 1)
         return
-    if t in ("chart", "divider", "spacer", "image", "shape", "richcard"):
+    if t in ("chart", "divider", "spacer", "image", "shape", "richcard", "table"):
         return
 
     p = node.get("padding", 16)
@@ -258,7 +260,7 @@ def place(node, x, y, w, h):
         ox = cx
         for k, kw in zip(kids, widths):
             stretch = k["t"] in CONTAINERS or k["t"] in (
-                "chart", "kpi", "image", "richcard")
+                "chart", "kpi", "image", "richcard", "table")
             if stretch and k["t"] in ("card", "box"):
                 k["_stretch"] = True
             kh = ch if stretch else hug_h(k, kw)
@@ -287,6 +289,9 @@ def _assign_rect(node, x, y, w, h):
         node["_content_h"] = round(kpi_h(node, w), 1)
     elif t == "richcard":
         node["_content_h"] = round(hug_h(node, w), 1)
+    elif t == "table":
+        # Native tables keep their explicit rect; no text reflow in freeform.
+        node["_content_h"] = round(float(h), 1)
     return node
 
 

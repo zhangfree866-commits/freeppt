@@ -3,6 +3,53 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261108.4] - 2026-11-08
+
+Long-deck guardrails, research ledger, and native data archetypes. Responds
+to an 88-page failure case where a flat file exhausted the archetype pool and
+the lint gate had to be bypassed with `--force`.
+
+### Added
+- `chart-story` and `table-board` composition archetypes in
+  `engine/art_direction.py`: notes pages carrying `chart`
+  (kind/categories/series) or `table` (headers/rows) data are routed to them
+  and compile to native, editable PowerPoint charts and tables (not images or
+  text-box mockups). The archetype pool grows from 12 to 14.
+- Native table rendering in `engine/compiler.py` (`add_table`), table-aware
+  layout in `engine/layout.py`, table drawing in `engine/debug_render.py`,
+  and `TABLE_SHAPE` lint diagnostics for missing/mismatched table shape.
+- Long-deck planning guard: a flat notes file over `CHAPTER_PAGE_CAP` (24
+  pages) without chapter pages is refused at `compose` time
+  (`COMPOSE BLOCKED`) before any geometry work; `allow_long_deck: true` is an
+  explicit, logged override.
+- Chapter-aware archetype planning: the variety budget resets per chapter, so
+  archetypes may legitimately recur across chapters while `LAYOUT_VARIETY` is
+  now evaluated per chapter; `LAYOUT_REPETITION` (no adjacent repeats) is
+  unchanged.
+- Research ledger: notes/slide `research` demand plus `sources`
+  `[{title, url, publisher}]`, with a blocking `RESEARCH_LEDGER` lint rule.
+  The engine stays offline; the host performs the research, the gate verifies
+  the deliverable.
+- Forced-build provenance: `build --force` on a composed deck writes a
+  `FreePPTForcedBuildMarker` text box and a document subject into the pptx, so
+  a bypassed lint gate is visible inside the artifact itself.
+- `inspect` now reports native chart/table shape summaries.
+- `tests/test_long_deck_guard.py`: 13 tests covering the compose guard,
+  override, chapter lint pass, cross-chapter recurrence, force marker,
+  research ledger, native chart/table compilation and inspect read-back, and
+  determinism. Full suite is now 117 tests, all green.
+
+### Changed
+- `plan_archetypes()` is chapter-aware and routes data-bearing pages before
+  the deterministic shuffle; `_explicit_points()` prevents the kind/lead
+  fallback from duplicating a chart page's lead text.
+- Deck `art_direction` metadata now carries `chapters`, `chapter_boundaries`,
+  `long_deck_forced`, and `engine_version: 3`.
+- SKILL.md corrects a stale statement that the repo was "not pushed to any
+  remote" and documents the new guardrails; README/README.en, architecture
+  and DSL references, and the contribution guide reflect 14 archetypes and
+  the new lint codes.
+
 ## [20261108.3] - 2026-11-08
 
 Open-source foundation and the "verifiable quality" layer.

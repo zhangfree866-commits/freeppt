@@ -41,15 +41,18 @@
 |---|---|---|
 | 适用 | 周报/月报/季报/年报/述职/竞聘/复盘/经营分析 | 读书笔记、书评、品牌叙事、演讲稿、课程讲义 |
 | 输入 | `{template,data}` | `notes.json`（book + pages）+ 可选封面图 |
-| 版式来源 | 10 套固定母版，填数据即出片 | 12 种构图原型按内容语义 + 确定性 seed 逐页分配 |
+| 版式来源 | 10 套固定母版，填数据即出片 | 14 种构图原型（含原生图表/表格页）按内容语义 + 确定性 seed 逐页分配，长 deck 按章节重置多样性预算 |
 | 视觉语言 | 16 套注册主题换肤 | 封面图派生主题（主色/纸底/字体气质/母题）+ 可复现台账 |
 | 骨架 | 每页固定标题 + 横线 + 内容区 + 页脚 | 不自动加骨架，每页元素自带绝对 rect |
-| lint | SAFE_AREA / DENSITY / GAP / TITLE_SIZE / CARD_CHARS… | 几何、溢出、对比度、配色自洽 + LAYOUT_REPETITION / LAYOUT_VARIETY |
+| lint | SAFE_AREA / DENSITY / GAP / TITLE_SIZE / CARD_CHARS… | 几何、溢出、对比度、配色自洽 + LAYOUT_REPETITION / 分章 LAYOUT_VARIETY / RESEARCH_LEDGER / TABLE_SHAPE |
 | 关键模块 | `templates.py` + `reports.py` + `content_ai.py` | `art_direction.py` + `cover_style.py` + `themes.build_derived()` |
 
 B 路径解决的是「同一份材料做出来的十页都长一个样」：它把**相邻页构图重复**与
-**全篇构图种类不足**写成 `lint` 的错误码，而不是交给提示词自觉。`composed:true`
-的 deck 每页必须带 `archetype`，全篇原型数至少 `max(3, ⌈页数/2⌉)`。
+**章节内构图种类不足**写成 `lint` 的错误码，而不是交给提示词自觉。`composed:true`
+的 deck 每页必须带 `archetype`；多样性预算按章节计算，每个章节的内容页原型数至少
+`min(章页数, max(3, ⌈章页数/2⌉))`，章节页（chapter-opener）不计入。单个扁平文件超过
+`CHAPTER_PAGE_CAP=24` 页且无章节页时，`compose` 在规划阶段直接拒绝（`COMPOSE BLOCKED`）；
+显式 `allow_long_deck:true` 可绕过护栏但会留痕，build 时仍需 `--force` 并在产物内打标记。
 
 ## 二、数据流与模块职责
 
@@ -61,13 +64,13 @@ B 路径解决的是「同一份材料做出来的十页都长一个样」：它
 | `references/design-principle.md` | 1/4 | 数值化设计规范，是 lint 规则的判定依据 |
 | `references/dsl.md` | 2 | DSL 节点白名单与字段、动画/转场、配图三通道说明 |
 | `engine/templates.py` | 2→3 | 10 套母版；`expand_deck` 把 `{template,data}` 展开成裸 deck |
-| `engine/art_direction.py` | 1/2 | **创作编排**：12 种构图原型、MIN_POINTS 内容适配、`plan_archetypes()` 贪心去重（相邻不同 + 优先未用原型）、按文本实测高度生成绝对 rect、seed 可复现，产出 `composed:true` 的标准 DSL |
+| `engine/art_direction.py` | 1/2 | **创作编排**：14 种构图原型（含 chart-story/table-board 数据原型）、MIN_POINTS 内容适配、章节感知 `plan_archetypes()`（相邻不同 + 章内优先未用 + 跨章重置）、chart/table 数据页显式路由、长 deck 护栏、按文本实测高度生成绝对 rect、seed 可复现，产出 `composed:true` 的标准 DSL |
 | `engine/cover_style.py` | 1 | **参考图派生**：Pillow 中位切分量化 → 彩度×占比×中间调打分选主色（避开大面积纸底）→ 纸底/墨色/强调色对比度保障 → 主色块位置决定母题 → `derived_theme` + SHA256 台账；纯离线、确定性 |
 | `examples/notes_renqing_mianzi.json` | 输入 | 9 页读书笔记素材（封面图 + 逐页内容语义） |
 | `examples/composition_compare.png` | 验收 | 九页拼版，直观验证逐页构图差异 |
 | `engine/layout.py` | 3 | 固定矩形布局引擎：行列分配、CJK/拉丁混合换行、图片比例、坐标落位；`_place_free()` 处理 freeform 绝对 rect 与父子局部坐标 |
-| `engine/lint.py` | 4 | 确定性校验：母版页查越界/安全区/文字溢出/字号/间距/配色/密度/来源/资产；`_lint_freeform_slide()` 查几何、溢出、WCAG 对比度、调色板自洽；`lint_deck()` 查全篇版式重复与密度节奏 |
-| `engine/compiler.py` | 5 | python-pptx 渲染：文本/KPI/卡片/图表/形状/图片/蒙层；freeform 额外渲染填充色块、旋转、半透明、垂直对齐、竖向分隔线，输出 .pptx |
+| `engine/lint.py` | 4 | 确定性校验：母版页查越界/安全区/文字溢出/字号/间距/配色/密度/来源/资产；`_lint_freeform_slide()` 查几何、溢出、WCAG 对比度、调色板自洽、TABLE_SHAPE；`lint_deck()` 查全篇版式重复、分章多样性、RESEARCH_LEDGER 研究台账与密度节奏 |
+| `engine/compiler.py` | 5 | python-pptx 渲染：文本/KPI/卡片/原生图表/原生表格/形状/图片/蒙层；freeform 额外渲染填充色块、旋转、半透明、垂直对齐、竖向分隔线；`--force` 时在产物内写 FreePPTForcedBuildMarker，输出 .pptx |
 | `engine/animator.py` | 5 | python-pptx 无动画 API，自写 `p:timing`/`p:transition` 注入 OOXML |
 | `engine/cli.py` | 1–5 | 入口：`compose`（笔记→创作编排 DSL）、`style`（封面→派生主题）、`make`（纯 CLI：brief→骨架→内容闸门→lint→pptx）、`inspect`/`retext`（已有 pptx）、`patch`（单节点改稿）、`lint`、`build`（校验闸门+编译） |
 | `engine/debug_render.py` | 验收 | 离线把 deck 渲染成全页 PNG，供无 Office 环境视觉复核；支持 freeform 色块、圆角、竖向线与 token 感知换行 |
@@ -77,7 +80,7 @@ B 路径解决的是「同一份材料做出来的十页都长一个样」：它
 | `engine/deck_patch.py` | 2 | 点号路径改 DSL 单节点，改完仍由阶段 4 复检 |
 | `tools/benchmark.py` / `tools/render_check.py` | 验收 | 可量化自测基准（版面错误/可编辑率/溢出率/离线就绪/耗时）；LibreOffice PDF/PNG 回归（缺依赖明确 skipped，CI 强制 ok） |
 | `install.sh` / `docs/PUBLISHING.md` | 分发 | 五宿主一键安装（WorkBuddy / Claude Code / Codex CLI / Cursor / DSH），路径来源逐条标注|
-| `tests/test_art_direction.py` | 验收 | 14 项单测：派生配色对比度/确定性、逐页原型不重样、重复版式与缺多样性被拦、自由画布不受母版教条误判、PPTX 原生形状可编辑、旧 deck 零回归 |
+| `tests/test_art_direction.py` / `tests/test_long_deck_guard.py` | 验收 | 创作编排单测：派生配色对比度/确定性、逐页原型不重样、重复版式与缺多样性被拦、自由画布不受母版教条误判、PPTX 原生形状可编辑、旧 deck 零回归；护栏单测：长扁平文件 compose 拦截、分章 deck 过闸、跨章复用、force 产物标记、RESEARCH_LEDGER、原生 chart/table 编译与 inspect 回读 |
 | `tests/test_open_source_tooling.py` | 验收 | 25 项单测：8 类报告纯 CLI 全绿、禁则修复、patch 闸门、retext 格式保留、基准口径、安装脚本 dry-run、许可文件 |
 | `engine/design_md_import.py` | 1（可选） | 确定性解析第三方 DESIGN.md frontmatter 的公开数值令牌（色值/圆角/间距/字阶）；语义角色由显式映射表指定，缺键报错，不猜测 |
 | `references/imported/*` | 1（可选） | `design_tokens.json` 数值档案（含来源 URL + SHA256）、`theme_mapping.json` 角色映射；台账与许可见 `references/design-token-sources.md` |

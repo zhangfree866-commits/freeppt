@@ -8,7 +8,7 @@ FreePPT 的视觉能力分三层，贡献入口不同：
 |---|---|---|---|
 | 主题（16 套） | `engine/themes.py` | 全局语义色、字体、圆角、行距、密度 | `themes.py`, `tests/test_themes.py` |
 | 母版（10 套） | `engine/templates.py` | 结构稳定报告的页面骨架 | `templates.py`, `examples/deck_*.json` |
-| 构图原型（12 种） | `engine/art_direction.py` | 创作类内容的逐页版式 | `art_direction.py`, `tests/test_art_direction.py` |
+| 构图原型（14 种） | `engine/art_direction.py` | 创作类内容的逐页版式（含 chart-story/table-board 数据原型） | `art_direction.py`, `tests/test_art_direction.py`, `tests/test_long_deck_guard.py` |
 
 ## 通用门槛
 
@@ -16,7 +16,7 @@ FreePPT 的视觉能力分三层，贡献入口不同：
 2. **每个值有来源**：原创设计决策要写明；引用的数值令牌要附 URL、许可证、
    SHA256 与映射理由（见 `references/design-token-sources.md`）。
 3. **一套 lint 契约**：新增颜色必须进 `palette`；新增字号要满足 `min_body`；
-   新增构图要能被 `LAYOUT_VARIETY` 与 `LAYOUT_REPETITION` 统计。
+   新增构图要能被 `LAYOUT_VARIETY`（按章节统计）与 `LAYOUT_REPETITION` 统计。
 4. **一项单测**：至少覆盖「注册成功 + 自洽 + 可复现」。
 5. **一份视觉证据**：构建出的 .pptx / PNG 预览，附在 PR 里。
 6. **不降低闸门**：不得新增 `--skip-lint` 之类的绕行开关。

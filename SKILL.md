@@ -2,11 +2,11 @@
 name: freeppt
 display_name: "FreePPT"
 display_name_en: "FreePPT"
-description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、零散要点或读书笔记（可附参考封面图），产出逐页创作编排、原生可编辑的 .pptx；内置 12 种构图原型、封面图配色派生、16 套视觉主题、8 类企业固定报告、纯 CLI 出片与已有 pptx 文字改稿。触发词：FreePPT、freeppt、做PPT、生成PPT、改PPT、读书笔记、幻灯片、pptx。"
+description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、零散要点或读书笔记（可附参考封面图），产出逐页创作编排、原生可编辑的 .pptx；内置 14 种构图原型（含原生图表/表格页）、封面图配色派生、16 套视觉主题、8 类企业固定报告、长 deck 分章护栏、研究来源台账校验、纯 CLI 出片与已有 pptx 文字改稿。触发词：FreePPT、freeppt、做PPT、生成PPT、改PPT、读书笔记、幻灯片、pptx。"
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
-description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 12 layout archetypes and an optional cover-derived palette, while structured reports use 16 themes, 10 masters and 8 templates."
+description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 14 layout archetypes (including native chart/table pages), chapter-based long-deck guardrails and a research-source ledger, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261108.3"
+version: "20261108.4"
 author: "张三峯"
 ---
 
@@ -64,7 +64,7 @@ python3 tools/benchmark.py --out bench.json
 | `tools/render_check.py` | LibreOffice pptx→PDF→PNG 回归；缺 `soffice` 时明确 `skipped`，CI 强制断言 `ok` |
 | `install.sh` | WorkBuddy / Claude Code / Codex CLI / Cursor / DSH 五宿主安装，幂等引导块，卸载先备份不删文件 |
 
-**许可**：代码 MIT、文档与设计资料 CC BY 4.0（`LICENSE` / `LICENSE-DOCS`）；作者署名与公众号 AI龙卷风须保留。仓库已在本地 git init 并首次提交，**未推送到任何远程**；发布清单与宿主路径来源见 `docs/PUBLISHING.md`。
+**许可**：代码 MIT、文档与设计资料 CC BY 4.0（`LICENSE` / `LICENSE-DOCS`）；作者署名与公众号 AI龙卷风须保留。仓库已公开在 GitHub（`https://github.com/zhangfree866-commits/freeppt`），本机安装副本位于 `~/.workbuddy/skills/freeppt/`；发布清单与宿主路径来源见 `docs/PUBLISHING.md`。
 
 ## 核心设计原则（FreePPT 原创）
 
@@ -84,15 +84,29 @@ python3 tools/benchmark.py --out bench.json
 | 层 | 新机制 |
 |---|---|
 | 画布 | `composition: freeform`：每个节点自带 `rect:[x,y,w,h]` 绝对定位，子矩形以父矩形左上角为局部原点；不再自动加标题横线与页脚带 |
-| 构图 | `engine/art_direction.py` 12 种原型（封面编辑式 / 章节页 / 跨页编辑式 / 整页引文 / 错位三栏 / 左右对开 / 页边批注 / 阶梯列表 / 数字焦点 / 不等网格 / 时间轴 / 封底呼应），按内容语义候选 + 确定性 seed 逐页分配，相邻页不重样 |
+| 构图 | `engine/art_direction.py` 14 种原型（封面编辑式 / 章节页 / 跨页编辑式 / 整页引文 / 错位三栏 / 左右对开 / 页边批注 / 阶梯列表 / 数字焦点 / 不等网格 / 时间轴 / 封底呼应 / 原生图表叙事 / 原生表格看板），按内容语义候选 + 确定性 seed 逐页分配，相邻页不重样；页面携带 `chart`/`table` 数据时自动路由到对应数据原型，编译为原生可编辑图表与表格 |
 | 参考图 | `engine/cover_style.py` 从图书封面/品牌主视觉提取主色（按彩度×占比×中间调打分，避开大面积纸底色）、浅色纸底、主色块位置 → 派生调色板、字体气质与贯穿全篇的母题（band / vertical-rule / arc / dots / grid） |
 | 几何 | 文本节点高度由自身分词换行实测得出，长文自动缩字号；栏数/格数随实际内容块数变化，不填空卡片 |
 | 色彩一致性 | 派生主题由 `themes.build_derived()` 注册，PALETTE 规则仍强制所有色落在派生调色板内 |
 
+**长 deck 分章护栏（防止 88 页式重复事故的前置闸门）**：
+
+- 单个扁平文件的容量上限为 `CHAPTER_PAGE_CAP = 24` 页：`compose` 在做任何几何工作前先检查，超过上限且没有 `kind:"chapter"` 章节页时直接 `COMPOSE BLOCKED` 退出，报出修复方式（分章或显式 `allow_long_deck:true`），把失败挡在规划阶段而不是 build 时抛几十条 lint 错误。
+- 分章后多样性预算按章节重置：同一原型可在不同章节合法复用，`LAYOUT_VARIETY` 按每章内容页独立计算（章节页本身不计入预算）；`LAYOUT_REPETITION` 相邻页硬错误保持不变。
+- 显式绕过留痕：`allow_long_deck:true` 会在 DSL 写入 `long_deck_forced` 并产生 `LONG_DECK_FORCED` 警告；build 时仍需 `--force`，且编译器在产物内写入 `FreePPTForcedBuildMarker` 文本框与文档 subject，绕过行为在文件本身可见。
+
+**研究来源台账（引擎离线，只做校验）**：
+
+- notes 页面可声明 `research:true`（或研究问题字符串）与 `sources:[{title,url,publisher}]`；compose 透传到 slide 级。
+- lint 规则 `RESEARCH_LEDGER`：声明了 research 的页必须带来源台账（含 title 且至少有 url 或 publisher），否则阻断 build。引擎本身不联网、不代做研究，研究动作仍是宿主 agent 在 Step 2 的职责，这条规则把该职责变成可判定的交付物。
+
 **新增硬闸门（阶段 4，不通过就回到 DSL 返工）**：
 
 - `LAYOUT_REPETITION`：相邻两页构图原型相同 → 错误；
-- `LAYOUT_VARIETY`：全篇原型数少于 `max(3, ⌈页数/2⌉)` → 错误；
+- `LAYOUT_VARIETY`：按章节计算，每章内容页原型数少于 `min(章页数, max(3, ⌈章页数/2⌉))` → 错误；
+- `RESEARCH_LEDGER`：声明 research 的页缺来源台账 → 错误；
+- `TABLE_SHAPE`：原生表格缺 headers/rows 或行列数不一致 → 错误；
+- `LONG_DECK_FORCED`：长 deck 护栏被显式绕过 → 警告（非阻断）；
 - `DENSITY_FLAT`：全篇密度一致 → 警告；
 - `FREEFORM_RECT` / `OUT_OF_CANVAS` / `TEXT_OVERFLOW` / `RICHCARD_OVERFLOW` / `CONTRAST` / `PALETTE` / `FONT_SIZE`：几何、溢出、可读性、配色照旧拦；
 - 自由画布**不受**旧母版教条约束（安全区、固定间距、底部留白、32–40px 标题），但仍可用 `on` 字段声明文字底色以做 WCAG 对比度校验。
@@ -179,7 +193,8 @@ deck 顶层用 `"theme": "<id>"` 选主题（兼容旧 `"scenario"`，theme 优�
   3. 生成式 ImageGen（需显式选用）：标识由生成服务方按法规添加，FreePPT 不修改、不擦除；仅在前两条通道无法覆盖写实场景时使用。
   封面可用背景图+蒙层；image 节点 center-cover 裁剪。
 - **母版版式库**：10 套模板（cover/agenda/section/three_cards/kpi_row/chart_insight/image_text/process/timeline/closing），写数据即出片，见 engine/templates.py。
-- **自由画布 + 创作式编排**：`composition:freeform` 绝对定位、节点 `rect/rotate/opacity/valign/on/decor/bleed`、竖向分隔线；12 种逐页构图原型、封面图派生配色与母题、版式重复硬拦截，见 engine/art_direction.py 与 engine/cover_style.py。
+- **自由画布 + 创作式编排**：`composition:freeform` 绝对定位、节点 `rect/rotate/opacity/valign/on/decor/bleed`、竖向分隔线；14 种逐页构图原型、封面图派生配色与母题、版式重复硬拦截、长 deck 分章护栏，见 engine/art_direction.py 与 engine/cover_style.py。
+- **原生数据原语**：页面携带 `chart`（kind/categories/series）或 `table`（headers/rows）数据时，compose 自动路由到 chart-story / table-board 原型，编译为 PowerPoint 原生可编辑图表与表格（非贴图、非文本框伪装）；inspect 可回读图表/表格结构。
 - **动画与转场**：slide 级 `transition:"fade"` 与 `anims`（fade / fly-up，按 `_name` 定位），由 engine/animator.py 注入 OOXML（python-pptx 本身不支持）。
 - 离线验收：`python3 engine/debug_render.py deck.json outdir` 出全页 PNG。
 
@@ -209,8 +224,8 @@ deck 顶层用 `"theme": "<id>"` 选主题（兼容旧 `"scenario"`，theme 优�
 
 ## 操作流程（五阶段的落地步骤，闸门制）
 
-- **Step 1 需求对齐（阶段 1）**：主题 / 受众 / 目的 / 页数 / 风格 / 素材 六维。缺失项一轮问完（≤3 问）；未对齐禁止开工。
-- **Step 2 收集素材（阶段 1）**：提取上传材料；涉时效数字/陌生术语 → 联网核实并记录 Source。
+- **Step 1 需求对齐（阶段 1）**：主题 / 受众 / 目的 / 页数 / 风格 / 素材 六维。缺失项一轮问完（≤3 问）；未对齐禁止开工。创作式编排页数超过 24 页时，必须同步规划章节结构（每章一个 `kind:"chapter"` 页），否则 compose 会在规划阶段被护栏拦截，禁止靠 `--force` 硬出长文件。
+- **Step 2 收集素材（阶段 1）**：提取上传材料；涉时效数字/陌生术语 → 联网核实并记录 Source。需要外部研究的页在 notes 标 `research:true` 并附 `sources:[{title,url,publisher}]` 台账；引擎离线不代研究，`RESEARCH_LEDGER` 闸门会拦截有 research 标记却无来源的页。
 - **Step 3 风格路由（阶段 1）**：读对应 scenario（如 references/scenarios/consulting.md）+ design-principle.md，产出每页结构。
 - **Step 4 逐页写 DSL（阶段 2）**：每页一个 JSON，结构见 references/dsl.md。
 - **Step 5 布局 + lint（阶段 3、4）**：`python3 engine/cli.py lint deck.json`（内部先布局后校验）；按 diagnostics 回 Step 4 修 DSL 至 `ok:true`。

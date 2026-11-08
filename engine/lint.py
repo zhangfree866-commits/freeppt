@@ -94,7 +94,7 @@ def _lint_freeform_slide(slide, s_idx, th, ledger):
     root = slide["_root"]
     nodes = list(walk(root))
     leaves = [n for n in nodes if n["t"] in (
-        "text", "kpi", "chart", "divider", "image", "shape", "richcard")]
+        "text", "kpi", "chart", "table", "divider", "image", "shape", "richcard")]
 
     def err(code, msg): errs.append({"slide": s_idx + 1, "code": code, "msg": msg})
     def warn(code, msg): warns.append({"slide": s_idx + 1, "code": code, "msg": msg})
@@ -112,6 +112,20 @@ def _lint_freeform_slide(slide, s_idx, th, ledger):
             err("OUT_OF_CANVAS", f"{n['t']} 超出画布: {n['_rect']}")
 
     _freeform_assets(root, slide, ledger, err)
+
+    # Native table: the DSL carries plain cells; the compiler builds the
+    # table, so lint must guarantee the shape before compilation is attempted.
+    for n in nodes:
+        if n["t"] != "table":
+            continue
+        headers, rows = n.get("headers", []), n.get("rows", [])
+        if not headers:
+            err("TABLE_SHAPE", "表格缺少 headers")
+        if not rows:
+            err("TABLE_SHAPE", "表格缺少 rows")
+        bad = [i + 1 for i, r in enumerate(rows) if len(r) != len(headers)]
+        if bad:
+            err("TABLE_SHAPE", f"第 {bad} 行列数与表头不一致（{len(headers)} 列）")
 
     for n in nodes:
         if n["t"] == "text" and not n.get("decor"):
@@ -186,7 +200,7 @@ def lint_slide(slide, s_idx, sc, ledger=None):
     dark = root["dark"]
     nodes = list(walk(root))
     leaves = [n for n in nodes if n["t"] in (
-        "text", "kpi", "chart", "divider", "image", "shape", "richcard")]
+        "text", "kpi", "chart", "table", "divider", "image", "shape", "richcard")]
 
     def err(code, msg): errs.append({"slide": s_idx + 1, "code": code, "msg": msg})
     def warn(code, msg): warns.append({"slide": s_idx + 1, "code": code, "msg": msg})
@@ -390,12 +404,55 @@ def lint_deck(deck):
             elif i and a == arch[i - 1]:
                 derr("LAYOUT_REPETITION",
                      f"第 {i}、{i + 1} 页构图原型相同（{a}），相邻页必须换版式")
-        uniq = len({a for a in arch if a})
-        need = max(3, (len(arch) + 1) // 2)
-        if uniq < need:
-            derr("LAYOUT_VARIETY",
-                 f"仅 {uniq} 种构图原型，{len(arch)} 页至少需要 {need} 种")
+
+        # Chapter-aware variety: archetypes may legitimately recur across
+        # chapters, so the half-pages budget applies per chapter, not to the
+        # whole file. Chapter pages themselves (chapter-opener) are excluded
+        # from the content budget.
+        meta = deck.get("art_direction") or {}
+        boundaries = meta.get("chapter_boundaries")
+        if not boundaries:
+            boundaries = [i for i, s in enumerate(slides)
+                          if s.get("archetype") == "chapter-opener"
+                          or s.get("role") == "chapter"]
+        bounds = boundaries + [len(arch)]
+        start = 0
+        for b in bounds:
+            seg = [a for j, a in enumerate(arch[start:b], start)
+                   if a and a not in ("cover-editorial", "chapter-opener",
+                                      "closing-echo")]
+            if seg:
+                uniq = len(set(seg))
+                # the floor of 3 must stay satisfiable: a chapter shorter
+                # than 3 content pages cannot conjure 3 distinct archetypes
+                need = min(len(seg), max(3, (len(seg) + 1) // 2))
+                if uniq < need:
+                    derr("LAYOUT_VARIETY",
+                         f"第 {start + 1}-{b} 页章节仅 {uniq} 种构图原型，"
+                         f"{len(seg)} 个内容页至少需要 {need} 种；请拆分章节或增加原型")
+            start = b
         dens = [s.get("density", "mid") for s in slides]
         if len(dens) >= 4 and len(set(dens)) < 2:
             dwarn("DENSITY_FLAT", "全篇密度一致，缺少疏密节奏")
+
+        # Research ledger: a page that declares a research demand must carry
+        # at least one verifiable source; the engine never researches itself.
+        for i, s in enumerate(slides):
+            demand = s.get("research")
+            if not demand:
+                continue
+            sources = s.get("sources") or []
+            valid = [x for x in sources
+                     if isinstance(x, dict) and x.get("title")
+                     and (x.get("url") or x.get("publisher"))]
+            if not valid and not s.get("source"):
+                all_err.append({
+                    "slide": i + 1, "code": "RESEARCH_LEDGER",
+                    "msg": "该页声明了 research 但没有可用来源台账"
+                           "（sources 需含 title 与 url/publisher）"})
+        if meta.get("long_deck_forced"):
+            all_warn.append({
+                "slide": 0, "code": "LONG_DECK_FORCED",
+                "msg": "长 deck 护栏被 allow_long_deck 显式绕过；"
+                       "build 时仍需 --force，且产物会带 FORCED_BUILD 标记"})
     return {"ok": len(all_err) == 0, "errors": all_err, "warnings": all_warn}
