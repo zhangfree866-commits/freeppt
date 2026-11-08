@@ -170,7 +170,7 @@ def add_rect(slide, node):
             _set_line_alpha(shape, node["border_opacity"])
     else:
         shape.line.fill.background()
-    shape.shadow.inherit = False
+    _apply_shadow(shape, node)
     if kind == MSO_SHAPE.ROUNDED_RECTANGLE:
         # adjustment is a fraction of the shorter edge; cap to keep corners sane
         shape.adjustments[0] = min(0.16, radius / max(min(w, h), 1))
@@ -294,6 +294,65 @@ def _set_line_alpha(shape, pct):
         qn("a:alpha"), {"val": str(int(max(0.0, min(100.0, float(pct))) * 1000))}))
 
 
+# Outer-shadow presets. Lengths are EMU (9525 EMU = 1px), dir 5400000 = 90deg
+# (straight down). Only "soft" is used by shipped themes; "medium" is reserved.
+SHADOW_PRESETS = {
+    "soft": {"blur": 90000, "dist": 25000, "alpha": 18000},
+    "medium": {"blur": 140000, "dist": 40000, "alpha": 26000},
+}
+_SHADOW_DIR = 5400000
+
+
+def _shadow_level(node):
+    """Resolve the effective shadow level: node field wins, else theme token.
+
+    Accepts None / "none" / "soft" / "medium" / bool (True -> soft).
+    """
+    raw = node.get("shadow")
+    if raw is None:
+        raw = _vis().get("shadow", "none")
+    if raw is True:
+        return "soft"
+    if raw is False or raw in (None, "none"):
+        return "none"
+    return str(raw)
+
+
+def _apply_shadow(shape, node):
+    """Disable inherited shadow, then inject a preset outerShdw when requested.
+
+    When the resolved level is "none" this only sets shadow.inherit=False,
+    which is exactly the legacy behavior, so default themes stay byte-identical.
+    """
+    level = _shadow_level(node)
+    shape.shadow.inherit = False
+    preset = SHADOW_PRESETS.get(level)
+    if not preset:
+        return
+    spPr = shape._element.spPr
+    for old in spPr.findall(qn("a:effectLst")):
+        spPr.remove(old)
+    effect_lst = spPr.makeelement(qn("a:effectLst"), {})
+    outer = effect_lst.makeelement(qn("a:outerShdw"), {
+        "blurRad": str(preset["blur"]),
+        "dist": str(preset["dist"]),
+        "dir": str(_SHADOW_DIR),
+        "rotWithShape": "0",
+    })
+    clr = outer.makeelement(
+        qn("a:srgbClr"),
+        {"val": str(node.get("shadow_color", "#1F2937")).lstrip("#").upper()})
+    clr.append(clr.makeelement(qn("a:alpha"), {"val": str(preset["alpha"])}))
+    outer.append(clr)
+    effect_lst.append(outer)
+    # OOXML schema order: effectLst follows the a:ln element inside spPr.
+    ln = spPr.find(qn("a:ln"))
+    if ln is not None:
+        ln.addnext(effect_lst)
+    else:
+        spPr.append(effect_lst)
+
+
 SHAPE_KINDS = {
     "oval": MSO_SHAPE.OVAL,
     "chevron": MSO_SHAPE.CHEVRON,
@@ -389,7 +448,7 @@ def add_richcard(slide, node):
             _set_line_alpha(sh, node["border_opacity"])
     else:
         sh.line.fill.background()
-    sh.shadow.inherit = False
+    _apply_shadow(sh, node)
     if node.get("rotate") is not None:
         sh.rotation = float(node["rotate"])
     _name(sh, node)
@@ -436,7 +495,7 @@ def add_shape_node(slide, node, color_default):
             _set_line_alpha(sh, node["border_opacity"])
     else:
         sh.line.fill.background()
-    sh.shadow.inherit = False
+    _apply_shadow(sh, node)
     if node.get("rotate") is not None:
         sh.rotation = float(node["rotate"])
     _name(sh, node)

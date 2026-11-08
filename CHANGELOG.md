@@ -3,6 +3,49 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261108.6] - 2026-11-08
+
+Deterministic layout-engine upgrade closing the three "dead token / random
+selection" mechanism gaps found in the post-benchmark architecture review.
+Three independent opt-in layers; the default pipeline stays byte-identical and
+the legacy 151-test baseline remains green (the suite grows from 151 to 181).
+
+### Added — outer-shadow primitive (L2 visual token → OOXML)
+- `compiler.SHADOW_PRESETS` + `_apply_shadow`: a node's `shadow`
+  (`none`/`soft`/`medium`, or boolean) compiles to a real
+  `a:effectLst/a:outerShdw` (90deg straight down; blur/dist/alpha presets;
+  `shadow_color` override, default `#1F2937`). The node field wins, else the
+  theme `visual.shadow` token — so the previously unconsumed `soft` token on
+  tech/microsoft/stripe now renders. `none` only flips `shadow.inherit=False`,
+  which is exactly the legacy behavior (empty self-closing effectLst).
+- New lint `SHADOW_VALUE`; the offline PNG contact sheet (`debug_render.py`)
+  approximates the shadow with an offset alpha-blended rectangle.
+
+### Added — deterministic archetype scoring (L1 decision layer, opt-in)
+- `compose(..., scoring=True)` / CLI `--scoring`: replaces `rng.shuffle` with
+  `_archetype_score` (hand-authored kind-contract rank + point-count capacity
+  fit + structural cues: quote / left-right / kpi / timeline), ties broken by
+  preference order then archetype name. The same notes now yield the identical
+  archetype plan under every seed; the RNG still drives per-shape geometric
+  jitter, which stays reproducible. Chart/table strong routing and chapter
+  de-duplication are unchanged. Default off keeps the legacy shuffled plan.
+
+### Added — declarative 12-column grid (L3 geometry, opt-in)
+- `layout.grid_spec` + freeform top-level `col_start`/`col_span`: declarative
+  column placement over the master content band (x 60→1220, 24px gutter),
+  consuming the previously dead `visual.grid_columns=12` token. `rect` still
+  supplies y/h; only horizontal geometry comes from the grid.
+- New lint `GRID_COLUMN` (error: non-integer or out-of-bounds spans) and
+  `GRID_COLUMN_NESTED` (warning: nested nodes ignore grid fields, the grid is
+  top-level only). Nodes without the fields keep their absolute rect path.
+
+### Tests
+- +30 tests (11 shadow in `test_visual_primitives.py`, 7 scoring in
+  `test_art_direction.py`, 12 grid in new `test_grid_system.py`); suite 151 →
+  181, all green. A byte-level regression harness (git worktree at HEAD)
+  confirms default-path slide XML is byte-identical to the previous commit for
+  a mixed card/shape/richcard deck.
+
 ## [20261108.5] - 2026-11-08
 
 Design-system and content-depth upgrade, driven by a head-to-head benchmark

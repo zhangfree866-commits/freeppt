@@ -7,6 +7,7 @@ machine-detectable defect instead of a matter of taste.
 import copy
 import json
 import os
+import random
 import sys
 import tempfile
 import unittest
@@ -169,6 +170,119 @@ class TestCLIRouting(unittest.TestCase):
             deck = prepare(json.load(f))
         self.assertNotIn("composed", deck)
         self.assertTrue(lint_deck(deck)["ok"])
+
+
+class TestScoringSelection(unittest.TestCase):
+    """Opt-in deterministic archetype scoring (replaces rng.shuffle)."""
+
+    def _multi_concept_pages(self, count=8):
+        # ordinary concept pages with enough blocks to survive MIN_POINTS
+        return [{
+            "kind": "concept",
+            "title": f"概念页 {i}",
+            "lead": "这一页的引导句。",
+            "points": [{"head": f"要点 {j}", "body": "要点的具体阐述内容。"}
+                       for j in range(3)],
+        } for i in range(count)]
+
+    def test_scoring_plan_is_invariant_across_seeds(self):
+        pages = self._multi_concept_pages()
+        plans = {
+            tuple(art_direction.plan_archetypes(
+                pages, random.Random(seed), scoring=True))
+            for seed in (1, 42, 999, 2026)}
+        self.assertEqual(len(plans), 1)  # every seed yields the identical plan
+
+    def test_legacy_shuffle_still_varies_with_seed(self):
+        # control: the default (scoring=False) path keeps consuming the RNG, so
+        # different seeds legitimately produce different plans
+        pages = self._multi_concept_pages()
+        legacy = {
+            tuple(art_direction.plan_archetypes(
+                pages, random.Random(seed), scoring=False))
+            for seed in range(20)}
+        self.assertGreater(len(legacy), 1)
+
+    def test_default_path_keeps_scoring_off(self):
+        deck, ledger = art_direction.compose(load_notes(), os.path.dirname(NOTES))
+        self.assertFalse(deck["art_direction"]["scoring"])
+        self.assertFalse(ledger["scoring"])
+
+    def test_specialized_archetype_wins_on_structural_cues(self):
+        cases = [
+            ({"kind": "quote", "title": "金句", "quote": "说一句值得停在画面上的话。"},
+             "quote-bleed"),
+            ({"kind": "compare", "title": "两条路线",
+              "left": {"head": "方案甲", "body": "稳妥"},
+              "right": {"head": "方案乙", "body": "激进"}},
+             "split-contrast"),
+            ({"kind": "data", "title": "关键指标", "value": "92%",
+              "label": "客户满意度"},
+             "data-focus"),
+            ({"kind": "timeline", "title": "推进节奏",
+              "points": [{"head": f"阶段 {j}", "body": "该阶段的交付。"}
+                         for j in range(3)]},
+             "timeline-ribbon"),
+        ]
+        for page, expected in cases:
+            plan = art_direction.plan_archetypes(
+                [page], random.Random(7), scoring=True)
+            self.assertEqual(plan[0], expected,
+                             f"{page['kind']} should route to {expected}")
+
+    def test_chart_and_table_routing_survives_scoring(self):
+        chart_page = {"kind": "data", "title": "带图表",
+                      "chart": {"kind": "column", "categories": ["a"],
+                                "series": [{"name": "s", "values": [1]}]},
+                      "points": [{"head": "h", "body": "b"}]}
+        table_page = {"kind": "data", "title": "带表格",
+                      "table": {"headers": ["列"], "rows": [["值"]]},
+                      "points": [{"head": "h", "body": "b"}]}
+        self.assertEqual(
+            art_direction.plan_archetypes([chart_page], random.Random(7),
+                                          scoring=True)[0],
+            "chart-story")
+        self.assertEqual(
+            art_direction.plan_archetypes([table_page], random.Random(7),
+                                          scoring=True)[0],
+            "table-board")
+
+    def test_scoring_compose_is_deterministic_and_passes_lint(self):
+        a, la = art_direction.compose(load_notes(), os.path.dirname(NOTES),
+                                      scoring=True)
+        b, lb = art_direction.compose(load_notes(), os.path.dirname(NOTES),
+                                      scoring=True)
+        self.assertEqual(json.dumps(a, sort_keys=True),
+                         json.dumps(b, sort_keys=True))
+        self.assertTrue(la["scoring"] and lb["scoring"])
+        arch = a["art_direction"]["archetypes"]
+        self.assertTrue(all(arch[i] != arch[i + 1]
+                            for i in range(len(arch) - 1)))  # no neighbour repeat
+        self.assertTrue(lint_deck(prepare(copy.deepcopy(a)))["ok"])
+
+    def test_scoring_combines_with_card_system_deterministically(self):
+        # Short bodies keep every dense archetype inside the canvas; this test
+        # targets selection determinism, not the geometry layer's content-height
+        # envelope (exercised separately by the lint overflow tests). The book
+        # intentionally has no title so _chrome emits a single-line page number
+        # rather than its two-line signature (whose second line touches the
+        # bottom edge on a title-less, chapter-less flat deck).
+        pages = [{
+            "kind": "concept", "title": f"概念页 {i}", "lead": "引导句。",
+            "points": [{"head": f"要点 {j}", "body": "短阐述。"}
+                       for j in range(3)],
+        } for i in range(6)]
+        notes = {"book": {}, "pages": pages}
+        a, _ = art_direction.compose(notes, base="magazine",
+                                     card_system=True, scoring=True)
+        b, _ = art_direction.compose(notes, base="magazine",
+                                     card_system=True, scoring=True)
+        self.assertEqual(a["art_direction"]["archetypes"],
+                         b["art_direction"]["archetypes"])
+        self.assertTrue(
+            set(a["art_direction"]["archetypes"])
+            & set(art_direction.CARD_ARCHETYPES))  # scoring does pick card layouts
+        self.assertTrue(lint_deck(prepare(copy.deepcopy(a)))["ok"])
 
 
 if __name__ == "__main__":

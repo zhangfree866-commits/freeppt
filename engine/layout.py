@@ -287,6 +287,41 @@ def place(node, x, y, w, h):
 
 # ---- freeform canvas ---------------------------------------------------------
 
+# Gutter between declarative grid columns (px). Sits on the same spacing scale
+# as the master gap discipline so grid-aligned cards line up with template decks.
+GRID_GUTTER = 24
+
+
+def grid_spec():
+    """The active theme's column grid mapped onto the master content band.
+
+    Reads visual.grid_columns (12 by default); every theme therefore shares one
+    deterministic geometry even though the token previously went unconsumed.
+    """
+    from . import themes as _themes
+    cols = int(_themes.get_active()["visual"].get("grid_columns", 12) or 12)
+    x0, x1 = PAD, CANVAS_W - PAD
+    col_w = ((x1 - x0) - (cols - 1) * GRID_GUTTER) / cols
+    return {"cols": cols, "x0": x0, "col_w": col_w, "gutter": GRID_GUTTER}
+
+
+def _grid_xw(spec, node):
+    """Resolve (x, width) from col_start/col_span, or None when not declared.
+
+    Columns are 1-based; col_span counts contiguous columns. Returns None for
+    nodes that keep an explicit absolute rect, which is what makes the feature
+    opt-in and leaves every legacy deck byte-identical.
+    """
+    start, span = node.get("col_start"), node.get("col_span")
+    if start is None and span is None:
+        return None
+    start = int(start) if start is not None else 1
+    span = int(span) if span is not None else 1
+    x = spec["x0"] + (start - 1) * (spec["col_w"] + spec["gutter"])
+    w = span * spec["col_w"] + (span - 1) * spec["gutter"]
+    return round(x, 1), round(w, 1)
+
+
 def _assign_rect(node, x, y, w, h):
     """Assign an absolute rect to ONE node (no recursive flex sizing).
 
@@ -312,16 +347,23 @@ def _assign_rect(node, x, y, w, h):
     return node
 
 
-def _place_free(node, ox=0.0, oy=0.0):
+def _place_free(node, ox=0.0, oy=0.0, _grid=None):
     """Place a freeform node; child rects are LOCAL to the parent's rect."""
     r = node.get("rect")
     if not (isinstance(r, (list, tuple)) and len(r) == 4):
         node["_freeform_error"] = "missing rect [x,y,w,h]"
         return _assign_rect(node, ox, oy, 0, 0)
     x, y, w, h = ox + float(r[0]), oy + float(r[1]), float(r[2]), float(r[3])
+    # Declarative column placement applies only to top-level nodes: their rect
+    # still supplies y/h, while col_start/col_span determine the horizontal
+    # geometry. Nested nodes keep local-rect semantics (grid is global).
+    if _grid is not None and ox == 0.0 and oy == 0.0:
+        gxw = _grid_xw(_grid, node)
+        if gxw is not None:
+            x, w = gxw
     _assign_rect(node, x, y, w, h)
     for kid in node.get("children", []):
-        _place_free(kid, x, y)
+        _place_free(kid, x, y, _grid=None)
     return node
 
 
@@ -354,8 +396,9 @@ def layout_slide(slide):
                 "bg_image": bg.get("image"), "bg_overlay": bg.get("overlay"),
                 "layout": "rows", "padding": 0, "gap": 0, "children": kids}
         root["_rect"] = [0, 0, CANVAS_W, CANVAS_H]
+        grid = grid_spec()
         for child in kids:
-            _place_free(child, 0, 0)
+            _place_free(child, 0, 0, _grid=grid)
         slide["_root"] = root
         return
 

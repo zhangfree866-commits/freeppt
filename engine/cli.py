@@ -62,7 +62,8 @@ def cmd_compose(args):
     try:
         deck, ledger = art_direction.compose(
             notes, os.path.dirname(notes_path), args.cover, args.base, args.seed,
-            card_system=getattr(args, "card_system", False))
+            card_system=getattr(args, "card_system", False),
+            scoring=getattr(args, "scoring", False))
     except ValueError as exc:
         print(f"COMPOSE BLOCKED: {exc}", file=sys.stderr)
         return 1
@@ -211,6 +212,8 @@ def main():
     p_cp.add_argument("--seed", help="override the deterministic seed")
     p_cp.add_argument("--card-system", action="store_true",
                       help="enable glass-panel / icon-grid / numbered-cards archetypes")
+    p_cp.add_argument("--scoring", action="store_true",
+                      help="rank archetypes by deterministic content fit instead of shuffle")
     p_cp.add_argument("--out", help="output composed deck DSL")
     p_cp.add_argument("--ledger", help="output style provenance ledger")
     p_cp.set_defaults(func=cmd_compose)

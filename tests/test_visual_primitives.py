@@ -463,5 +463,95 @@ class TestCardArchetypes(unittest.TestCase):
                              f"{name}: {res['errors']}")
 
 
+class TestOuterShadow(unittest.TestCase):
+    def _card(self, **kw):
+        node = {"t": "card", "rect": [80, 80, 320, 200], "fill": WHITE,
+                "children": []}
+        node.update(kw)
+        return freeform_slide([node])
+
+    def test_none_emits_no_effect_list(self):
+        # consulting theme token is "none": the legacy path only flips
+        # shadow.inherit=False, which python-pptx serializes as an EMPTY
+        # self-closing effectLst. The zero-regression contract is therefore
+        # "no outerShdw child", not "no effectLst element at all".
+        path = build(deck([self._card()]))
+        xml = slide_xml(path)
+        self.assertNotIn("outerShdw", xml)
+        self.assertIn("<a:effectLst/>", xml)
+
+    def test_soft_shadow_injects_outer_shadow_preset(self):
+        path = build(deck([self._card(shadow="soft")]))
+        xml = slide_xml(path)
+        self.assertIn("<a:outerShdw", xml)
+        self.assertIn('blurRad="90000"', xml)
+        self.assertIn('dist="25000"', xml)
+        self.assertIn('dir="5400000"', xml)  # 90deg, straight down
+        self.assertIn('<a:alpha val="18000"/>', xml)  # 18% opacity
+        self.assertIn('val="1F2937"', xml)  # default shadow color
+
+    def test_medium_preset_and_custom_shadow_color(self):
+        path = build(deck([self._card(shadow="medium",
+                                      shadow_color="#112233")]))
+        xml = slide_xml(path)
+        self.assertIn('blurRad="140000"', xml)
+        self.assertIn('dist="40000"', xml)
+        self.assertIn('<a:alpha val="26000"/>', xml)
+        self.assertIn('val="112233"', xml)
+
+    def test_boolean_true_resolves_to_soft(self):
+        path = build(deck([self._card(shadow=True)]))
+        self.assertIn("<a:outerShdw", slide_xml(path))
+
+    def test_theme_soft_token_applies_without_node_field(self):
+        d = deck([self._card()])
+        d["theme"] = "tech"  # tech visual.shadow == "soft"
+        path = build(d)
+        self.assertIn("<a:outerShdw", slide_xml(path))
+
+    def test_node_none_overrides_soft_theme_token(self):
+        d = deck([self._card(shadow="none")])
+        d["theme"] = "tech"
+        path = build(d)
+        self.assertNotIn("outerShdw", slide_xml(path))
+
+    def test_node_soft_overrides_none_theme_token(self):
+        d = deck([self._card(shadow="soft")])  # consulting token is none
+        path = build(d)
+        self.assertIn("<a:outerShdw", slide_xml(path))
+
+    def test_shadow_on_richcard_and_shape_nodes(self):
+        slides = freeform_slide([
+            {"t": "richcard", "rect": [80, 80, 300, 140], "fill": WHITE,
+             "shadow": "soft",
+             "blocks": [{"text": "卡片", "size": 18, "color": NAVY}]},
+            {"t": "shape", "kind": "roundrect", "rect": [80, 260, 200, 120],
+             "fill": ACCENT, "shadow": "soft"},
+        ])
+        path = build(deck([slides]))
+        self.assertEqual(slide_xml(path).count("<a:outerShdw"), 2)
+
+    def test_lint_rejects_unknown_shadow_level(self):
+        d = deck([self._card(shadow="heavy")])
+        layout.layout_deck(d)
+        codes = {e["code"] for e in lint.lint_deck(d)["errors"]}
+        self.assertIn("SHADOW_VALUE", codes)
+
+    def test_lint_accepts_every_legal_shadow_value(self):
+        for val in ("none", "soft", "medium", True, False):
+            d = deck([self._card(shadow=val)])
+            layout.layout_deck(d)
+            codes = {e["code"] for e in lint.lint_deck(d)["errors"]}
+            self.assertNotIn("SHADOW_VALUE", codes, f"rejected legal value {val!r}")
+
+    def test_debug_render_draws_soft_shadow_without_error(self):
+        d = deck([self._card(shadow="soft")])
+        layout.layout_deck(d)
+        out_dir = tempfile.mkdtemp()
+        pngs = debug_render.render(d, out_dir)
+        self.assertEqual(len(pngs), 1)
+        self.assertTrue(os.path.exists(pngs[0]))
+
+
 if __name__ == "__main__":
     unittest.main()

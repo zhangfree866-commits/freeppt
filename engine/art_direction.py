@@ -867,7 +867,57 @@ def chapter_of(index, boundaries):
     return sum(1 for b in boundaries if index >= b)
 
 
-def plan_archetypes(pages, rng, card_system=False):
+def _archetype_score(page, arch, kind_rank, n_points):
+    """Deterministic content-fit score of one archetype for one page.
+
+    Higher is better. Every input is an objective feature of the page, so the
+    same content always yields the same ranking regardless of the RNG seed.
+
+    kind_rank  : the archetype's position in the hand-authored KIND_PREFS list
+                 for this page kind (0 = strongest human preference).
+    n_points   : number of real content blocks on the page (from _points).
+    """
+    score = 0
+    # 1. The hand-authored kind contract dominates; each rank step costs 10,
+    #    so a more specific archetype always beats a generic one on equal cues.
+    score -= 10 * kind_rank
+    # 2. Capacity fit: pair the archetype's density with the page's block count,
+    #    so a content-rich page is not squeezed into an airy single-focus layout
+    #    and a thin page is not spread across a mosaic it cannot fill.
+    density = ARCHETYPES[arch]["density"]
+    if n_points >= 4:
+        score += 6 if density == "dense" else (-6 if density == "airy" else 2)
+    elif n_points == 3:
+        score += 4 if density in ("dense", "mid") else 0
+    else:  # 1-2 blocks
+        score += 5 if density == "airy" else (2 if density == "mid" else -3)
+    # 3. Structural specialization keyed off explicit page fields.
+    if page.get("quote") and arch == "quote-bleed":
+        score += 12
+    if (page.get("left") or page.get("right")) and arch == "split-contrast":
+        score += 12
+    if (page.get("value") or page.get("kpi")) and arch == "data-focus":
+        score += 10
+    if page.get("kind") == "timeline" and arch == "timeline-ribbon":
+        score += 10
+    return score
+
+
+def _rank_candidates(page, cand, n_points):
+    """Sort candidates by deterministic content fitness (no RNG involved)."""
+    kind_list = KIND_PREFS.get(page.get("kind"), DEFAULT_PREFS)
+    rank_of = {a: i for i, a in enumerate(kind_list)}
+    fallback = len(kind_list)  # card archetypes sit below the hand-authored list
+    return sorted(
+        cand,
+        key=lambda a: (
+            -_archetype_score(page, a, rank_of.get(a, fallback), n_points),
+            rank_of.get(a, fallback),  # tiebreak 1: human preference order
+            a,                        # tiebreak 2: name, total determinism
+        ))
+
+
+def plan_archetypes(pages, rng, card_system=False, scoring=False):
     """Greedy diversity, chapter-aware.
 
     Within a chapter: prefer unused archetypes, never repeat a neighbour.
@@ -878,6 +928,12 @@ def plan_archetypes(pages, rng, card_system=False):
     When card_system is True, the card archetypes (glass/icon/numbered) join
     the candidate pool for ordinary content pages; they remain excluded from
     the default path so legacy output is byte-identical.
+
+    When scoring is True (opt-in), the generic candidate pool is ranked by a
+    deterministic content-fit score instead of rng.shuffle. The same notes
+    then produce the same archetype plan under every seed; the RNG is still
+    used later for per-shape geometric jitter, which stays reproducible. The
+    default (scoring=False) keeps the legacy shuffle byte-for-byte.
     """
     prefs = []
     for p in pages:
@@ -894,9 +950,13 @@ def plan_archetypes(pages, rng, card_system=False):
         cand = [a for a in cand if MIN_POINTS.get(a, 0) <= n]
         if not cand:
             cand = list(DEFAULT_PREFS)
-        rng.shuffle(cand)
-        # data-bearing archetypes are an explicit routing decision; the
-        # shuffle must not demote them back into the generic pool
+        if scoring:
+            # content-feature ranking: same notes -> same order under any seed
+            cand = _rank_candidates(p, cand, n)
+        else:
+            rng.shuffle(cand)
+        # data-bearing archetypes are an explicit routing decision; they must
+        # stay first regardless of how the generic pool was ordered
         if p.get("chart"):
             cand = ["chart-story"] + [a for a in cand if a != "chart-story"]
         if p.get("table"):
@@ -943,13 +1003,16 @@ def _style(derived, base):
 
 
 def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
-            card_system=False, speaker_notes=True):
+            card_system=False, speaker_notes=True, scoring=False):
     """Return (deck DSL, provenance ledger). Pure function of its inputs.
 
     card_system opt-in: adds the glass-panel / icon-grid / numbered-cards
     archetypes to the planning pool. Off by default to preserve determinism.
     speaker_notes: generate an offline speaker script for every page (a page's
     own `notes` field always wins). Default on for composed decks.
+    scoring opt-in: rank archetypes by deterministic content fitness instead
+    of rng.shuffle, so the same notes yield the same layout plan under every
+    seed. Off by default; the legacy shuffled plan stays byte-identical.
     """
     book = notes.get("book") or {}
     pages = notes.get("pages") or []
@@ -1014,7 +1077,7 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
     seed = seed or hashlib.sha256((book.get("title", "") + raw +
                                    (ledger.get("cover_sha256", ""))).encode()).hexdigest()[:16]
     rng = random.Random(int(seed, 16))
-    plan = plan_archetypes(pages, rng, card_system=card_system)
+    plan = plan_archetypes(pages, rng, card_system=card_system, scoring=scoring)
     S = _style(derived, base)
     # In card mode, dark slides may borrow the base theme's signature gradient
     # (derived themes inherit the base visual tokens unless they override them).
@@ -1064,6 +1127,7 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
             "cover": ledger.get("cover_path"),
             "card_system": bool(card_system),
             "speaker_notes": bool(speaker_notes),
+            "scoring": bool(scoring),
             "engine_version": 3,
         },
     }
@@ -1074,6 +1138,7 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
     ledger["chapter_boundaries"] = boundaries
     ledger["chapters"] = len(boundaries) + (1 if pages else 0)
     ledger["long_deck_forced"] = forced and len(pages) > CHAPTER_PAGE_CAP
+    ledger["scoring"] = bool(scoring)
     return deck, ledger
 
 

@@ -18,6 +18,19 @@ def _gradient_colors(node):
             for st in grad.get("stops", []) if st.get("color")]
 
 
+# Shadow levels accepted by compiler.SHADOW_PRESETS. Booleans are also legal
+# (True -> soft, False -> none); None means "inherit the theme token".
+SHADOW_LEVELS = {"none", "soft", "medium"}
+
+
+def _shadow_invalid(node):
+    """True when a node explicitly declares an unsupported shadow value."""
+    raw = node.get("shadow")
+    if raw is None or isinstance(raw, bool):
+        return False
+    return not (isinstance(raw, str) and raw in SHADOW_LEVELS)
+
+
 def _visible_chars(slide):
     """Count non-decorative on-slide characters (text + richcard blocks)."""
     total = 0
@@ -136,6 +149,9 @@ def _lint_freeform_slide(slide, s_idx, th, ledger):
             err("FREEFORM_RECT", f"{n['t']} {n['_freeform_error']}")
         if n["t"] == "icon" and not _icons.resolve(n.get("name", "")):
             err("ICON_NAME", f"未知图标名: {n.get('name')!r}（见 engine.icons 库）")
+        if _shadow_invalid(n):
+            err("SHADOW_VALUE",
+                f"阴影级别非法: {n.get('shadow')!r}（合法值 none/soft/medium）")
 
     for n in leaves:
         x, y, w, h = n["_rect"]
@@ -146,6 +162,31 @@ def _lint_freeform_slide(slide, s_idx, th, ledger):
             err("OUT_OF_CANVAS", f"{n['t']} 超出画布: {n['_rect']}")
 
     _freeform_assets(root, slide, ledger, err)
+
+    # Declarative column grid: col_start/col_span are honored only on top-level
+    # freeform nodes and must stay inside the theme's grid_columns budget.
+    grid_cols = int(th.get("visual", {}).get("grid_columns", 12) or 12)
+    top_ids = {id(k) for k in root.get("children", [])}
+    for n in root.get("children", []):
+        start, span = n.get("col_start"), n.get("col_span")
+        if start is None and span is None:
+            continue
+        bad_type = isinstance(start, bool) or isinstance(span, bool) \
+            or (start is not None and not isinstance(start, int)) \
+            or (span is not None and not isinstance(span, int))
+        if bad_type:
+            err("GRID_COLUMN",
+                f"col_start/col_span 必须是整数: {start!r}/{span!r}")
+            continue
+        s, sp = (1 if start is None else start), (1 if span is None else span)
+        if s < 1 or sp < 1 or s + sp - 1 > grid_cols:
+            err("GRID_COLUMN",
+                f"列定位越界: col_start={s} col_span={sp} 超出 {grid_cols} 列网格")
+    for n in nodes:
+        if id(n) not in top_ids and (n.get("col_start") is not None
+                                     or n.get("col_span") is not None):
+            warn("GRID_COLUMN_NESTED",
+                 "嵌套节点的 col_start/col_span 会被忽略（网格仅对顶层节点生效）")
 
     # Native table: the DSL carries plain cells; the compiler builds the
     # table, so lint must guarantee the shape before compilation is attempted.
@@ -245,6 +286,9 @@ def lint_slide(slide, s_idx, sc, ledger=None):
     for n in nodes:
         if n["t"] == "icon" and not _icons.resolve(n.get("name", "")):
             err("ICON_NAME", f"未知图标名: {n.get('name')!r}（见 engine.icons 库）")
+        if _shadow_invalid(n):
+            err("SHADOW_VALUE",
+                f"阴影级别非法: {n.get('shadow')!r}（合法值 none/soft/medium）")
 
     # 1. canvas bounds
     for n in leaves:

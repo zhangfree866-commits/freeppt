@@ -24,7 +24,7 @@
 | `assets_base` | string | 图片相对路径的基准目录 |
 | `slides` | array | 页面数组，必填 |
 | `composed` | bool | 是否由 `art_direction.compose()` 产出；开启分章版式多样性硬闸门与研究台账校验 |
-| `art_direction` | object | 原型序列、seed、去重统计、`chapter_boundaries`、`chapters`、`long_deck_forced`、`card_system`、`speaker_notes` |
+| `art_direction` | object | 原型序列、seed、去重统计、`chapter_boundaries`、`chapters`、`long_deck_forced`、`card_system`、`speaker_notes`、`scoring` |
 | `derived_theme` | object | 封面图派生主题规格（含 semantic / palette_extra / source） |
 | `typography` | object | `kinsoku`（默认 true）、字体回退栈、`latin_cjk_spacing` |
 | `_cli_brief` | object | `cli.py make` 的原始要点记录，`no_llm: true` |
@@ -74,7 +74,9 @@ image_text / process / timeline / closing`。
 freeform 节点通用可选字段：`rect`（必填）、`fill`、`border`、`border_opacity`
 （描边不透明度 0–100）、`gradient`（渐变填充，与 fill 同时存在时渐变优先）、
 `rotate`、`opacity`（0–100，写入 OOXML alpha；形状/文字 run/描边各有独立 alpha 通道）、
-`valign`、`on`（声明文字底色，用于 WCAG 对比度校验）、`decor`（装饰元素，不参与部分内容规则）、`bleed`（出血）。
+`valign`、`on`（声明文字底色，用于 WCAG 对比度校验）、`decor`（装饰元素，不参与部分内容规则）、`bleed`（出血）、
+`shadow`（`none`/`soft`/`medium` 或布尔，默认回落到主题 `visual.shadow`）、`shadow_color`（投影色，默认 `#1F2937`）、
+`col_start` / `col_span`（仅顶层节点，12 列声明式定位，见 3.2）。
 
 ### 3.1 视觉原语（渐变 / alpha / 图标）
 
@@ -91,6 +93,21 @@ freeform 节点通用可选字段：`rect`（必填）、`fill`、`border`、`bo
   逻辑网格上用 MSO 原生形状拼合，零素材、可编辑、主题 accent 单色驱动；`resolve(name)`
   负责 trim/大小写归一与 27 个语义别名解析。图标无显式 width 时按 `size`（默认 56）
   取正方形，布局不会把它拉扁。
+- **外阴影 `shadow`**：取值 `"none"|"soft"|"medium"` 或布尔（`true`→soft、`false`→none）；
+  节点未声明时回落到主题 `visual.shadow`（默认 `none`，tech/microsoft/stripe 为 `soft`）。
+  soft/medium 编译为真实 OOXML `a:effectLst/a:outerShdw`（90° 正下方，blur/dist/alpha 档位见
+  `compiler.SHADOW_PRESETS`），可用 `shadow_color` 覆盖投影色。`none` 仅关闭继承阴影，与历史
+  产物逐字节一致；图标节点与页面背景保持扁平、不吃阴影。
+
+### 3.2 声明式 12 列网格（freeform 顶层）
+
+- 主题 `visual.grid_columns`（默认 12）此前是未被消费的死 token，现由 layout 映射到母版内容带
+  （x = 60 → 1220，列间距 `GRID_GUTTER = 24`px）。
+- 顶层 freeform 节点可用 `col_start`（1 基起始列）+ `col_span`（连续跨列数，缺省 1）声明水平
+  几何，替代绝对 `rect` 的 x/width；`rect` 仍负责 y/h。参考值：单列宽 74.7px、6 列 568px、满栏 1160px。
+- 网格仅对**顶层节点**生效；嵌套节点写 col 字段会被忽略并触发 `GRID_COLUMN_NESTED` 警告。
+  不写 col 字段的节点继续走绝对 `rect` 旧路径，默认产物零回归。
+- `col_start < 1`、`col_span < 1` 或 `col_start + col_span - 1 > grid_columns` 触发 `GRID_COLUMN` 错误。
 
 ## 4. 五阶段与硬闸门
 
@@ -124,10 +141,13 @@ freeform 节点通用可选字段：`rect`（必填）、`fill`、`border`、`bo
 | `CJK_KINSHOKU` | 换行处违反避头尾禁则或拆开 `——` / `……` |
 | `ICON_NAME` | `icon` 节点的 `name` 在图标库（含别名）中解析不到 |
 | `NOTES_COVERAGE` | 开启讲稿覆盖（composed deck 且 `speaker_notes` 未关）的页面缺 `notes` |
+| `SHADOW_VALUE` | 节点 `shadow` 取值不在 `none`/`soft`/`medium`（布尔值合法） |
+| `GRID_COLUMN` | freeform 顶层节点 `col_start`/`col_span` 非整数或越过主题 `grid_columns` 列界 |
 
 **警告级（不阻断）**：`ACTION_TITLE`、`DENSITY_FLAT`、`LONG_DECK_FORCED`、`CLICHE`、`WEAK_CLAIM`
 （后两者来自 `content_ai.check_content()`）、`NOTES_THIN`（讲稿不足 40 字）、
-`CONTENT_DENSITY`（composed 内容页可见文字 < 60 字；封面/章节/封底/引文/图表/表格原型豁免）。
+`CONTENT_DENSITY`（composed 内容页可见文字 < 60 字；封面/章节/封底/引文/图表/表格原型豁免）、
+`GRID_COLUMN_NESTED`（嵌套节点的 col_start/col_span 被忽略，网格仅对顶层节点生效）。
 
 ## 6. 中文排版
 

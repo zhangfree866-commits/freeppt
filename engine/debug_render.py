@@ -106,6 +106,39 @@ def _node_fill(node, base_rgb):
     return None
 
 
+# Contact-sheet approximation of compiler.SHADOW_PRESETS. The real renderer
+# emits a blurred outerShdw; here a single offset, alpha-blended dark rectangle
+# is enough to signal elevation on the RGB preview.
+SHADOW_DEBUG = {
+    "soft": {"dist": 3, "alpha": 18},
+    "medium": {"dist": 5, "alpha": 26},
+}
+
+
+def _shadow_level(node):
+    """Mirror compiler._shadow_level: node field wins, else theme token."""
+    raw = node.get("shadow")
+    if raw is None:
+        raw = _themes.get_active()["visual"].get("shadow", "none")
+    if raw is True:
+        return "soft"
+    if raw is False or raw in (None, "none"):
+        return "none"
+    return str(raw)
+
+
+def _draw_shadow(draw, node, bg_rgb):
+    """Paint a flat drop shadow under the shape before its own fill lands."""
+    preset = SHADOW_DEBUG.get(_shadow_level(node))
+    if not preset:
+        return
+    x, y, w, h = node["_rect"]
+    d = preset["dist"]
+    col = _blend(rgb(node.get("shadow_color", "#1F2937")), bg_rgb,
+                 preset["alpha"])
+    _round(draw, [x, y + d, x + w, y + h + d], node.get("radius"), fill=col)
+
+
 def _paste_image(img, node):
     x, y, w, h = node["_rect"]
     try:
@@ -176,6 +209,7 @@ def draw_node(draw, node, default_color, img=None, bg_rgb=(255, 255, 255)):
     if t == "image":
         _paste_image(img, node)
     elif t in ("card", "richcard"):
+        _draw_shadow(draw, node, bg_rgb)
         if node.get("gradient") and img is not None:
             img.paste(gradient_box(node["gradient"], w, h), (int(x), int(y)))
         else:
@@ -189,6 +223,7 @@ def draw_node(draw, node, default_color, img=None, bg_rgb=(255, 255, 255)):
     elif t == "icon":
         _draw_icon(draw, node, x, y, w, h)
     elif t == "shape":
+        _draw_shadow(draw, node, bg_rgb)
         if node.get("gradient") and img is not None:
             img.paste(gradient_box(node["gradient"], w, h), (int(x), int(y)))
             fill = None
@@ -205,6 +240,7 @@ def draw_node(draw, node, default_color, img=None, bg_rgb=(255, 255, 255)):
             draw.rectangle([x, y, x + w, y + h], fill=fill)
     elif t == "box" and (node.get("fill") or node.get("gradient")
                          or node.get("border")):
+        _draw_shadow(draw, node, bg_rgb)
         fillc = None
         if node.get("gradient") and img is not None:
             img.paste(gradient_box(node["gradient"], w, h), (int(x), int(y)))

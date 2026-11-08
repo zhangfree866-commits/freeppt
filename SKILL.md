@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, an offline native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261108.5"
+version: "20261108.6"
 author: "张三峯"
 ---
 
@@ -106,6 +106,9 @@ python3 tools/benchmark.py --out bench.json
 - **三类透明度（毛玻璃基础）**：形状填充 `opacity`、文字 run `opacity`、描边 `border_opacity`，统一注入 OOXML `a:alpha`。玻璃卡典型值为白填充 `opacity:8` + 白描边 `border_opacity:20`。
 - **离线原生图标库**（`engine/icons.py`）：14 个图标用 PowerPoint 原生形状在 100×100 逻辑网格拼合，另带 27 个语义别名（`goal`→target、`risk`→shield 等）；DSL 节点 `{"t":"icon","name":"gear"}`，主题 accent 单色驱动，无位图/SVG 素材、无授权面；`ICON_NAME` 校验图标名，布局保证图标恒为正方形不被拉伸。
 - **卡片体系（opt-in）**：`compose --card-system`（或 `card_system:true`）才把玻璃卡/图标网格/编号卡三个原型纳入编排候选，默认关闭以保持历史产物逐字节不变。深色卡片页在该模式下自动套用主题渐变背景。
+- **受控外阴影**：节点/卡片/richcard 可写 `shadow:"none"|"soft"|"medium"`（或布尔），未声明回落到主题 `visual.shadow`（默认 none，tech/microsoft/stripe 为 soft）；soft/medium 编译为真实 OOXML `a:outerShdw`（90° 正下方，`shadow_color` 可覆盖投影色）。none 仅关继承阴影、与旧产物字节一致；图标与页面背景保持扁平。非法值由 `SHADOW_VALUE` 拦截，debug_render 给偏移近似。
+- **确定性评分选版（opt-in）**：`compose --scoring`（或 `scoring:true`）把选版从 `rng.shuffle` 换成内容特征评分（KIND_PREFS 人工偏好序 + 要点容量 + 金句/左右对比/指标/时间线结构信号），同一份 notes 在任意 seed 下产出同一套原型计划；rng 仍负责逐形状几何微调。默认关闭保留旧 shuffle。
+- **12 列声明式网格**：freeform 顶层节点可用 `col_start`（1 基）+ `col_span` 声明水平定位，消费主题 `grid_columns`（默认 12）映射到内容带（60→1220、列距 24px），`rect` 仍负责 y/h，支持 7+5 非对称错位；嵌套节点写 col 会被忽略并警告，越界由 `GRID_COLUMN` 拦截，无字段节点走旧绝对 rect 路径。
 - 以上原语贯穿 layout / lint / compiler / debug_render 全链路；调试接触表（`debug_render.py`）支持渐变近似、alpha 混合与图标/圆角绘制。
 
 **演讲者备注（speaker notes）**：
@@ -124,6 +127,8 @@ python3 tools/benchmark.py --out bench.json
 - `DENSITY_FLAT`：全篇密度一致 → 警告；
 - `NOTES_COVERAGE`：开启讲稿覆盖的页缺演讲者备注 → 错误；`NOTES_THIN`：讲稿不足 40 字 → 警告；
 - `ICON_NAME`：icon 节点引用了图标库不存在的名字 → 错误；
+- `SHADOW_VALUE`：节点 `shadow` 取值不在 none/soft/medium（布尔合法）→ 错误；
+- `GRID_COLUMN`：freeform 顶层节点 `col_start`/`col_span` 非整数或越过主题 `grid_columns` 列界 → 错误；`GRID_COLUMN_NESTED`：嵌套节点的 col 字段被忽略 → 警告；
 - `CONTENT_DENSITY`：composed 内容页可见文字过薄（< 60 字）→ 警告（非阻断，特殊/数据原型豁免）；
 - `FREEFORM_RECT` / `OUT_OF_CANVAS` / `TEXT_OVERFLOW` / `RICHCARD_OVERFLOW` / `CONTRAST` / `PALETTE` / `FONT_SIZE`：几何、溢出、可读性、配色照旧拦；
 - 自由画布**不受**旧母版教条约束（安全区、固定间距、底部留白、32–40px 标题），但仍可用 `on` 字段声明文字底色以做 WCAG 对比度校验。
@@ -210,8 +215,8 @@ deck 顶层用 `"theme": "<id>"` 选主题（兼容旧 `"scenario"`，theme 优�
   3. 生成式 ImageGen（需显式选用）：标识由生成服务方按法规添加，FreePPT 不修改、不擦除；仅在前两条通道无法覆盖写实场景时使用。
   封面可用背景图+蒙层；image 节点 center-cover 裁剪。
 - **母版版式库**：10 套模板（cover/agenda/section/three_cards/kpi_row/chart_insight/image_text/process/timeline/closing），写数据即出片，见 engine/templates.py。
-- **自由画布 + 创作式编排**：`composition:freeform` 绝对定位、节点 `rect/rotate/opacity/border_opacity/valign/on/decor/bleed`、竖向分隔线；17 种逐页构图原型（含玻璃卡/图标网格/编号卡三个 opt-in 卡片原型）、封面图派生配色与母题、版式重复硬拦截、长 deck 分章护栏，见 engine/art_direction.py 与 engine/cover_style.py。
-- **渐变与毛玻璃视觉系统**：节点/页面 `gradient`（含 `"theme"` 哨兵）编译为真实 OOXML `gradFill`；形状/文字/描边三类 alpha 通道统一注入，可做毛玻璃卡；深色卡片页自动套主题渐变。
+- **自由画布 + 创作式编排**：`composition:freeform` 绝对定位、节点 `rect/rotate/opacity/border_opacity/valign/on/decor/bleed/shadow` 与顶层 `col_start/col_span`（12 列网格）、竖向分隔线；17 种逐页构图原型（含玻璃卡/图标网格/编号卡三个 opt-in 卡片原型）、封面图派生配色与母题、版式重复硬拦截、长 deck 分章护栏、`--scoring` 确定性选版，见 engine/art_direction.py 与 engine/cover_style.py。
+- **渐变/毛玻璃/阴影视觉系统**：节点/页面 `gradient`（含 `"theme"` 哨兵）编译为真实 OOXML `gradFill`；形状/文字/描边三类 alpha 通道统一注入，可做毛玻璃卡；深色卡片页自动套主题渐变；`shadow` 注入可编辑 `outerShdw` 外阴影。
 - **演讲者备注**：compose 离线确定性生成每页讲稿（只重组页面已有文字，不编造数据），编译为真实 notesSlide；`NOTES_COVERAGE`/`NOTES_THIN` 闸门管覆盖与厚度，`speaker_notes:false` 可关。
 - **原生数据原语**：页面携带 `chart`（kind/categories/series）或 `table`（headers/rows）数据时，compose 自动路由到 chart-story / table-board 原型，编译为 PowerPoint 原生可编辑图表与表格（非贴图、非文本框伪装）；inspect 可回读图表/表格结构。
 - **动画与转场**：slide 级 `transition:"fade"` 与 `anims`（fade / fly-up，按 `_name` 定位），由 engine/animator.py 注入 OOXML（python-pptx 本身不支持）。
