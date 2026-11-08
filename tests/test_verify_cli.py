@@ -57,6 +57,19 @@ class TestVerifyCli(unittest.TestCase):
         self.assertEqual(cmd_verify(_args(path)), 0)            # warning alone passes
         self.assertEqual(cmd_verify(_args(path, strict=True)), 2)
 
+    def test_strict_info_only_passes(self):
+        # a fact-like statement without a source is info-level: a measurement,
+        # not a defect. --strict must not fail on it.
+        deck = {"theme": "consulting", "composed": False, "slides": [{
+            "type": "content", "composition": "freeform", "tone": "light",
+            "children": [{"t": "text", "rect": [100, 120, 600, 60],
+                          "text": "已服务超过 100 万用户。", "size": 24,
+                          "color": NAVY, "on": "#FFFFFF"}]}]}
+        fd, path = tempfile.mkstemp(suffix=".json")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(deck, f, ensure_ascii=False)
+        self.assertEqual(cmd_verify(_args(path, strict=True)), 0)
+
     def test_json_mode_still_returns_zero(self):
         path = _write_deck([_surface([200, 200, 300, 200])])
         self.assertEqual(cmd_verify(_args(path, as_json=True)), 0)

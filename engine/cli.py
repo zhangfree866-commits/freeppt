@@ -113,7 +113,7 @@ def cmd_verify(args):
     """Acceptance gate: run all lint checks and render a readable report.
 
     Exit codes: 0 = pass (warnings allowed unless --strict), 1 = errors present,
-    2 = --strict and advisory warnings remain.
+    2 = --strict and advisory warnings remain (info-level measurements pass).
     """
     deck = prepare(load(args.deck))
     result = lint_deck(deck)
@@ -123,7 +123,8 @@ def cmd_verify(args):
         print(_verify_report(deck, result))
     if result["errors"]:
         return 1
-    if args.strict and result["warnings"]:
+    if args.strict and any(
+            w.get("severity") != "info" for w in result["warnings"]):
         return 2
     return 0
 

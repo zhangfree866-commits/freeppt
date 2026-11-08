@@ -45,7 +45,7 @@ SEVERITY_ADVISORY = "advisory"
 SEVERITY_INFO = "info"
 
 # Warning codes that are pure measurements rather than judgements.
-INFO_CODES = frozenset({"LINT_ACK_UNUSED"})
+INFO_CODES = frozenset({"LINT_ACK_UNUSED", "FACT_UNSOURCED"})
 
 # Warning codes that a human may legitimately adjudicate as intentional.
 # Anything not listed here and not in INFO_CODES defaults to advisory too, so
@@ -354,6 +354,122 @@ PLACEHOLDER_PATTERNS = (
     # a raw hex color leaking into prose is almost always a copy-paste slip
     re.compile(r"#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b"),
 )
+
+# --- Text-quality gate (deck-level, warning/info-level) --------------------
+# Mirrors the acceptance criteria a user holds a generated deck to: no
+# typos, no illogical or repeated copy, and factual claims that can be
+# verified. Deterministic patterns only — the engine never "understands"
+# prose, it flags well-known slip classes and demands a human (or research
+# ledger) call for fact-like statements.
+
+# Common Chinese typo pairs. Small, high-precision list; a dictionary-style
+# expansion is welcome but must stay curated to avoid false positives.
+TYPO_PAIRS = (
+    ("帐户", "账户"), ("帐号", "账号"), ("登陆", "登录"), ("做为", "作为"),
+    ("其它的", "其他的"), ("按装", "安装"), ("俩者", "两者"),
+    ("截止目前", "截至目前"), ("既使", "即使"),
+    ("在次", "再次"), ("凭添", "平添"),
+)
+
+# Fact-like statement patterns: a figure, a year/decade, a percentage or a
+# quoted source that an audience would expect to be verifiable.
+FACT_PATTERNS = (
+    re.compile(r"\d[\d,]*(?:\.\d+)?\s*(?:万亿|亿|千万|百万|万|%|％|倍)"),
+    re.compile(r"\b(?:19|20)\d{2}\s*年|\b(?:19|20)\d{2}s"),
+    re.compile(r"占比|份额|排名|第一|第二|第三|全球|全国|行业领先"),
+)
+
+# Slide text (after whitespace folding) must reach this length before
+# cross-slide duplicate detection applies; very short strings like "小结"
+# or "01" legitimately recur.
+DUP_MIN_LEN = 10
+
+
+def _fold(text):
+    """Whitespace-folded string used for typo / duplicate comparison."""
+    return re.sub(r"\s+", "", str(text))
+
+
+def _typo_hits(text):
+    """Yield (typo, suggestion) pairs found in one string, deduplicated."""
+    seen = set()
+    for wrong, right in TYPO_PAIRS:
+        if wrong in text and wrong not in seen:
+            seen.add(wrong)
+            yield wrong, right
+
+
+def _fact_hits(text):
+    """Yield human-readable fact markers found in one string."""
+    hits = []
+    for pat in FACT_PATTERNS:
+        m = pat.search(text)
+        if m:
+            hits.append(m.group(0))
+    return hits
+
+
+def _text_quality_gate(deck, all_warn):
+    """Typos, cross-slide duplicates, and fact statements without sources.
+
+    Runs once per deck after per-slide lint, like `_closing_gate`:
+    * TYPO_FOUND    advisory  — deterministic Chinese typo pair hit.
+    * TEXT_DUP      advisory  — the same >= 10-char sentence recurs on two
+                                different slides (copy-paste slip).
+    * FACT_UNSOURCED info      — a fact-like statement appears on a slide
+                                that carries no `sources`/`source` record.
+      Info-level on purpose: the engine cannot verify facts itself; it
+      nudges the author to attach the research ledger.
+    """
+    slides = deck["slides"]
+    # slide index -> set of long on-stage strings (folded)
+    long_texts = []
+    for slide in slides:
+        root = slide.get("_root")
+        if not root:
+            long_texts.append(set())
+            continue
+        folded = {_fold(t) for t in _visible_texts(root)
+                  if len(_fold(t)) >= DUP_MIN_LEN}
+        long_texts.append(folded)
+
+    for i, slide in enumerate(slides, start=1):
+        root = slide.get("_root")
+        if not root:
+            continue
+        # 1) typos, scanned on raw visible text
+        reported = set()
+        for text in _visible_texts(root):
+            for wrong, right in _typo_hits(text):
+                if wrong in reported:
+                    continue
+                reported.add(wrong)
+                all_warn.append({
+                    "slide": i, "code": "TYPO_FOUND",
+                    "msg": f"疑似错别字「{wrong}」，通常应写作「{right}」"
+                           f"（在「{text[:24]}」中）"})
+        # 2) duplicates against earlier slides
+        mine = long_texts[i - 1]
+        for j in range(0, i - 1):
+            for common in mine & long_texts[j]:
+                all_warn.append({
+                    "slide": i, "code": "TEXT_DUP",
+                    "msg": f"与第 {j + 1} 页存在整句重复："
+                           f"「{common[:24]}」"})
+                break  # one report per slide pair is enough
+        # 3) fact-like statements without a source record
+        has_source = bool(slide.get("sources") or slide.get("source"))
+        if has_source:
+            continue
+        facts = []
+        for text in _visible_texts(root):
+            facts += _fact_hits(text)
+        if facts:
+            all_warn.append({
+                "slide": i, "code": "FACT_UNSOURCED",
+                "msg": "该页含事实型表述（" + "、".join(facts[:3]) +
+                       "），未登记研究台账来源（sources/source）；"
+                       "请补可验证出处或改用已验证表述"})
 
 
 def _visible_texts(root):
@@ -918,6 +1034,9 @@ def lint_deck(deck):
     # Closing-consistency gate: page-number order and leftover placeholder /
     # debug markers in on-stage text. Warning-level and layout-agnostic.
     _closing_gate(deck, all_warn)
+
+    # Text-quality gate: typos, cross-slide duplicates, unsourced facts.
+    _text_quality_gate(deck, all_warn)
 
     # Severity tiers + human adjudication of advisories. Blockers are tagged
     # first (they can never be suppressed); the remaining warnings are split

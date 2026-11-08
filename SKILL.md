@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, an offline native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261109.1"
+version: "20261109.2"
 author: "张三峯"
 ---
 
@@ -156,7 +156,10 @@ python3 tools/benchmark.py --out bench.json
 - `TABLE_SHAPE`：原生表格缺 headers/rows 或行列数不一致 → 错误；
 - `LONG_DECK_FORCED`：长 deck 护栏被显式绕过 → 警告（非阻断）；
 - `DENSITY_FLAT`：全篇密度一致 → 警告；
-- `NOTES_COVERAGE`：开启讲稿覆盖的页缺演讲者备注 → 错误；`NOTES_THIN`：讲稿不足 40 字 → 警告；
+- `NOTES_COVERAGE`：开启讲稿覆盖的页缺演讲者备注 → 错误；`NOTES_THIN`：讲稿不足 40 字 → 警告（随笔/语录类 deck 可用短注档位，例外条件见 `docs/DESIGN_GRAMMAR.md` §9）；
+- `TYPO_FOUND`：上台文本命中常见错别字词对（登陆/登录、帐户/账户等）→ 警告（确定性词典，可 `lint_ack` 裁定）；
+- `TEXT_DUP`：≥ 10 字的整句在不同页重复出现 → 警告（跨页复制粘贴滑痕）；
+- `FACT_UNSOURCED`：含事实型表述（数字/年份/占比/排名）的页未登记 `sources`/`source` 台账 → **info 级提醒**（引擎只提醒不代核实；`verify --strict` 不因 info 失败）；
 - `ICON_NAME`：icon 节点引用了图标库不存在的名字 → 错误；
 - `SHADOW_VALUE`：节点 `shadow` 取值不在 none/soft/medium（布尔合法）→ 错误；
 - `GRID_COLUMN`：freeform 顶层节点 `col_start`/`col_span` 非整数或越过主题 `grid_columns` 列界 → 错误；`GRID_COLUMN_NESTED`：嵌套节点的 col 字段被忽略 → 警告；

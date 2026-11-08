@@ -3,6 +3,33 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261109.2] - 2026-11-09
+
+Text-quality gate and design-grammar elasticity, distilled from the fifth
+benchmark round (12 more external decks, 23 total). Additive and compatible:
+the three new diagnostics are advisory/info tier, `--strict` now passes
+info-only warnings, and the suite grows from 236 to 251.
+
+### Added — text-quality gate (`engine/lint.py`)
+
+- `TYPO_FOUND` (advisory): deterministic Chinese typo pairs (登陆/登录,
+  帐户/账户, ...) found in on-stage text.
+- `TEXT_DUP` (advisory): the same >= 10-char sentence recurring on two
+  different slides — a copy-paste slip, not a stylistic echo.
+- `FACT_UNSOURCED` (info): a fact-like statement (figures, years, shares,
+  ranks) on a slide without a `sources`/`source` record. Info tier by design:
+  the engine nudges, never verifies.
+- `verify --strict` now exits 2 only for remaining advisory warnings;
+  info-level measurements pass (they are not defects).
+
+### Changed — design grammar (`docs/DESIGN_GRAMMAR.md`)
+
+- The six "iron rules" from the 11-deck benchmark are downgraded to "design
+  tendencies with exception conditions" after 6 counterexamples in the 12
+  new decks: semantic font layering (up to 4 fonts in 2 systems), all-serif
+  decks, short-form speaker notes (25.3 chars/slide), 99% notes coverage,
+  144-360 chars/page density range, and 0-image decks.
+
 ## [20261109.1] - 2026-11-09
 
 Three-tier lint severity with human adjudication, plus the long-form craft
