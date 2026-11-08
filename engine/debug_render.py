@@ -3,6 +3,7 @@
 
 import os
 import sys
+import math
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -127,6 +128,39 @@ def _shadow_level(node):
     return str(raw)
 
 
+def _draw_dashed(draw, pts, fill, width, on=12.0, off=8.0):
+    """Approximate a dashed straight connector by stepping along its length."""
+    (x1, y1), (x2, y2) = pts
+    total = math.hypot(x2 - x1, y2 - y1)
+    if total == 0:
+        return
+    ux, uy = (x2 - x1) / total, (y2 - y1) / total
+    dist, drawing = 0.0, True
+    while dist < total:
+        seg = min(on if drawing else off, total - dist)
+        if drawing:
+            draw.line([(x1 + ux * dist, y1 + uy * dist),
+                       (x1 + ux * (dist + seg), y1 + uy * (dist + seg))],
+                      fill=fill, width=width)
+        dist += seg
+        drawing = not drawing
+
+
+def _shape_polygon(kind, x, y, w, h):
+    """Polygon points mirroring MSO chevron / right-arrow inside the box."""
+    if kind == "chevron":
+        notch = min(w * 0.28, h * 0.5)
+        return [(x, y), (x + w - notch, y), (x + w, y + h / 2),
+                (x + w - notch, y + h), (x, y + h),
+                (x + notch, y + h / 2)]
+    # right arrow: a shaft plus a triangular head
+    head = w * 0.38
+    top, bot = y + h * 0.25, y + h * 0.75
+    return [(x, top), (x + w - head, top), (x + w - head, y),
+            (x + w, y + h / 2), (x + w - head, y + h),
+            (x + w - head, bot), (x, bot)]
+
+
 def _draw_shadow(draw, node, bg_rgb):
     """Paint a flat drop shadow under the shape before its own fill lands."""
     preset = SHADOW_DEBUG.get(_shadow_level(node))
@@ -230,13 +264,16 @@ def draw_node(draw, node, default_color, img=None, bg_rgb=(255, 255, 255)):
         else:
             raw = node.get("fill", default_color)
             fill = _blend(rgb(raw), bg_rgb, node.get("opacity")) if raw else None
-        if node.get("kind") == "oval":
+        kind = node.get("kind", "rect")
+        if kind == "oval":
             d = min(w, h)
             draw.ellipse([x, y, x + d, y + d], fill=fill)
-        elif node.get("kind") == "roundrect":
+        elif kind == "roundrect":
             draw.rounded_rectangle([x, y, x + w, y + h], radius=node.get("radius", 12),
                                    fill=fill)
-        elif fill is not None:
+        elif kind in ("chevron", "arrow"):
+            draw.polygon(_shape_polygon(kind, x, y, w, h), fill=fill)
+        else:  # rect is the default; lint already guarantees a legal kind
             draw.rectangle([x, y, x + w, y + h], fill=fill)
     elif t == "box" and (node.get("fill") or node.get("gradient")
                          or node.get("border")):
@@ -262,6 +299,16 @@ def draw_node(draw, node, default_color, img=None, bg_rgb=(255, 255, 255)):
             draw.line([x, y, x, y + h], fill=col, width=width)
         else:
             draw.line([x, y, x + w, y], fill=col, width=width)
+    elif t == "line":
+        # arbitrary-angle hand-drawn connector between two endpoints
+        (x1, y1), (x2, y2) = node["_p1"], node["_p2"]
+        col = rgb(node.get("color", _themes.semantic("accent", "#08A6F6")))
+        width = max(1, int(node.get("thickness", node.get("stroke_w", 2))))
+        pts = [(x1, y1), (x2, y2)]
+        if node.get("dash"):
+            _draw_dashed(draw, pts, col, width)
+        else:
+            draw.line(pts, fill=col, width=width)
 
     if t == "text":
         lines = node.get("_lines") or [node.get("text", "")]

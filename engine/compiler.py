@@ -190,6 +190,24 @@ def add_divider(slide, node):
     return conn
 
 
+def add_line(slide, node):
+    """Freeform hand-drawn connector between two arbitrary points (any angle).
+
+    Unlike divider (horizontal/vertical only), a `line` node carries p1/p2 and
+    renders as a straight connector — the primitive behind hand-drawn trend
+    lines, timeline ribbons, leader lines and other editable vector geometry.
+    """
+    (x1, y1), (x2, y2) = node["_p1"], node["_p2"]
+    conn = slide.shapes.add_connector(1, E(x1), E(y1), E(x2), E(y2))
+    conn.line.color.rgb = rgb(node.get("color", _sem("accent", "#08A6F6")))
+    conn.line.width = Pt(node.get("thickness", node.get("stroke_w", 2)))
+    if node.get("dash"):
+        ln = conn.line._get_or_add_ln()
+        prst = ln.makeelement(qn("a:prstDash"), {"val": "dash"})
+        ln.append(prst)
+    return conn
+
+
 def _set_fill_alpha(shape, pct):
     """pct = opacity 0..100. Injects a:alpha into the solidFill srgbClr."""
     spPr = shape.fill._xPr.find(qn("a:solidFill"))
@@ -354,6 +372,7 @@ def _apply_shadow(shape, node):
 
 
 SHAPE_KINDS = {
+    "rect": MSO_SHAPE.RECTANGLE,
     "oval": MSO_SHAPE.OVAL,
     "chevron": MSO_SHAPE.CHEVRON,
     "arrow": MSO_SHAPE.RIGHT_ARROW,
@@ -481,8 +500,13 @@ def add_richcard(slide, node):
 
 def add_shape_node(slide, node, color_default):
     x, y, w, h = node["_rect"]
-    kind = node.get("kind", "oval")
-    sh = slide.shapes.add_shape(SHAPE_KINDS.get(kind, MSO_SHAPE.OVAL),
+    kind = node.get("kind", "rect")
+    if kind not in SHAPE_KINDS:
+        # Never silently fall back to an oval: a PNG/pptx geometry divergence
+        # would hide authoring typos. lint flags this first as SHAPE_KIND.
+        raise ValueError(
+            f"未知 freeform shape kind: {kind!r}；合法值 {sorted(SHAPE_KINDS)}")
+    sh = slide.shapes.add_shape(SHAPE_KINDS[kind],
                                 E(x), E(y), E(w), E(max(h, 10)))
     eff = dict(node)
     if "fill" not in eff and "gradient" not in eff:
@@ -662,6 +686,8 @@ def render_node(slide, node, color_default, freeform=False):
         _name(add_kpi(slide, node, color_default), node)
     elif t == "divider":
         _name(add_divider(slide, node), node)
+    elif t == "line":
+        _name(add_line(slide, node), node)
     elif t == "chart":
         add_chart(slide, node)  # name applied inside via graphicFrame
     elif t == "table":

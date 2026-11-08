@@ -39,6 +39,63 @@ def cmd_lint(args):
     return 0 if result["ok"] else 1
 
 
+def _group_by_slide(items):
+    grouped = {}
+    for item in items:
+        grouped.setdefault(item["slide"], []).append(item)
+    return grouped
+
+
+def _verify_report(deck, result):
+    """Human-readable acceptance report aggregating every lint gate.
+
+    Covers layout, geometry integrity and the closing-consistency gate in one
+    read, mirroring the final QA sign-off before a deck ships.
+    """
+    errors, warnings = result["errors"], result["warnings"]
+    lines = [f"FreePPT verify — {len(deck['slides'])} slide(s)", "=" * 52]
+
+    def emit(items, badge, heading):
+        if not items:
+            return
+        lines.append(f"{heading} ({len(items)})")
+        for slide, group in sorted(_group_by_slide(items).items()):
+            where = f"slide {slide}" if slide else "deck"
+            for it in group:
+                lines.append(f"  {badge} {where:>9}  {it['code']}: {it['msg']}")
+
+    emit(errors, "[E]", "ERRORS — build-blocking")
+    emit(warnings, "[W]", "WARNINGS — advisory (never block build)")
+
+    lines.append("-" * 52)
+    if errors:
+        lines.append(f"FAIL — {len(errors)} error(s) must be fixed before build")
+    elif warnings:
+        lines.append(f"PASS — no errors; {len(warnings)} advisory warning(s) to review")
+    else:
+        lines.append("PASS — no errors, no warnings")
+    return "\n".join(lines)
+
+
+def cmd_verify(args):
+    """Acceptance gate: run all lint checks and render a readable report.
+
+    Exit codes: 0 = pass (warnings allowed unless --strict), 1 = errors present,
+    2 = --strict and advisory warnings remain.
+    """
+    deck = prepare(load(args.deck))
+    result = lint_deck(deck)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(_verify_report(deck, result))
+    if result["errors"]:
+        return 1
+    if args.strict and result["warnings"]:
+        return 2
+    return 0
+
+
 def cmd_build(args):
     deck = prepare(load(args.deck))
     result = lint_deck(deck)
@@ -200,6 +257,14 @@ def main():
     p_lint = sub.add_parser("lint")
     p_lint.add_argument("deck")
     p_lint.set_defaults(func=cmd_lint)
+    p_vf = sub.add_parser(
+        "verify", help="acceptance report aggregating layout/geometry/closing checks")
+    p_vf.add_argument("deck")
+    p_vf.add_argument("--json", action="store_true",
+                      help="emit the raw lint JSON instead of the readable report")
+    p_vf.add_argument("--strict", action="store_true",
+                      help="treat advisory warnings as failure (exit 2)")
+    p_vf.set_defaults(func=cmd_verify)
     p_build = sub.add_parser("build")
     p_build.add_argument("deck")
     p_build.add_argument("out")

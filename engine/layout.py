@@ -347,8 +347,37 @@ def _assign_rect(node, x, y, w, h):
     return node
 
 
+def _place_line(node, ox=0.0, oy=0.0):
+    """Place a freeform hand-drawn connector from two endpoints.
+
+    The author only writes p1/p2 (local to the parent, like rect); layout
+    derives the absolute endpoints and the bounding rect so lint bounds checks
+    and the renderer can treat a line like any other node.
+    """
+    p1, p2 = node.get("p1"), node.get("p2")
+    numeric = (isinstance(p1, (list, tuple)) and len(p1) == 2
+               and isinstance(p2, (list, tuple)) and len(p2) == 2
+               and all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                       for v in (*p1, *p2)))
+    if not numeric:
+        node["_freeform_error"] = "line needs numeric p1/p2, each [x, y]"
+        node["_p1"] = node["_p2"] = [round(ox, 1), round(oy, 1)]
+        node["_rect"] = [round(ox, 1), round(oy, 1), 0, 0]
+        return node
+    ax1, ay1 = ox + float(p1[0]), oy + float(p1[1])
+    ax2, ay2 = ox + float(p2[0]), oy + float(p2[1])
+    node["_p1"] = [round(ax1, 1), round(ay1, 1)]
+    node["_p2"] = [round(ax2, 1), round(ay2, 1)]
+    x0, y0 = min(ax1, ax2), min(ay1, ay2)
+    node["_rect"] = [round(x0, 1), round(y0, 1),
+                     round(abs(ax2 - ax1), 1), round(abs(ay2 - ay1), 1)]
+    return node
+
+
 def _place_free(node, ox=0.0, oy=0.0, _grid=None):
     """Place a freeform node; child rects are LOCAL to the parent's rect."""
+    if node.get("t") == "line":
+        return _place_line(node, ox, oy)
     r = node.get("rect")
     if not (isinstance(r, (list, tuple)) and len(r) == 4):
         node["_freeform_error"] = "missing rect [x,y,w,h]"

@@ -2,11 +2,13 @@
 
 import json
 import os
+import re
 
 from . import layout as layout_mod
 from . import themes as _themes
 from . import icons as _icons
-from .layout import CANVAS_W, CANVAS_H, PAD, _img_path
+from .compiler import SHAPE_KINDS
+from .layout import CANVAS_W, CANVAS_H, PAD, _img_path, char_w
 
 
 def _gradient_colors(node):
@@ -84,6 +86,218 @@ def rects_overlap(a, b):
     return not (ax + aw <= bx or bx + bw <= ax or ay + ah <= by or by + bh <= ay)
 
 
+# --- Freeform geometric-integrity thresholds (all warning-level) -----------
+# Two visible surfaces closer than this (but not overlapping) read as a
+# near-touch / tangent: visually "sticky" rather than deliberately spaced.
+GEOMETRY_NEAR_GAP = 8.0
+# A single-line label whose glyph run fills more than this fraction of its box
+# is one font-metric nudge away from an unintended wrap. Multi-line body text
+# is intentionally excluded: filling the line width is good paragraph setting.
+TIGHT_WIDTH_RATIO = 0.98
+# Hand-authored line weights live in this Pt band. The engine itself draws thin
+# rules (divider default 1.25, icon stroke 1.75), so this is a sanity range, not
+# an integer constraint.
+LINE_WIDTH_MIN, LINE_WIDTH_MAX = 0.5, 6.0
+# Node types that paint a visible surface and therefore participate in
+# collision checks (text-only nodes are covered by TEXT_OVERLAP instead).
+GEOMETRY_SURFACE_TYPES = (
+    "shape", "richcard", "image", "card", "box", "kpi", "chart", "table")
+
+
+def _parent_map(root):
+    """Map id(node) -> its parent node across children and _float floats."""
+    pmap = {}
+
+    def rec(node, parent):
+        pmap[id(node)] = parent
+        for k in node.get("children", []):
+            rec(k, node)
+        for k in node.get("_float", []):
+            rec(k, node)
+    rec(root, None)
+    return pmap
+
+
+def _is_ancestor(maybe_ancestor, node, pmap):
+    cur = pmap.get(id(node))
+    while cur is not None:
+        if cur is maybe_ancestor:
+            return True
+        cur = pmap.get(id(cur))
+    return False
+
+
+def _has_surface(node):
+    return bool(node.get("fill") or node.get("gradient") or node.get("border"))
+
+
+def _is_background_slab(node):
+    """An edge-to-edge band is structural background (split-contrast panels,
+
+    full-bleed strips), not a floating shape, so its intentional seams are
+    exempt from collision/near-touch checks."""
+    x, y, w, h = node.get("_rect", [0, 0, 0, 0])
+    return h >= CANVAS_H - 1.0 or w >= CANVAS_W - 1.0
+
+
+def _line_width_invalid(value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return True
+    return not (LINE_WIDTH_MIN <= float(value) <= LINE_WIDTH_MAX)
+
+
+def _geometry_integrity(root, warn):
+    """Near-touch / overlap, line-weight range, and tight single-line width.
+
+    Mirrors the manual QA pass a designer runs on hand-drawn freeform slides.
+    Every diagnostic is a warning: layout already guarantees hard bounds and
+    text fit, so these flag taste-level collision risk without blocking build.
+    Native charts/tables render themselves and are only checked for placement
+    collisions, never for internal glyph geometry.
+    """
+    pmap = _parent_map(root)
+    pool = [n for n in walk(root)
+            if n.get("t") in GEOMETRY_SURFACE_TYPES
+            and _has_surface(n)
+            and not n.get("decor") and not n.get("bleed")
+            and not _is_background_slab(n)
+            # data-viz foreground marks (line markers, data-label pills) are
+            # meant to sit on top of bars/points, so they opt out of collision
+            # checks while still bounded, palette- and contrast-checked.
+            and n.get("role") != "data-marker"
+            and n.get("_rect") and n["_rect"][2] > 0 and n["_rect"][3] > 0]
+
+    for i, a in enumerate(pool):
+        ra = a["_rect"]
+        for b in pool[i + 1:]:
+            # nested parent/child surfaces are deliberate containment
+            if _is_ancestor(a, b, pmap) or _is_ancestor(b, a, pmap):
+                continue
+            rb = b["_rect"]
+            if rects_overlap(ra, rb):
+                warn("GEOMETRY_OVERLAP",
+                     f"两个可见形状非嵌套压盖: {a['t']}{ra} 与 {b['t']}{rb}")
+                continue
+            ax, ay, aw, ah = ra
+            bx, by, bw, bh = rb
+            gap_x = (bx - (ax + aw)) if ax + aw <= bx else (ax - (bx + bw))
+            gap_y = (by - (ay + ah)) if ay + ah <= by else (ay - (by + bh))
+            overlap_x = ax < bx + bw and bx < ax + aw
+            overlap_y = ay < by + bh and by < ay + ah
+            if overlap_x and 0 <= gap_y < GEOMETRY_NEAR_GAP:
+                warn("GEOMETRY_NEAR_TOUCH",
+                     f"两形状竖向近距相切(间隙 {round(gap_y, 1)}px"
+                     f" < {GEOMETRY_NEAR_GAP:g}): {a['t']} 与 {b['t']}")
+            elif overlap_y and 0 <= gap_x < GEOMETRY_NEAR_GAP:
+                warn("GEOMETRY_NEAR_TOUCH",
+                     f"两形状横向近距相切(间隙 {round(gap_x, 1)}px"
+                     f" < {GEOMETRY_NEAR_GAP:g}): {a['t']} 与 {b['t']}")
+
+    for n in walk(root):
+        if n.get("t") == "divider":
+            thickness = n.get("thickness", 1.25)
+            if _line_width_invalid(thickness):
+                warn("LINE_WIDTH_VALUE",
+                     f"divider thickness={thickness!r} 非法，"
+                     f"需为 {LINE_WIDTH_MIN:g}–{LINE_WIDTH_MAX:g}pt 数值")
+        elif n.get("t") == "line":
+            thickness = n.get("thickness", n.get("stroke_w", 2))
+            if _line_width_invalid(thickness):
+                warn("LINE_WIDTH_VALUE",
+                     f"line thickness={thickness!r} 非法，"
+                     f"需为 {LINE_WIDTH_MIN:g}–{LINE_WIDTH_MAX:g}pt 数值")
+        elif n.get("t") == "icon" and n.get("stroke_w") is not None:
+            if _line_width_invalid(n["stroke_w"]):
+                warn("LINE_WIDTH_VALUE",
+                     f"icon stroke_w={n['stroke_w']!r} 非法，"
+                     f"需为 {LINE_WIDTH_MIN:g}–{LINE_WIDTH_MAX:g}pt 数值")
+        elif n.get("t") == "text" and not n.get("decor") \
+                and n.get("wrap", True):
+            lines = n.get("_lines") or []
+            w = n["_rect"][2]
+            if w > 0 and len(lines) == 1:
+                size = n.get("size", 20)
+                glyph_w = sum(char_w(c, size) for c in lines[0])
+                if glyph_w / w > TIGHT_WIDTH_RATIO:
+                    warn("TEXT_TIGHT_WIDTH",
+                         f"单行标签宽度占框 {round(glyph_w / w * 100)}%，"
+                         "接近换行临界，建议加宽文本框或缩短文案")
+
+
+# --- Closing-consistency gate (deck-level, warning-level) ------------------
+# Residual markers a finished deck must not still carry on stage. These are
+# deterministic patterns; speaker notes are deliberately excluded (working
+# notes may legitimately contain TODO-style prompts).
+PLACEHOLDER_PATTERNS = (
+    re.compile(r"\b(?:TODO|TBD|FIXME|XXX)\b", re.IGNORECASE),
+    re.compile(r"\{\{.*?\}\}|\$\{.*?\}", re.DOTALL),
+    re.compile(r"placeholder|lorem\s+ipsum|待补充|待填|占位|示例文字",
+               re.IGNORECASE),
+    # a raw hex color leaking into prose is almost always a copy-paste slip
+    re.compile(r"#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b"),
+)
+
+
+def _visible_texts(root):
+    """On-stage, non-decorative strings that the audience actually reads."""
+    for n in walk(root):
+        if n.get("decor"):
+            continue
+        t = n.get("t")
+        if t == "text" and isinstance(n.get("text"), str):
+            yield n["text"]
+        elif t == "kpi":
+            for key in ("value", "label"):
+                if isinstance(n.get(key), str):
+                    yield n[key]
+        elif t == "richcard":
+            for block in n.get("blocks", []):
+                if isinstance(block.get("text"), str):
+                    yield block["text"]
+        elif t == "shape" and isinstance(n.get("text"), str):
+            yield n["text"]
+
+
+def _closing_gate(deck, all_warn):
+    """Page-number order and residual placeholder/debug markers.
+
+    Runs once per deck after per-slide lint so it can reason across slides.
+    Warning-level: catches hand-authoring slips without blocking a build.
+    """
+    slides = deck["slides"]
+    for i, slide in enumerate(slides, start=1):
+        footer = slide.get("footer")
+        if not footer:
+            continue
+        page = footer.get("page")
+        if page is None or not str(page).strip():
+            continue
+        digits = re.findall(r"\d+", str(page))
+        # A footer page token is expected to carry the slide's 1-based ordinal.
+        # Formats like "3", "03 / 12", "第3页" all expose it via digit groups;
+        # compare on integers so leading zeros ("01") still match slide 1.
+        nums = {int(d) for d in digits}
+        if not nums or i not in nums:
+            all_warn.append({
+                "slide": i, "code": "PAGE_NUMBER",
+                "msg": f"页脚页码 {page!r} 与实际页序 {i} 不一致"
+                       "（检查 footer.page 是否漏改或串页）"})
+
+    for i, slide in enumerate(slides, start=1):
+        root = slide.get("_root")
+        if not root:
+            continue
+        for text in _visible_texts(root):
+            for pat in PLACEHOLDER_PATTERNS:
+                hit = pat.search(text)
+                if hit:
+                    all_warn.append({
+                        "slide": i, "code": "PLACEHOLDER_TEXT",
+                        "msg": f"上台文本疑似残留占位/调试标记 {hit.group(0)!r}："
+                               f"「{text[:24]}」"})
+                    break  # one report per text node is enough
+
+
 def _lum(hx):
     """WCAG relative luminance of a #RRGGBB color."""
     hx = str(hx).lstrip("#")
@@ -139,7 +353,7 @@ def _lint_freeform_slide(slide, s_idx, th, ledger):
     nodes = list(walk(root))
     leaves = [n for n in nodes if n["t"] in (
         "text", "kpi", "chart", "table", "divider", "image", "shape", "richcard",
-        "icon")]
+        "icon", "line")]
 
     def err(code, msg): errs.append({"slide": s_idx + 1, "code": code, "msg": msg})
     def warn(code, msg): warns.append({"slide": s_idx + 1, "code": code, "msg": msg})
@@ -149,6 +363,9 @@ def _lint_freeform_slide(slide, s_idx, th, ledger):
             err("FREEFORM_RECT", f"{n['t']} {n['_freeform_error']}")
         if n["t"] == "icon" and not _icons.resolve(n.get("name", "")):
             err("ICON_NAME", f"未知图标名: {n.get('name')!r}（见 engine.icons 库）")
+        if n["t"] == "shape" and n.get("kind", "rect") not in SHAPE_KINDS:
+            err("SHAPE_KIND",
+                f"未知形状 kind: {n.get('kind')!r}（合法值 {sorted(SHAPE_KINDS)}）")
         if _shadow_invalid(n):
             err("SHADOW_VALUE",
                 f"阴影级别非法: {n.get('shadow')!r}（合法值 none/soft/medium）")
@@ -264,6 +481,11 @@ def _lint_freeform_slide(slide, s_idx, th, ledger):
             small = min(ra[2] * ra[3], rb[2] * rb[3]) or 1
             if ix * iy / small > 0.5:
                 warn("TEXT_OVERLAP", "两个文本节点重叠超过 50%")
+
+    # Geometric integrity of hand-drawn freeform surfaces: near-touch seams,
+    # non-nested overlaps, out-of-range line weights, and wrap-critical labels.
+    # Warning-only so valid decks never fail; mirrors a manual designer QA pass.
+    _geometry_integrity(root, warn)
     return errs, warns
 
 
@@ -278,7 +500,7 @@ def lint_slide(slide, s_idx, sc, ledger=None):
     nodes = list(walk(root))
     leaves = [n for n in nodes if n["t"] in (
         "text", "kpi", "chart", "table", "divider", "image", "shape", "richcard",
-        "icon")]
+        "icon", "line")]
 
     def err(code, msg): errs.append({"slide": s_idx + 1, "code": code, "msg": msg})
     def warn(code, msg): warns.append({"slide": s_idx + 1, "code": code, "msg": msg})
@@ -574,4 +796,8 @@ def lint_deck(deck):
                     "slide": i + 1, "code": "CONTENT_DENSITY",
                     "msg": f"内容页仅 {chars} 个可见字，建议结合研究台账补充阐述、"
                            "案例或数据，向页均 150-250 字的信息密度靠拢"})
+
+    # Closing-consistency gate: page-number order and leftover placeholder /
+    # debug markers in on-stage text. Warning-level and layout-agnostic.
+    _closing_gate(deck, all_warn)
     return {"ok": len(all_err) == 0, "errors": all_err, "warnings": all_warn}
