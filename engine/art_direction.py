@@ -455,17 +455,25 @@ def a_margin_notes(p, S, c):
         n = _t(64, y, 820, lead, 21, S["body"], max_h=110, on=S["paper"])
         kids.append(n)
         y = n["rect"][1] + n["rect"][3] + 26
-    for pt in _points(p)[:4]:
+    pts = _points(p)[:4]
+    # 四个「标题+正文」双行块时垂直预算吃紧，自动切紧凑参数；<=3 点保持原样。
+    dense = len(pts) >= 4
+    head_sz = 21 if dense else 23
+    body_sz = 16 if dense else 19
+    head_gap = 6 if dense else 8
+    body_gap = 16 if dense else 30
+    body_maxh = 64 if dense else 100
+    for pt in pts:
         if pt["head"]:
-            n = _t(64, y, 820, pt["head"], 23, S["accent"],
+            n = _t(64, y, 820, pt["head"], head_sz, S["accent"],
                    weight="bold", on=S["paper"])
             kids.append(n)
-            y = n["rect"][1] + n["rect"][3] + 8
+            y = n["rect"][1] + n["rect"][3] + head_gap
         if pt["body"]:
-            n = _t(64, y, 800, pt["body"], 19, S["body"],
-                   max_h=100, on=S["paper"])
+            n = _t(64, y, 800, pt["body"], body_sz, S["body"],
+                   max_h=body_maxh, on=S["paper"])
             kids.append(n)
-            y = n["rect"][1] + n["rect"][3] + 30
+            y = n["rect"][1] + n["rect"][3] + body_gap
     note = p.get("note") or p.get("context") or ""
     if note:
         kids.append(_t(966, 210, 220, "批注", 18, S["ink"],
@@ -805,6 +813,46 @@ def a_numbered_cards(p, S, c):
     return kids, S["paper"], "light", "dense"
 
 
+def a_six_board(p, S, c):
+    """2x3 editorial board for exactly six short blocks.
+
+    Every other list archetype hard-slices to <=5, so a six-item page used to
+    lose its last block(s). This layout takes up to six, laid out as two rows
+    of three flat light cards; an accent rail + numeral carry the brand colour
+    while the fills stay light, so no bright-cyan contrast case is introduced.
+    """
+    pts = _points(p)[:6]
+    kids = [_t(64, 44, 1100, _head(p), 34, S["ink"], max_h=72,
+               min_size=24, weight="bold", on=S["paper"])]
+    kids += _motif(S, 1100, 50, 0.7, 2)
+    x0, y0 = 64, 132
+    gap_x, gap_y = 24, 22
+    cw = (W - 128 - gap_x * 2) / 3      # 368
+    chh = (648 - y0 - gap_y) / 2        # 247
+    for i, pt in enumerate(pts):
+        col, row = i % 3, i // 3
+        cx = x0 + col * (cw + gap_x)
+        cy = y0 + row * (chh + gap_y)
+        card = _b(cx, cy, cw, chh, S["card"], border=S["line"], radius=10)
+        inner = [_b(0, 0, 5, chh, S["accent"])]  # accent rail
+        inner.append(_t(22, 18, 90, f"{i + 1:02d}", 24, S["accent"],
+                        decor=True, weight="bold", on=S["card"]))
+        ty = 60
+        if pt["head"]:
+            hn = _t(22, ty, cw - 44, pt["head"], 20, S["ink"],
+                    max_h=52, min_size=16, weight="bold", on=S["card"])
+            inner.append(hn)
+            ty = hn["rect"][1] + hn["rect"][3] + 8
+        if pt["body"]:
+            inner.append(_t(22, ty, cw - 44, pt["body"], 16, S["body"],
+                            max_h=chh - ty - 16, min_size=16,
+                            on=S["card"]))
+        card["children"] = inner
+        kids.append(card)
+    kids += _chrome(S, c, 1060, 668, on=S["paper"], align="right", w=160)
+    return kids, S["paper"], "light", "dense"
+
+
 ARCHETYPES = {
     "cover-editorial": {"density": "airy", "build": a_cover_editorial},
     "chapter-opener": {"density": "airy", "build": a_chapter_opener},
@@ -814,6 +862,7 @@ ARCHETYPES = {
     "split-contrast": {"density": "mid", "build": a_split_contrast},
     "margin-notes": {"density": "mid", "build": a_margin_notes},
     "stair-list": {"density": "dense", "build": a_stair_list},
+    "six-board": {"density": "dense", "build": a_six_board},
     "data-focus": {"density": "airy", "build": a_data_focus},
     "grid-mosaic": {"density": "dense", "build": a_grid_mosaic},
     "timeline-ribbon": {"density": "mid", "build": a_timeline_ribbon},
@@ -857,9 +906,24 @@ DEFAULT_PREFS = ["editorial-spread", "margin-notes", "offset-triptych",
 
 # archetypes that genuinely need several content blocks to look intentional
 MIN_POINTS = {"offset-triptych": 3, "grid-mosaic": 3,
-              "stair-list": 3, "timeline-ribbon": 3}
+              "stair-list": 3, "timeline-ribbon": 3, "six-board": 6}
 # card-system archetypes need a couple of real blocks to read as intentional
 MIN_POINTS.update({"glass-panel": 2, "icon-grid": 2, "numbered-cards": 2})
+
+# Hard capacities of the card archetypes (they slice _points, so routing more
+# blocks than this would silently drop content).
+CARD_MAX_POINTS = {"glass-panel": 3, "icon-grid": 4, "numbered-cards": 3}
+
+# Hard capacities of every list archetype (each slices _points in its builder).
+# Archetypes that render rich/flexible panels without slicing are treated as
+# effectively unbounded. Used only in the scoring path so candidate layouts can
+# never be assigned more blocks than they actually display.
+MAX_POINTS = {
+    "editorial-spread": 3, "offset-triptych": 3, "stair-list": 5,
+    "data-focus": 3, "grid-mosaic": 4, "timeline-ribbon": 5,
+    "six-board": 6, "margin-notes": 4,
+}
+MAX_POINTS.update(CARD_MAX_POINTS)
 
 
 def chapter_of(index, boundaries):
@@ -946,13 +1010,33 @@ def plan_archetypes(pages, rng, card_system=False, scoring=False):
             cand = ["table-board"] + [a for a in cand if a != "table-board"]
         n = len(_points(p))
         if card_system and p.get("kind") not in ("cover", "chapter", "closing"):
-            cand = [a for a in CARD_ARCHETYPES if MIN_POINTS.get(a, 0) <= n] + cand
-        cand = [a for a in cand if MIN_POINTS.get(a, 0) <= n]
+            # Match on BOTH the minimum (needs enough blocks to look intentional)
+            # and the archetype's hard capacity, otherwise a 4-block page could
+            # be pre-routed to a 3-capacity card and silently lose a block.
+            cand = [a for a in CARD_ARCHETYPES
+                    if MIN_POINTS.get(a, 0) <= n <= CARD_MAX_POINTS.get(a, n)] + cand
+        min_pts = MIN_POINTS
+        if scoring and n == 2 and (p.get("left") or p.get("right")) \
+                and "offset-triptych" in cand:
+            # A two-block comparison reads naturally as two panels. Let
+            # offset-triptych in so repeated compare pages are not all forced
+            # into split-contrast; diversity de-dup then alternates the two.
+            min_pts = {**MIN_POINTS, "offset-triptych": 2}
+        cand = [a for a in cand if min_pts.get(a, 0) <= n]
+        if scoring:
+            # Also enforce each archetype's hard capacity, so a page is never
+            # assigned a layout that would slice off its extra blocks.
+            cand = [a for a in cand if n <= MAX_POINTS.get(a, n)]
         if not cand:
             cand = list(DEFAULT_PREFS)
         if scoring:
-            # content-feature ranking: same notes -> same order under any seed
             cand = _rank_candidates(p, cand, n)
+            if n >= 6:
+                # Six-item pages have no room anywhere else (every list
+                # archetype slices to <=5). Pin six-board after scoring so the
+                # fit ranker cannot demote it; opt-in via scoring keeps the
+                # legacy shuffle path byte-identical.
+                cand = ["six-board"] + [a for a in cand if a != "six-board"]
         else:
             rng.shuffle(cand)
         # data-bearing archetypes are an explicit routing decision; they must
@@ -965,19 +1049,44 @@ def plan_archetypes(pages, rng, card_system=False, scoring=False):
     boundaries = [i for i, p in enumerate(pages) if p.get("kind") == "chapter"]
     plan, prev = [], None
     used_by_chapter = {}
+    count_by_chapter = {}
     for i, cand in enumerate(prefs):
-        used = used_by_chapter.setdefault(chapter_of(i, boundaries), set())
+        # A six-item page has no truncation-free alternative, so content
+        # integrity wins over the no-adjacent-repeat rule: force six-board
+        # even if the previous/used set already contains it.
+        if scoring and len(_points(pages[i])) >= 6 and "six-board" in cand:
+            pick = "six-board"
+            plan.append(pick)
+            ch = chapter_of(i, boundaries)
+            used_by_chapter.setdefault(ch, set()).add(pick)
+            count_by_chapter.setdefault(ch, {})[pick] = \
+                count_by_chapter.setdefault(ch, {}).get(pick, 0) + 1
+            prev = pick
+            continue
+        ch = chapter_of(i, boundaries)
+        used = used_by_chapter.setdefault(ch, set())
+        counts = count_by_chapter.setdefault(ch, {})
         fresh = [a for a in cand if a not in used and a != prev]
         if fresh:
             pick = fresh[0]
         else:
             nonprev = [a for a in cand if a != prev]
-            pick = nonprev[0] if nonprev else cand[0]
+            pool = nonprev or cand
+            if scoring:
+                # Every layout is already used in this chapter. Rebalance by
+                # reusing the candidate seen least so far, breaking ties by the
+                # candidate's fit-ranked order; avoids over-favouring one
+                # archetype whenever the pool must repeat.
+                rank = {a: j for j, a in enumerate(cand)}
+                pick = min(pool, key=lambda a: (counts.get(a, 0), rank.get(a, 0)))
+            else:
+                pick = pool[0]
             if pick == prev:
                 pick = next((a for a in DEFAULT_PREFS if a != prev),
                             "editorial-spread")
         plan.append(pick)
         used.add(pick)
+        counts[pick] = counts.get(pick, 0) + 1
         prev = pick
     return plan
 
@@ -1152,6 +1261,8 @@ def main(argv=None):
     p.add_argument("--seed")
     p.add_argument("--card-system", action="store_true",
                    help="enable glass-panel / icon-grid / numbered-cards archetypes")
+    p.add_argument("--scoring", action="store_true",
+                   help="rank archetypes by deterministic content-fit score")
     p.add_argument("--out")
     p.add_argument("--ledger")
     args = ap.parse_args(argv)
@@ -1159,7 +1270,8 @@ def main(argv=None):
     notes_path = os.path.abspath(args.notes)
     notes = json.load(open(notes_path, encoding="utf-8"))
     deck, ledger = compose(notes, os.path.dirname(notes_path), args.cover,
-                           args.base, args.seed, card_system=args.card_system)
+                           args.base, args.seed, card_system=args.card_system,
+                           scoring=args.scoring)
     out = json.dumps(deck, ensure_ascii=False, indent=2) + "\n"
     if args.out:
         open(args.out, "w", encoding="utf-8").write(out)

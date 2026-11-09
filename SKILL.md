@@ -24,6 +24,7 @@ author: "张三峯"
 
 | 任务 | 路径 |
 |---|---|
+| **追求成品级效果（每页又美又有内容，对标豆包 PPT）** | **走 SVG 融合管线**：`compose --emit-plan` → 逐页 SVG → `svgguard` → `compile-svg`，契约见 `docs/PIPELINE_CONTRACT.md` |
 | 从零 / 基于材料生成 | 遵循本文件五阶段主干（6 步落地） |
 | **长内容（30 页以上 / 分章 / 培训课件 / 读书笔记 / 方法论手册）** | **走 `docs/LONGFORM_SOP.md` 12 道工序**，不按 6 步裸跑 |
 | 读书笔记 / 品牌叙事 / 演讲稿（要版式变化、可附封面图） | 走「创作式编排」：`cli.py compose` → `lint` → `build` |
@@ -40,6 +41,14 @@ author: "张三峯"
 **适用范围**：没有 AI 宿主、CI 环境、内网/离线交付，或只想用命令行出片。以下链路全部离线、确定性、不编造数据。
 
 ```bash
+# SVG 融合管线（对标豆包成品，落原生可编辑 pptx）：
+#   notes → 无坐标 plan.json → 逐页 SVG → 护栏 → 编译
+python3 engine/cli.py compose notes.json --emit-plan plan.json
+python3 engine/cli.py svgguard plan.json svg_output/
+python3 engine/cli.py compile-svg <project_dir> out.pptx --strict
+# ppt-master 为外部前置依赖；路径可用环境变量 FREEPPT_PPTMASTER 覆盖。详见
+# docs/PIPELINE_CONTRACT.md
+
 # 一句话/零散要点 → 8 类报告任一 → lint → pptx（内容闸门 + 版面闸门）
 python3 engine/cli.py make "本周完成 3 项交付；满意度提升到 92%" \
   --type weekly --out out.pptx --out-deck out.json
@@ -85,6 +94,9 @@ python3 tools/benchmark.py --out bench.json
 
 | 模块 | 职责 |
 |---|---|
+| `engine/page_spec.py` | 规划层 → 无坐标 Deck Plan/Page Spec（融合管线①→②③交接物） |
+| `engine/svg_guard.py` | 直接读 SVG 的护栏：对比度/容量/密度/事实来源 |
+| `engine/pptmaster_bridge.py` | 定位外部 ppt-master、修 mkdir 平台 bug、串联质检与编译（不改其源码） |
 | `engine/brief_fill.py` | brief → 报告骨架填充；未提供的字段写明确的空态说明，图表数值只取自输入，零值代表未提供 |
 | `engine/typography.py` | 避头尾禁则、标点悬挂、`——/……` 不拆行、可选中英混排窄空格、声明式字体回退栈；`CJK_KINSHOKU` 进 lint |
 | `engine/pptx_edit.py` | 已有 pptx 的结构导出与保留格式的文字替换（**不做 DSL 往返**） |

@@ -3,6 +3,34 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261109.3] - 2026-11-09
+
+SVG fusion pipeline: FreePPT planning/guards + ppt-master native DrawingML
+compilation. Additive and opt-in — every new flag defaults off, so existing
+commands stay byte-identical. Contract: `docs/PIPELINE_CONTRACT.md`.
+
+### Added
+
+- `engine/page_spec.py`: turns the coordinate-free `(notes, archetype plan)`
+  into a Deck Plan / Page Spec (`build_deck_plan`), the single handoff between
+  planning and the SVG authoring layer. Covers explicit points, compare pages,
+  native charts, single KPIs and timelines.
+- `engine/pptmaster_bridge.py`: locates an external ppt-master install
+  (`~/.workbuddy/skills/ppt-master`, overridable via `FREEPPT_PPTMASTER`),
+  patches the `pathlib.Path.mkdir(exist_ok=True)` platform bug at runtime
+  without touching ppt-master source, and chains its quality checker and
+  compiler.
+- CLI: `compose --emit-plan plan.json`, plus new `svgguard` and
+  `compile-svg` subcommands (`--strict` canonical/final gate,
+  `--skip-quality`).
+- `docs/PIPELINE_CONTRACT.md`: four-layer architecture, coordinate-free
+  field contract, capacity/density single source of truth, QA hard gates.
+
+### Changed
+
+- `SKILL.md`: task routing leads with the SVG fusion pipeline for
+  benchmark-grade output; new modules registered.
+
 ## [20261109.2] - 2026-11-09
 
 Text-quality gate and design-grammar elasticity, distilled from the fifth

@@ -187,8 +187,44 @@ def cmd_compose(args):
         with open(args.ledger, "w", encoding="utf-8") as f:
             json.dump(ledger, f, ensure_ascii=False, indent=2)
             f.write("\n")
+    plan_out = getattr(args, "emit_plan", None)
+    if plan_out:
+        from engine import page_spec
+        S = art_direction._style(deck.get("derived_theme"), args.base)
+        deck_plan = page_spec.build_deck_plan(
+            notes, ledger["archetypes"], S, base=args.base)
+        with open(plan_out, "w", encoding="utf-8") as f:
+            json.dump(deck_plan, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        print(f"plan: {plan_out} ({len(deck_plan['pages'])} page specs)")
     print(f"composed: {out} ({len(deck['slides'])} pages, "
           f"{deck['art_direction']['distinct']} distinct archetypes)")
+    return 0
+
+
+def cmd_svgguard(args):
+    from engine import svg_guard
+    return svg_guard.run(args.plan, args.svg_dir)
+
+
+def cmd_compile_svg(args):
+    import os as _os
+    from engine import pptmaster_bridge
+    project = _os.path.abspath(args.project)
+    out = _os.path.abspath(args.out)
+    if not _os.path.isdir(project):
+        print(f"COMPILE-SVG BLOCKED: not a directory: {project}", file=sys.stderr)
+        return 1
+    root = pptmaster_bridge.require_root()
+    if not args.skip_quality:
+        # 通用质检默认；--strict 走 ppt-master canonical/final 硬闸
+        checker = root / "scripts" / "svg_quality_checker.py"
+        qargv = [project]
+        if args.strict:
+            qargv += ["--canonical-authoring", "--stage", "final", "--json"]
+        pptmaster_bridge._run_script(checker, qargv)
+    compiler = root / "scripts" / "svg_to_pptx.py"
+    pptmaster_bridge._run_script(compiler, [project, "-o", out])
     return 0
 
 
@@ -341,6 +377,9 @@ def main():
                       help="rank archetypes by deterministic content fit instead of shuffle")
     p_cp.add_argument("--out", help="output composed deck DSL")
     p_cp.add_argument("--ledger", help="output style provenance ledger")
+    p_cp.add_argument("--emit-plan",
+                      help="emit coordinate-free Deck Plan (plan.json) for the "
+                           "SVG authoring layer + svg_guard")
     p_cp.set_defaults(func=cmd_compose)
     p_st = sub.add_parser("style", help="derive a theme from a cover image")
     p_st.add_argument("cover")
@@ -381,6 +420,20 @@ def main():
     p_pt.add_argument("--build", help="also rebuild a pptx at this path")
     p_pt.add_argument("--force", action="store_true")
     p_pt.set_defaults(func=cmd_patch)
+    p_sg = sub.add_parser(
+        "svgguard", help="FreePPT guard over SVG (contrast/capacity/density/fact)")
+    p_sg.add_argument("plan", help="coordinate-free Deck Plan (plan.json)")
+    p_sg.add_argument("svg_dir", help="folder of page SVGs")
+    p_sg.set_defaults(func=cmd_svgguard)
+    p_cs2 = sub.add_parser(
+        "compile-svg", help="quality-check then compile an SVG project to pptx")
+    p_cs2.add_argument("project", help="SVG project directory (has svg_output/)")
+    p_cs2.add_argument("out", help="output .pptx path")
+    p_cs2.add_argument("--strict", action="store_true",
+                       help="use ppt-master canonical/final hard gate")
+    p_cs2.add_argument("--skip-quality", action="store_true",
+                       help="compile without running the quality checker")
+    p_cs2.set_defaults(func=cmd_compile_svg)
     args = ap.parse_args()
     sys.exit(args.func(args))
 
