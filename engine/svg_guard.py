@@ -117,6 +117,18 @@ def geometry(el):
             return (cx - r, cy - r, 2 * r, 2 * r)
         rx, ry = gf("rx", 0), gf("ry", 0)
         return (cx - rx, cy - ry, 2 * rx, 2 * ry)
+    if t == "polygon":
+        # points 为 x,y x,y ...；解析所有数字、两两成对求包围盒。
+        # 不支持会让漏斗/对角等多边形底板漏检，上面文字被误判对比度。
+        nums = re.findall(r"-?\d+\.?\d*", el.get("points", ""))
+        if len(nums) < 2:
+            return None
+        coords = [float(v) for v in nums]
+        xs, ys = coords[0::2], coords[1::2]
+        if not xs or not ys:
+            return None
+        x0, y0 = min(xs), min(ys)
+        return (x0, y0, max(xs) - x0, max(ys) - y0)
     return None
 
 
@@ -141,6 +153,49 @@ def contains(box, x, y):
     in_x = (x >= bx) and (x <= bx + bw)
     in_y = (y >= by) and (y <= by + bh)
     return in_x and in_y
+
+
+def _poly_points(el):
+    nums = re.findall(r"-?\d+\.?\d*", el.get("points", ""))
+    if len(nums) < 2:
+        return []
+    coords = [float(v) for v in nums]
+    return list(zip(coords[0::2], coords[1::2]))
+
+
+def point_in_polygon(x, y, pts):
+    """射线法（ray casting）判点是否在多边形内部。"""
+    inside = False
+    n = len(pts)
+    j = n - 1
+    for i in range(n):
+        xi, yi = pts[i]
+        xj, yj = pts[j]
+        if ((yi > y) != (yj > y)) and \
+                (x < (xj - xi) * (y - yi) / ((yj - yi) or 1e-9) + xi):
+            inside = not inside
+        j = i
+    return inside
+
+
+def hit_shape(kind, box, poly_pts, x, y):
+    """点是否真正落在形状内（而非仅矩形包围盒）。
+
+    椭圆按椭圆方程、多边形按点在形内：避免中心椭圆/梯形的包围盒角落
+    把旁边卡片上的文字误判底色。rect 用包围盒。
+    """
+    if not contains(box, x, y):
+        return False
+    if kind in ("circle", "ellipse"):
+        bx, by, bw, bh = box
+        cx, cy = bx + bw / 2, by + bh / 2
+        rx, ry = bw / 2, bh / 2
+        if rx == 0 or ry == 0:
+            return False
+        return ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1
+    if kind == "polygon":
+        return point_in_polygon(x, y, poly_pts)
+    return True
 
 
 # ---------------- 单页检查 ----------------
@@ -174,7 +229,8 @@ def check_page(spec, svg_path):
             box = geometry(el)
             fill = style_fill(el, grad_map)
             if box and isinstance(fill, tuple):
-                panels.append((box, fill))
+                ppts = _poly_points(el) if t == "polygon" else []
+                panels.append((t, box, ppts, fill))
         elif t == "image":
             box = geometry(el)
             if box:
@@ -189,8 +245,8 @@ def check_page(spec, svg_path):
 
     def backdrop(x, y):
         hit = default_bg
-        for box, fill in panels:
-            if contains(box, x, y):
+        for kind, box, ppts, fill in panels:
+            if hit_shape(kind, box, ppts, x, y):
                 hit = fill          # 文档顺序，后者覆盖
         return hit
 
@@ -222,7 +278,9 @@ def check_page(spec, svg_path):
         else:
             need, tier = AA_BODY, "body"
         if ratio < need:
-            on_photo = (not any(contains(b, tx, ty) for b, _ in panels)) and \
+            on_panel = any(hit_shape(k, b, pp, tx, ty)
+                           for k, b, pp, _ in panels)
+            on_photo = (not on_panel) and \
                        any(contains(pb, tx, ty) for pb in photo_boxes)
             pure_num = bool(re.fullmatch(r"[\d.,]+", txtstr))
             if on_photo:

@@ -96,6 +96,7 @@ ppt-master 是**外部前置依赖**（独立 LICENSE），不打包进 FreePPT�
 | CAPACITY 要点超容量 | svg_guard | blocker |
 | DENSITY 形状密度 | svg_guard | advisory |
 | FACT 含数字叙述需有 sources | svg_guard | blocker |
+| LEDGER layout_id 唯一 / 相邻不同族皮 / 同族页码间隔 ≥ gap | layout_ledger（独立账本硬闸） | 阻断编译 |
 
 对比度分流（WCAG）：正文 ≥4.5、大字（≥24px）≥3.0、
 轴标签/类别名/脚注（≤14px）≥3.0；跨页页脚放行。
@@ -111,6 +112,9 @@ python3 -m engine.cli compose notes.json --emit-plan plan.json
 # ③ FreePPT 护栏
 python3 -m engine.cli svgguard plan.json svg_output/
 
+# ③ 版式账本硬闸（长项目保证全本零重复版式；layout_ledger.json 由分配器产出）
+python3 -m engine.cli ledger layout_ledger.json
+
 # ③+④ 质检并编译为原生 pptx（--strict 走 canonical/final 硬闸）
 python3 -m engine.cli compile-svg <project_dir> out.pptx [--strict] [--skip-quality]
 ```
@@ -122,3 +126,23 @@ ppt-master 定位：`~/.workbuddy/skills/ppt-master`；
 
 编译产物每页图元落为原生 AutoShape / Freeform / TextBox，可在 PowerPoint 编辑；
 非整页位图。POSTFLIGHT `quality_gate=passed`。
+
+## 8. 版式账本（Layout Ledger，长项目零重复的契约层）
+
+数据驱动版式项目（family 几何家族 × chrome 皮肤）在规划阶段由分配器产出
+`layout_ledger.json`，`engine/layout_ledger.py: validate()` 做与几何解耦的硬闸：
+
+```jsonc
+{
+  "family_gap": 4,
+  "entries": [
+    {"index": 0, "pn": "P1", "layout_id": "bands__topq-m3-v1",
+     "family": "bands", "chrome": "topq", "special": false}
+  ]
+}
+```
+
+三条规则（任一不满足 ok=false）：① layout_id 全局唯一；② 相邻通用页不同
+family、不同 chrome；③ 同 family 两次出现的真实页码间隔 ≥ family_gap。
+特型页（special=true，封面/章节/金句/定制数据页）只参与唯一性。
+实测：英伟达 91 页账本 ok=true，78 通用页 + 13 特型页，24 家族各 3–4 次。

@@ -2,11 +2,11 @@
 name: freeppt
 display_name: "FreePPT"
 display_name_en: "FreePPT"
-description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、零散要点或读书笔记（可附参考封面图），产出逐页创作编排、原生可编辑的 .pptx；内置 17 种构图原型（含原生图表/表格页与玻璃卡/图标卡/编号卡）、渐变与毛玻璃 alpha、离线原生图标库、演讲者备注自动生成、封面图配色派生、16 套视觉主题、8 类企业固定报告、长 deck 分章护栏、研究来源台账与内容密度校验、纯 CLI 出片与已有 pptx 文字改稿。触发词：FreePPT、freeppt、做PPT、生成PPT、改PPT、读书笔记、幻灯片、pptx。"
+description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、零散要点或读书笔记（可附参考封面图），产出逐页创作编排、原生可编辑的 .pptx；内置 17 种构图原型（含原生图表/表格页与玻璃卡/图标卡/编号卡）、渐变与毛玻璃 alpha、离线原生图标库、演讲者备注自动生成、封面图配色派生、16 套视觉主题、8 类企业固定报告、长 deck 分章护栏、版式账本零重复硬闸（layout_id 全局唯一/相邻不同族/同族页码间隔）、研究来源台账与内容密度校验、纯 CLI 出片与已有 pptx 文字改稿。触发词：FreePPT、freeppt、做PPT、生成PPT、改PPT、读书笔记、幻灯片、pptx。"
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, an offline native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261109.2"
+version: "20261111.1"
 author: "张三峯"
 ---
 
@@ -20,11 +20,28 @@ author: "张三峯"
 
 > 面向用户的产品介绍见 `README.md`（含功能清单、实测状态、合规边界与核查依据）；本文件是 skill 的执行规范。
 
+## 创作第一性原理（最高准则）
+
+**核心一句**：让大模型先做这一页的「设计师」——先读懂这一页的内容（论点、关键词、名人名言、著名理论、数据），想清楚怎么表达最有效；载体是这**之后**的结果，不是预设。
+
+- **载体随内容长出来，千页千面**：可能有图、可能是原生 SVG、可能是纯字体大字版面、可能是数据可视化，也可能几者混合。被否定的只有一种做法——「先有固定模板、再往里填内容」。
+- **统一的是审美语言 / 质量底线，不统一的是结构**：整本可以共用一套配色与气质（看起来是同一本书），但每一页的版面结构都为这页内容重新决定。封面「既是这套风格、又独一份」就是这个标准。
+- **配图只是手段，不是目的**，按性价比选载体：
+  - 简单概念 / 框架 → 优先原生 SVG（省 credit、更干净、可编辑）；
+  - 真实存在的人、事、物（CUDA、DGX、黄仁勋、某款芯片、某次收购）→ 优先联网搜真实照片（更有说服力，几乎不花 AI credit）；
+  - 抽象、确实需要氛围的概念 → 才上 AI 量身画的主视觉；
+  - 不为配图而配图。
+- **判断标准回到「这页怎么表达最有效」**：一句追问用大字最有力，一个框架用结构图最清楚，一组数据用场景大数字最直观——一切手段服务于「让观众秒懂并记住」。
+
+**17 种构图原型、版式账本、概念→图形映射，在这条原理下的定位**：它们是设计师可随手调用的**构件库与底线检查**，不是创作起点，也不是「选一个往里填」的模板库。版式零重复是兜底护栏（防止偷懒套版），不是追求目标；真正的目标是每页表达最优。
+
+**职责边界（诚实标注）**：引擎本身仍是离线、确定性的工具，不会自动「当设计师」；「逐页读懂内容 → 判断载体 → 取素材」这一步由宿主大模型承担（见下方 SVG 融合管线与 `docs/PIPELINE_CONTRACT.md`），引擎负责把决定好的页面忠实编译为原生可编辑 PPTX，并用护栏拦截溢出、重叠、套版等底线问题。
+
 ## 任务路由
 
 | 任务 | 路径 |
 |---|---|
-| **追求成品级效果（每页又美又有内容，对标豆包 PPT）** | **走 SVG 融合管线**：`compose --emit-plan` → 逐页 SVG → `svgguard` → `compile-svg`，契约见 `docs/PIPELINE_CONTRACT.md` |
+| **追求成品级效果（每页又美又有内容，对标豆包 PPT）** | **「逐页设计师」判断优先**（见上方第一性原理）：先逐页读懂内容、决定载体，再走 SVG 融合管线 `compose --emit-plan` → 逐页 SVG → `svgguard` → `compile-svg`，契约见 `docs/PIPELINE_CONTRACT.md`；17 原型只是构件库，长项目用 `cli.py ledger layout_ledger.json` 把「全本版式零重复」卡成兜底硬闸 |
 | 从零 / 基于材料生成 | 遵循本文件五阶段主干（6 步落地） |
 | **长内容（30 页以上 / 分章 / 培训课件 / 读书笔记 / 方法论手册）** | **走 `docs/LONGFORM_SOP.md` 12 道工序**，不按 6 步裸跑 |
 | 读书笔记 / 品牌叙事 / 演讲稿（要版式变化、可附封面图） | 走「创作式编排」：`cli.py compose` → `lint` → `build` |
@@ -45,6 +62,7 @@ author: "张三峯"
 #   notes → 无坐标 plan.json → 逐页 SVG → 护栏 → 编译
 python3 engine/cli.py compose notes.json --emit-plan plan.json
 python3 engine/cli.py svgguard plan.json svg_output/
+python3 engine/cli.py ledger layout_ledger.json   # 版式零重复硬闸：唯一 id/相邻不同族/同族间隔
 python3 engine/cli.py compile-svg <project_dir> out.pptx --strict
 # ppt-master 为外部前置依赖；路径可用环境变量 FREEPPT_PPTMASTER 覆盖。详见
 # docs/PIPELINE_CONTRACT.md
@@ -96,6 +114,7 @@ python3 tools/benchmark.py --out bench.json
 |---|---|
 | `engine/page_spec.py` | 规划层 → 无坐标 Deck Plan/Page Spec（融合管线①→②③交接物） |
 | `engine/svg_guard.py` | 直接读 SVG 的护栏：对比度/容量/密度/事实来源 |
+| `engine/layout_ledger.py` | 版式账本硬闸：layout_id 全局唯一、相邻不同 family/chrome、同族页码间隔 ≥ gap（与几何解耦） |
 | `engine/pptmaster_bridge.py` | 定位外部 ppt-master、修 mkdir 平台 bug、串联质检与编译（不改其源码） |
 | `engine/brief_fill.py` | brief → 报告骨架填充；未提供的字段写明确的空态说明，图表数值只取自输入，零值代表未提供 |
 | `engine/typography.py` | 避头尾禁则、标点悬挂、`——/……` 不拆行、可选中英混排窄空格、声明式字体回退栈；`CJK_KINSHOKU` 进 lint |
@@ -119,6 +138,8 @@ python3 tools/benchmark.py --out bench.json
 ## 创作式编排（非固定模板）
 
 **适用场景**：读书笔记、书评、品牌故事、演讲稿、课程讲义等需要视觉变化的内容。固定母版（10 套）仍保留给周报/月报/经营分析这类结构稳定的报告。
+
+> 定位提醒：本节的「17 原型自动分配」是**引擎在没有逐页人工设计时的高质量兜底**——它让相邻页不重样，但仍属于「从构件库里选」。追求对标豆包的成品级效果时，按顶部「创作第一性原理」由宿主大模型**逐页判断载体**（可直接调用这些原型，也可完全不按原型），原型是素材而非起点。
 
 老问题：`{template,data}` 展开后，每一页都被 `layout_slide` 强制套上「标题 + 横线 + 内容区 + 页脚」，而且 lint 的 SAFE_AREA / DENSITY / GAP 规则会把自由构图判成错误，于是多页内容看起来一模一样。现在这条链路被替换：
 

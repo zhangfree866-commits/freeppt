@@ -207,6 +207,14 @@ def cmd_svgguard(args):
     return svg_guard.run(args.plan, args.svg_dir)
 
 
+def cmd_ledger(args):
+    """校验版式账本：重复 layout_id / 相邻同族 / family 间隔硬闸。"""
+    from engine import layout_ledger
+    result = layout_ledger.validate_file(args.ledger)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result["ok"] else 1
+
+
 def cmd_compile_svg(args):
     import os as _os
     from engine import pptmaster_bridge
@@ -222,7 +230,10 @@ def cmd_compile_svg(args):
         qargv = [project]
         if args.strict:
             qargv += ["--canonical-authoring", "--stage", "final", "--json"]
-        pptmaster_bridge._run_script(checker, qargv)
+        code = pptmaster_bridge._run_script(checker, qargv)
+        if code != 0:
+            print("COMPILE-SVG BLOCKED: quality gate failed", file=sys.stderr)
+            return code
     compiler = root / "scripts" / "svg_to_pptx.py"
     pptmaster_bridge._run_script(compiler, [project, "-o", out])
     return 0
@@ -425,6 +436,10 @@ def main():
     p_sg.add_argument("plan", help="coordinate-free Deck Plan (plan.json)")
     p_sg.add_argument("svg_dir", help="folder of page SVGs")
     p_sg.set_defaults(func=cmd_svgguard)
+    p_ld = sub.add_parser(
+        "ledger", help="validate a layout ledger (unique/no-repeat hard gate)")
+    p_ld.add_argument("ledger", help="layout_ledger.json")
+    p_ld.set_defaults(func=cmd_ledger)
     p_cs2 = sub.add_parser(
         "compile-svg", help="quality-check then compile an SVG project to pptx")
     p_cs2.add_argument("project", help="SVG project directory (has svg_output/)")

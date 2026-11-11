@@ -3,6 +3,64 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261111.1] - 2026-11-11
+
+Authoring philosophy: elevate "the model acts as each page's designer" to the
+top-level creative first principle. The carrier (AI art / real photo / native
+SVG / pure-typography layout / data visualization, or a mix) is the result of
+reading and understanding the page — not a preset. What stays uniform is the
+aesthetic language and quality floor; what varies is per-page structure. The
+17 layout archetypes, layout ledger and concept→graphic map are reframed as a
+component library and bottom-line guard, not the starting point. Docs-only; no
+engine behavior changes.
+
+### Added
+
+- `SKILL.md`: new "创作第一性原理（最高准则）" section, including carrier
+  cost-ranking (native SVG for simple concepts, real web photos for real
+  entities, bespoke AI art only for abstract/atmospheric concepts) and an
+  explicit responsibility boundary — the engine stays offline/deterministic;
+  the per-page "designer" judgment is performed by the host model.
+
+### Changed
+
+- `SKILL.md` task routing: the "成品级效果" path now leads with per-page
+  designer judgment; the ledger is a fallback hard gate.
+- `SKILL.md` "创作式编排": the 17-archetype auto-assignment is described as
+  the high-quality engine fallback when there is no page-by-page design.
+
+## [20261110.1] - 2026-11-10
+
+Layout ledger: a coordinate-free hard gate that makes "every page uses a
+distinct layout" enforceable for long data-driven projects (family × chrome
+systems). Additive — no existing command changes behavior.
+
+### Added
+
+- `engine/layout_ledger.py`: `validate(ledger)` / `validate_file(path)` with
+  three rules — globally unique `layout_id`, adjacent generic pages differ in
+  both family and chrome, and repeated families stay `family_gap` real page
+  numbers apart. Special pages (cover/chapter/quote/custom data) participate
+  only in uniqueness. Geometry-independent: the ledger alone stops cyclic
+  layout rotation.
+- CLI: new `ledger` subcommand (`cli.py ledger layout_ledger.json`), exits 1
+  with the full error list when the gate fails.
+- `tests/test_layout_ledger.py`: 7 cases covering clean ledger, duplicate id,
+  adjacent same family/chrome, family gap, special-page exclusion and missing
+  id.
+- `docs/PIPELINE_CONTRACT.md` §8: ledger JSON contract and the gate's place
+  in the QA stage.
+
+### Changed
+
+- `engine/pptmaster_bridge.py`: `_run_script` now captures `SystemExit` and
+  returns the script's real exit code (restoring `sys.argv` afterwards), so
+  strict quality gates are no longer swallowed as success.
+- `cli.py compile-svg`: blocks compilation when the quality checker returns a
+  non-zero exit code (`COMPILE-SVG BLOCKED: quality gate failed`).
+- Verified against the NVIDIA 91-page ledger: `ok=true`, total 91, 78 generic
+  + 13 special, 24 families each appearing 3–4 times.
+
 ## [20261109.3] - 2026-11-09
 
 SVG fusion pipeline: FreePPT planning/guards + ppt-master native DrawingML

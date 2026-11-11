@@ -52,9 +52,28 @@ def pptmaster_root():
 
 
 def _run_script(script_path, argv):
+    """在本进程内执行脚本，返回其退出码。
+
+    脚本通常以 sys.exit(code) 收尾；runpy 会把它变成 SystemExit 向上抛，
+    若不接住会中断调用方（例如 compile-svg 跑完质检就不再编译）。这里统一
+    捕获并还原成退出码返回。
+    """
     _patch_mkdir()
+    old_argv = sys.argv
     sys.argv = [str(script_path)] + [str(a) for a in argv]
-    runpy.run_path(str(script_path), run_name="__main__")
+    try:
+        runpy.run_path(str(script_path), run_name="__main__")
+        return 0
+    except SystemExit as exc:
+        code = exc.code
+        if code is None:
+            return 0
+        if isinstance(code, int):
+            return code
+        print(code, file=sys.stderr)
+        return 1
+    finally:
+        sys.argv = old_argv
 
 
 def require_root():
