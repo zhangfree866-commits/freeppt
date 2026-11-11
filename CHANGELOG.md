@@ -3,6 +3,26 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261112.1] - 2026-11-12
+
+Make the "model as per-page designer" first principle executable in the
+generation pipeline, not just documentation.
+
+- `engine/art_direction.py`: `compose()` now accepts `design_briefs` (dict keyed
+  by page index / id). Each brief may pin an archetype or mark the page
+  `__host__` (engine emits an empty placeholder; host renders it, e.g. a
+  hand-authored SVG like the module-〇 pages). Briefs carry `carrier` /
+  `structure` / `visual_anchor` / `image_decision` / `rationale`, recorded
+  verbatim onto each slide's `design_brief` field for auditability. Pages
+  without a brief keep the deterministic archetype-pool plan (backward
+  compatible). CLI `compose` gains `--brief <json>`.
+- SKILL.md: generation flow now requires the host model to write per-page
+  `design_briefs` BEFORE `compose()` for creative decks; the 17-archetype pool
+  is explicitly the fallback, not the starting point. This closes the gap where
+  the principle lived in docs but the engine still auto-assigned layouts
+  (the audit finding on the 111-page ABC deck).
+- Tests: add `TestDesignBriefs` (pin / `__host__` placeholder / no-brief default).
+
 ## [20261111.3] - 2026-11-12
 
 Reconcile the offline claim with the "model as designer" first principle. The

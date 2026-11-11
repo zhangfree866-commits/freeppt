@@ -38,6 +38,13 @@ from engine import cover_style as CS  # noqa: E402
 
 W, H = 1280, 720
 
+# Sentinel archetype meaning "the host model renders this page itself"
+# (e.g. a hand-authored SVG). compose() emits a placeholder slide and leaves
+# the children empty so the host can fill it. This is the concrete hook that
+# makes the "model as per-page designer" first principle executable: the engine
+# obeys the designer's brief instead of auto-assigning from the archetype pool.
+HOST_RENDERED = "__host__"
+
 # ---------------------------------------------------------------------------
 # DSL node helpers — every helper computes its own height from the text
 # ---------------------------------------------------------------------------
@@ -981,6 +988,20 @@ def _rank_candidates(page, cand, n_points):
         ))
 
 
+def _resolve_brief(design_briefs, i, page):
+    """Pick the brief dict for page i from a design_briefs mapping.
+
+    Accepts keys as str index, int index, or the page's own id. Returns None
+    when no brief applies, so the caller can fall back to the pool.
+    """
+    if not isinstance(design_briefs, dict):
+        return None
+    for key in (str(i), i, page.get("id")):
+        if key is not None and key in design_briefs:
+            return design_briefs[key]
+    return None
+
+
 def plan_archetypes(pages, rng, card_system=False, scoring=False):
     """Greedy diversity, chapter-aware.
 
@@ -1112,7 +1133,8 @@ def _style(derived, base):
 
 
 def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
-            card_system=False, speaker_notes=True, scoring=False):
+            card_system=False, speaker_notes=True, scoring=False,
+            design_briefs=None):
     """Return (deck DSL, provenance ledger). Pure function of its inputs.
 
     card_system opt-in: adds the glass-panel / icon-grid / numbered-cards
@@ -1122,6 +1144,17 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
     scoring opt-in: rank archetypes by deterministic content fitness instead
     of rng.shuffle, so the same notes yield the same layout plan under every
     seed. Off by default; the legacy shuffled plan stays byte-identical.
+    design_briefs: optional dict keyed by page index (int/str) or page id,
+    carrying the HOST MODEL's per-page design decision (the "model as per-page
+    designer" first principle). Each value may set:
+      - "archetype": a pool archetype name to pin, or "__host__" to defer the
+        page to host rendering (engine emits an empty placeholder slide);
+      - "carrier" / "structure" / "visual_anchor" / "image_decision" /
+        "rationale": the designer's reasoning, recorded onto the slide for
+        auditability and preserved verbatim in the output.
+    When a page has no brief, compose() falls back to the deterministic
+    archetype pool. design_briefs is additive: it never changes the no-brief
+    behavior, so existing deterministic decks are unaffected.
     """
     book = notes.get("book") or {}
     pages = notes.get("pages") or []
@@ -1187,22 +1220,56 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
                                    (ledger.get("cover_sha256", ""))).encode()).hexdigest()[:16]
     rng = random.Random(int(seed, 16))
     plan = plan_archetypes(pages, rng, card_system=card_system, scoring=scoring)
+
+    # Overlay host-model design briefs (the "model as per-page designer" first
+    # principle). A brief may pin a pool archetype or mark the page HOST_RENDERED
+    # to defer rendering to the host (e.g. a hand-authored SVG). Pages with no
+    # brief keep the deterministic pool assignment.
+    plan_final = list(plan)
+    host_pages = set()
+    briefs_by_idx = {}
+    if design_briefs:
+        for i, page in enumerate(pages):
+            b = _resolve_brief(design_briefs, i, page)
+            if not b:
+                continue
+            briefs_by_idx[i] = b
+            choice = b.get("archetype")
+            if choice == HOST_RENDERED:
+                plan_final[i] = HOST_RENDERED
+                host_pages.add(i)
+            elif choice in ARCHETYPES:
+                plan_final[i] = choice
+            # else: leave pool plan[i] (engine fallback)
     S = _style(derived, base)
     # In card mode, dark slides may borrow the base theme's signature gradient
     # (derived themes inherit the base visual tokens unless they override them).
     theme_grad = T.get_theme(base)["visual"].get("background_gradient")
 
     slides = []
-    for i, (page, arch) in enumerate(zip(pages, plan)):
+    for i, page in enumerate(pages):
+        arch = plan_final[i]
+        brief = briefs_by_idx.get(i)
         ctx = {"idx": i, "total": len(pages), "rng": rng, "book": book,
                "cover_file": cover_file, "cover_credit": page.get("source")}
-        kids, surface, tone, density = ARCHETYPES[arch]["build"](page, S, ctx)
-        slide = {
-            "type": "content", "tone": tone, "surface": surface,
-            "composition": "freeform", "archetype": arch, "density": density,
-            "role": page.get("kind", "content"),
-            "children": kids,
-        }
+        if i in host_pages:
+            # Host model renders this page itself (e.g. hand-authored SVG).
+            # Emit a placeholder so deck structure stays intact; children empty.
+            slide = {
+                "type": "content", "tone": "light", "surface": "paper",
+                "composition": "freeform", "archetype": HOST_RENDERED,
+                "density": "custom", "role": page.get("kind", "content"),
+                "children": [], "host_rendered": True,
+                "design_brief": brief,
+            }
+        else:
+            kids, surface, tone, density = ARCHETYPES[arch]["build"](page, S, ctx)
+            slide = {
+                "type": "content", "tone": tone, "surface": surface,
+                "composition": "freeform", "archetype": arch, "density": density,
+                "role": page.get("kind", "content"),
+                "children": kids, "design_brief": brief,
+            }
         if card_system and tone == "dark" and theme_grad:
             slide["gradient"] = "theme"
         # A page may carry its own verbatim notes; otherwise the offline
@@ -1227,8 +1294,8 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
         "assets_base": assets_base,
         "slides": slides,
         "art_direction": {
-            "seed": seed, "archetypes": plan,
-            "distinct": len(set(plan)), "pages": len(plan),
+            "seed": seed, "archetypes": plan_final,
+            "distinct": len(set(plan_final)), "pages": len(plan_final),
             "chapters": len(boundaries) + (1 if pages else 0),
             "chapter_boundaries": boundaries,
             "long_deck_forced": forced and len(pages) > CHAPTER_PAGE_CAP,
@@ -1241,8 +1308,12 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
         },
     }
     deck["derived_theme"] = derived
-    ledger["archetypes"] = plan
-    ledger["distinct"] = len(set(plan))
+    ledger["archetypes"] = plan_final
+    ledger["distinct"] = len(set(plan_final))
+    if host_pages:
+        ledger["host_rendered_pages"] = sorted(host_pages)
+    if briefs_by_idx:
+        ledger["design_briefs_applied"] = len(briefs_by_idx)
     ledger["seed"] = seed
     ledger["chapter_boundaries"] = boundaries
     ledger["chapters"] = len(boundaries) + (1 if pages else 0)
@@ -1263,15 +1334,22 @@ def main(argv=None):
                    help="enable glass-panel / icon-grid / numbered-cards archetypes")
     p.add_argument("--scoring", action="store_true",
                    help="rank archetypes by deterministic content-fit score")
+    p.add_argument("--brief",
+                   help="JSON file: per-page design briefs (model as per-page "
+                        "designer). Keyed by page index (int/str) or page id.")
     p.add_argument("--out")
     p.add_argument("--ledger")
     args = ap.parse_args(argv)
 
     notes_path = os.path.abspath(args.notes)
     notes = json.load(open(notes_path, encoding="utf-8"))
+    design_briefs = None
+    if args.brief:
+        with open(os.path.abspath(args.brief), encoding="utf-8") as bf:
+            design_briefs = json.load(bf)
     deck, ledger = compose(notes, os.path.dirname(notes_path), args.cover,
                            args.base, args.seed, card_system=args.card_system,
-                           scoring=args.scoring)
+                           scoring=args.scoring, design_briefs=design_briefs)
     out = json.dumps(deck, ensure_ascii=False, indent=2) + "\n"
     if args.out:
         open(args.out, "w", encoding="utf-8").write(out)

@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, an offline native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261111.3"
+version: "20261112.1"
 author: "张三峯"
 ---
 
@@ -61,7 +61,13 @@ author: "张三峯"
 ```bash
 # SVG 融合管线（对标豆包成品，落原生可编辑 pptx）：
 #   notes → 无坐标 plan.json → 逐页 SVG → 护栏 → 编译
-python3 engine/cli.py compose notes.json --emit-plan plan.json
+# ⚠️ 创作类 deck 的强制第一环：宿主大模型先逐页当设计师、写出 design_briefs
+#    （每页：载体+结构+主视觉+配图决策+理由），再交给引擎。art_direction 的
+#    17 原型自动分配只是「宿主没给简报」时的兜底，不是创作起点。
+#    写简报：手写 JSON（key=页索引或 page id），或复用 design-system 工序：
+python3 engine/cli.py design-system scaffold ref.png --book "书名"
+#    把简报传给 compose（缺省则不传，回退到原型池兜底）：
+python3 engine/cli.py compose notes.json --emit-plan plan.json --brief design_briefs.json
 python3 engine/cli.py svgguard plan.json svg_output/
 python3 engine/cli.py ledger layout_ledger.json   # 版式零重复硬闸：唯一 id/相邻不同族/同族间隔
 python3 engine/cli.py compile-svg <project_dir> out.pptx --strict
@@ -168,12 +174,14 @@ python3 tools/benchmark.py --out bench.json
 
 > 定位提醒：本节的「17 原型自动分配」是**引擎在没有逐页人工设计时的高质量兜底**——它让相邻页不重样，但仍属于「从构件库里选」。追求对标豆包的成品级效果时，按顶部「创作第一性原理」由宿主大模型**逐页判断载体**（可直接调用这些原型，也可完全不按原型），原型是素材而非起点。
 
+**强制工序（创作类 deck 必走）**：宿主大模型在调用 `compose` 之前，必须**逐页产出 `design_briefs`**——每页一条：`carrier`（svg / photo / pure-type / data-viz / prototype）、`structure`（这页怎么排）、`visual_anchor`（主视觉是什么）、`image_decision`（ai / real-photo / svg / none）、`rationale`（为什么这样表达最有效）。这些简报通过 `compose(notes, design_briefs=...)` 或 CLI `compose --brief briefs.json` 传入；引擎**服从简报**：给定原型就钉用该原型，给定 `__host__` 就留空占位交宿主手绘（如模块〇那种逐页 SVG），没给简报的页才回退原型池。简报原文会原样写进每张 slide 的 `design_brief` 字段，可被 lint / 审计追溯（见上面那段审计对照）。**这是"模型当设计师"在管线里的可执行落点，不是可选建议。**
+
 老问题：`{template,data}` 展开后，每一页都被 `layout_slide` 强制套上「标题 + 横线 + 内容区 + 页脚」，而且 lint 的 SAFE_AREA / DENSITY / GAP 规则会把自由构图判成错误，于是多页内容看起来一模一样。现在这条链路被替换：
 
 | 层 | 新机制 |
 |---|---|
 | 画布 | `composition: freeform`：每个节点自带 `rect:[x,y,w,h]` 绝对定位，子矩形以父矩形左上角为局部原点；不再自动加标题横线与页脚带 |
-| 构图 | `engine/art_direction.py` 17 种原型（封面编辑式 / 章节页 / 跨页编辑式 / 整页引文 / 错位三栏 / 左右对开 / 页边批注 / 阶梯列表 / 数字焦点 / 不等网格 / 时间轴 / 封底呼应 / 原生图表叙事 / 原生表格看板，以及卡片体系的玻璃卡 `glass-panel` / 图标网格 `icon-grid` / 编号卡 `numbered-cards`），按内容语义候选 + 确定性 seed 逐页分配，相邻页不重样；页面携带 `chart`/`table` 数据时自动路由到对应数据原型，编译为原生可编辑图表与表格 |
+| 构图 | `engine/art_direction.py` 17 种原型（封面编辑式 / 章节页 / 跨页编辑式 / 整页引文 / 错位三栏 / 左右对开 / 页边批注 / 阶梯列表 / 数字焦点 / 不等网格 / 时间轴 / 封底呼应 / 原生图表叙事 / 原生表格看板，以及卡片体系的玻璃卡 `glass-panel` / 图标网格 `icon-grid` / 编号卡 `numbered-cards`）。**默认行为**：按内容语义候选 + 确定性 seed 逐页分配，相邻页不重样，作为「宿主未给设计简报」时的兜底；**创作模式**：宿主通过 `design_briefs` 逐页指定载体/结构/主视觉后，引擎服从简报，原型池只兜底未指定的页。页面携带 `chart`/`table` 数据时自动路由到对应数据原型，编译为原生可编辑图表与表格 |
 | 参考图 | `engine/cover_style.py` 从图书封面/品牌主视觉提取主色（按彩度×占比×中间调打分，避开大面积纸底色）、浅色纸底、主色块位置 → 派生调色板、字体气质与贯穿全篇的母题（band / vertical-rule / arc / dots / grid） |
 | 几何 | 文本节点高度由自身分词换行实测得出，长文自动缩字号；栏数/格数随实际内容块数变化，不填空卡片 |
 | 色彩一致性 | 派生主题由 `themes.build_derived()` 注册，PALETTE 规则仍强制所有色落在派生调色板内 |

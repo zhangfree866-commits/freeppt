@@ -285,5 +285,47 @@ class TestScoringSelection(unittest.TestCase):
         self.assertTrue(lint_deck(prepare(copy.deepcopy(a)))["ok"])
 
 
+class TestDesignBriefs(unittest.TestCase):
+    """The "model as per-page designer" first principle, made executable.
+
+    design_briefs lets the host model pin an archetype or defer a page to
+    host rendering; pages without a brief keep the deterministic pool plan.
+    """
+
+    def test_pin_archetype_overrides_pool(self):
+        notes = load_notes()
+        briefs = {"0": {"archetype": "icon-grid",
+                        "carrier": "prototype", "rationale": "demo override"}}
+        deck, ledger = art_direction.compose(
+            notes, os.path.dirname(NOTES), design_briefs=briefs)
+        self.assertEqual(deck["slides"][0]["archetype"], "icon-grid")
+        self.assertEqual(deck["slides"][0]["design_brief"]["rationale"],
+                         "demo override")
+        # only the briefed page changed; the rest follow the pool
+        self.assertEqual(ledger["design_briefs_applied"], 1)
+
+    def test_host_rendered_emits_placeholder(self):
+        notes = load_notes()
+        briefs = {"1": {"archetype": "__host__",
+                        "carrier": "svg", "structure": "custom diagram",
+                        "rationale": "this page needs a hand-authored SVG"}}
+        deck, ledger = art_direction.compose(
+            notes, os.path.dirname(NOTES), design_briefs=briefs)
+        s = deck["slides"][1]
+        self.assertTrue(s["host_rendered"])
+        self.assertEqual(s["children"], [])
+        self.assertEqual(s["archetype"], "__host__")
+        self.assertIn(1, ledger["host_rendered_pages"])
+        self.assertEqual(s["design_brief"]["carrier"], "svg")
+
+    def test_no_brief_keeps_deterministic_default(self):
+        a, la = art_direction.compose(load_notes(), os.path.dirname(NOTES))
+        b, lb = art_direction.compose(load_notes(), os.path.dirname(NOTES))
+        self.assertEqual(a["art_direction"]["archetypes"],
+                         b["art_direction"]["archetypes"])
+        self.assertNotIn("host_rendered_pages", la)
+        self.assertNotIn("design_briefs_applied", la)
+
+
 if __name__ == "__main__":
     unittest.main()
