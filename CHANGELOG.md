@@ -3,6 +3,50 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261112.2] - 2026-11-12
+
+Turn the per-page design principle into a **compile-time gate**. The previous
+release made `design_briefs` *possible*; it was still an optional argument, so a
+deck could be produced straight from the archetype pool without anyone judging
+each page. That is exactly the "pick a template and pour content into it"
+pattern the first principle rejects. This release makes it impossible.
+
+- `engine/art_direction.py`: `compose()` now **raises ValueError** when no
+  `design_briefs` are supplied. Two legitimate exits: pass briefs, or declare
+  `"brief_pool": "prototype"` on the notes to explicitly accept the pool
+  fallback (recorded on the deck; lint reports `BRIEF_POOL_FALLBACK`).
+- New `engine/design_brief.py`: brief completeness gate. Every composed page
+  must carry `carrier` / `structure` / `visual_anchor` / `image_decision` /
+  `rationale`, each non-empty, non-placeholder ("无" / "TBD" / "同上" rejected)
+  and above a floor length. `image_decision` must be a known value. Violations
+  raise `DESIGN_BRIEF_MISSING` (blocker). A single `structure` label reused on
+  more than 3 pages raises `STRUCTURE_REUSED` (blocker) — reusing one answer
+  across many pages means the pages were not judged individually.
+- New `engine/layout_fingerprint.py`: geometric skeleton fallback. Reads
+  coordinates only — **never the self-reported `archetype`** — because testing
+  showed relabelling 12 identical pages with 12 different archetype names left
+  the old gate at `ok=True`. Single skeleton appearing on >=5 pages raises
+  `LAYOUT_SKELETON_REPEAT` (blocker). Ritual pages (cover / chapter / closing)
+  are exempt: eleven chapter openers looking alike is correct design.
+- Threshold calibrated on real output, not guessed: a healthy deck's largest
+  same-skeleton group is 4 pages; the failing 122-page sample had 11 / 8 / 8 /
+  7 / 7. A skeleton-density ratio was tried first and **rejected by the data**
+  (healthy 3.2 pages/skeleton vs failing 2.87 — indistinguishable), so the
+  absolute group size is used instead.
+- `engine/lint.py`: both new codes registered as blockers, therefore not
+  `lint_ack`-able; blockers must be fixed at the source.
+- New `tests/test_design_brief_gate.py` (16 cases), including the regression
+  anchor `TestRealWorldTemplateDeckRejected`, which rebuilds the structure of
+  the real 122-page failing deck and asserts it is rejected. Loosening any gate
+  later turns this test red instead of shipping a bad deck.
+- Verification on real artifacts: the failing 122-page deck now returns
+  `ok=False` with 130 blockers (122 missing briefs + 8 skeleton repeats);
+  normal composed output still passes `ok=True`.
+- Archetype-pool tests (`test_art_direction`, `test_long_deck_guard`,
+  `test_visual_primitives`, `test_repo_portability`) declare
+  `brief_pool="prototype"` — they exercise the pool, not per-page judgement.
+  Full suite: 295 tests pass.
+
 ## [20261112.1] - 2026-11-12
 
 Make the "model as per-page designer" first principle executable in the

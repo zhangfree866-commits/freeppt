@@ -220,7 +220,9 @@ class TestGradientPaletteAndDebugRender(unittest.TestCase):
 
 class TestSpeakerNotes(unittest.TestCase):
     def _book(self):
+        # 本组测讲稿生成与确定性，不测逐页设计判断，声明走原型兜底。
         return {
+            "brief_pool": "prototype",
             "book": {"title": "管理的常识", "author": "陈春花"},
             "pages": [
                 {"kind": "cover", "title": "管理的常识", "lead": "让管理发挥绩效"},
@@ -306,6 +308,11 @@ class TestContentDensityAndResearch(unittest.TestCase):
         d = deck(slides)
         d["composed"] = composed
         d["art_direction"] = {"speaker_notes": False}
+        # 本组是 lint 规则的单元测试，手工构造单页 DSL，测的是密度/对比度/
+        # 讲稿等具体规则，不是逐页设计判断；按设计意图声明走原型兜底，
+        # 免得简报闸门在这里产生噪声。逐页设计闸门由
+        # tests/test_design_brief_gate.py 专门覆盖。
+        d["brief_pool"] = "prototype"
         layout.layout_deck(d)
         return lint.lint_deck(d), d
 
@@ -390,7 +397,9 @@ class TestThemeGradientAndTypeface(unittest.TestCase):
 
 class TestCardArchetypes(unittest.TestCase):
     def _notes(self, n=6):
+        # 本组测卡片原型的确定性，不测逐页设计判断，声明走原型兜底。
         return {
+            "brief_pool": "prototype",
             "book": {"title": "卡片体系测试书"},
             "pages": [{
                 "kind": "concept",

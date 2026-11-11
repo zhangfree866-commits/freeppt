@@ -45,7 +45,9 @@ def chapter_page(no, title):
 
 
 def notes(pages):
-    return {"book": {"title": "护栏测试书", "author": "测试"}, "pages": pages}
+    """护栏测试关注长 deck 分章与原型预算，显式声明走原型兜底。"""
+    return {"book": {"title": "护栏测试书", "author": "测试"},
+            "pages": pages, "brief_pool": "prototype"}
 
 
 class TestLongDeckGuard(unittest.TestCase):

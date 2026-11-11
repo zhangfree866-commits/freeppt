@@ -1175,6 +1175,33 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
             f"into chapters, or set notes.allow_long_deck=true to accept the "
             f"lint diagnostics and build with --force.")
 
+    # ---- 逐页设计闸门（第一性原理的可执行落点） ----
+    # 创作类 deck 由宿主大模型先逐页写设计简报，引擎才接手。没有简报就调
+    # compose，等于把「读懂内容 → 判断怎么表达」整个跳过，退回「从原型池
+    # 挑一个往里填」——那正是被否定的做法，所以在入口直接失败，而不是产出
+    # 一本百页同构 deck 之后由人发现。
+    #
+    # 两条合法出路：
+    #   1) 传 design_briefs（推荐：逐页写清载体/结构/主视觉/配图/理由）；
+    #   2) notes 顶层写 brief_pool="prototype"（显式声明这批页确实适合原型，
+    #      接受兜底；留痕进 ledger 与 lint 报告，不静默）。
+    pool_declared = str(notes.get("brief_pool") or "").strip().lower() in (
+        "prototype", "pool", "fallback")
+    if not design_briefs and not pool_declared:
+        raise ValueError(
+            "compose() 需要逐页设计简报（design_briefs）。\n"
+            "第一性原理要求先读懂这一页的内容、再判断怎么表达最有效；"
+            "载体（图 / 原生 SVG / 纯字版面 / 数据可视化）是想清楚之后的结果，"
+            "不是从模板库里挑一个往里填。没有简报就编排，会退回"
+            "「按内容条数选原型」的套版路径。\n"
+            "两种做法（任选其一）：\n"
+            "  1) 传 design_briefs：{页索引或页id: {carrier, structure, "
+            "visual_anchor, image_decision, rationale}}；\n"
+            "     需要宿主亲手画某页时把该页 archetype 设为 \"__host__\"；\n"
+            "  2) 若这批页确实就是标准原型（固定报告/纯数据页），"
+            "在 notes 顶层写 \"brief_pool\": \"prototype\" 显式声明走兜底。\n"
+            f"本次 notes 共 {len(pages)} 页，未收到任何 design_briefs。")
+
     # resolve cover relative to the notes file (offline, no network)
     cover = cover_path or notes.get("cover") or book.get("cover")
     if cover and not os.path.isabs(cover):
@@ -1290,6 +1317,9 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
     deck = {
         "composed": True,
         "composition": "freeform",
+        # 顶层留痕：lint 与审计读顶层字段，不能只写在 art_direction 子对象里，
+        # 否则「显式声明走兜底」在闸门看来等于没声明（会自相矛盾地拦下来）。
+        "brief_pool": bool(pool_declared),
         "theme": base,
         "assets_base": assets_base,
         "slides": slides,
@@ -1304,6 +1334,8 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
             "card_system": bool(card_system),
             "speaker_notes": bool(speaker_notes),
             "scoring": bool(scoring),
+            "brief_pool": bool(pool_declared),
+            "design_briefs_applied": len(briefs_by_idx),
             "engine_version": 3,
         },
     }

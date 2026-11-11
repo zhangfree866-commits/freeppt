@@ -74,6 +74,8 @@ class TestRepoPortability(unittest.TestCase):
         notes_path = os.path.join(EXAMPLES, "notes_renqing_mianzi.json")
         with open(notes_path, encoding="utf-8") as f:
             notes = json.load(f)
+        # 本条只验 assets_base 可移植性，声明走原型兜底。
+        notes.setdefault("brief_pool", "prototype")
         deck, _ = art_direction.compose(notes, EXAMPLES)
         self.assertTrue(deck["assets_base"],
                         "a usable cover image should set assets_base")

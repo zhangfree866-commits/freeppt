@@ -52,10 +52,11 @@ INFO_CODES = frozenset({"LINT_ACK_UNUSED", "FACT_UNSOURCED"})
 # a newly added warning is adjudicable without touching this table.
 BLOCKING_CODES = frozenset({
     "ASSET_MISSING", "CJK_KINSHOKU", "COMPOSED_METADATA", "CONTRAST",
-    "FOOTER_POS", "FONT_SIZE", "FREEFORM_RECT", "GRID_COLUMN", "ICON_NAME",
-    "LAYOUT_REPETITION", "LAYOUT_VARIETY", "NOTES_COVERAGE", "OUT_OF_CANVAS",
-    "PALETTE", "RESEARCH_LEDGER", "RICHCARD_OVERFLOW", "SAFE_AREA",
-    "SHADOW_VALUE", "SHAPE_KIND", "TABLE_SHAPE", "TEXT_OVERFLOW",
+    "DESIGN_BRIEF_MISSING", "FOOTER_POS", "FONT_SIZE", "FREEFORM_RECT",
+    "GRID_COLUMN", "ICON_NAME", "LAYOUT_REPETITION", "LAYOUT_SKELETON_REPEAT",
+    "LAYOUT_VARIETY", "NOTES_COVERAGE", "OUT_OF_CANVAS", "PALETTE",
+    "RESEARCH_LEDGER", "RICHCARD_OVERFLOW", "SAFE_AREA", "SHADOW_VALUE",
+    "SHAPE_KIND", "STRUCTURE_REUSED", "TABLE_SHAPE", "TEXT_OVERFLOW",
     "WEB_CREDIT",
 })
 
@@ -947,6 +948,45 @@ def lint_deck(deck):
             elif i and a == arch[i - 1]:
                 derr("LAYOUT_REPETITION",
                      f"第 {i}、{i + 1} 页构图原型相同（{a}），相邻页必须换版式")
+
+        # ---- 逐页设计闸门：把第一性原理变成编译前提 ----
+        # 判据一（主）每页必须有完整 design_brief：缺一页即阻断，这样
+        #   「跳过设计、从模板库挑一个往里填」在物理上产不出文件。
+        # 判据二（主）简报里的 structure 标签不许成片重复：重复说明没有
+        #   逐页判断，而是在复用同一个答案。
+        # 判据三（兜底）几何骨架重复：只听坐标、不听自报标签，抓
+        #   「简报写得花哨但版面还是抄上一页」。
+        try:
+            from . import design_brief as _db
+            from . import layout_fingerprint as _lf
+        except ImportError:                       # running as a plain script
+            import design_brief as _db            # type: ignore
+            import layout_fingerprint as _lf      # type: ignore
+
+        _bp = deck.get("brief_pool")
+        pool_fallback = (_bp is True) or (
+            str(_bp or "").strip().lower() in ("prototype", "pool", "fallback"))
+        brief_blockers, brief_stats = _db.check_deck(slides)
+        if not pool_fallback:
+            for code, msg in brief_blockers:
+                derr(code, msg)
+        elif brief_stats["without_brief"]:
+            # 显式声明走兜底：不拦，但要在报告里看得见，不能静默。
+            dwarn("BRIEF_POOL_FALLBACK",
+                  f"本 deck 显式声明走原型兜底（brief_pool），"
+                  f"{len(brief_stats['without_brief'])} 页没有逐页设计简报。"
+                  f"固定报告类可以接受；创作类 deck 建议逐页写简报")
+
+        # 兜底判据无条件运行：它是唯一能抓住「绕过简报直接手写模板」的判据，
+        # 不听 archetype 标签，只比对坐标。
+        for _fp, pages in _lf.find_repeats(slides, max_pages=5):
+            shown = "、".join(str(p) for p in pages[:8])
+            more = f" 等 {len(pages)} 页" if len(pages) > 8 else ""
+            derr("LAYOUT_SKELETON_REPEAT",
+                 f"第 {shown}{more} 共 {len(pages)} 页的几何骨架完全相同"
+                 f"（不听页面自报的版式名，直接比对坐标）。"
+                 f"内容不同的页必须真的排出不同结构，"
+                 f"否则就是「先有模板、再往里填」")
 
         # Chapter-aware variety: archetypes may legitimately recur across
         # chapters, so the half-pages budget applies per chapter, not to the

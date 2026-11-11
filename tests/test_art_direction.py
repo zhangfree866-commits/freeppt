@@ -26,8 +26,16 @@ OTHER_COVER = os.path.join(ROOT, "examples", "assets", "cover-bg.png")
 
 
 def load_notes():
+    """载入示例 notes，并显式声明走原型兜底。
+
+    这一组测试考察原型池、几何与确定性，不是「逐页设计判断」；按设计
+    意图声明 brief_pool 即可。逐页设计闸门由
+    tests/test_design_brief_gate.py 专门覆盖。
+    """
     with open(NOTES, encoding="utf-8") as f:
-        return json.load(f)
+        doc = json.load(f)
+    doc.setdefault("brief_pool", "prototype")
+    return doc
 
 
 def composed():
@@ -272,7 +280,7 @@ class TestScoringSelection(unittest.TestCase):
             "points": [{"head": f"要点 {j}", "body": "短阐述。"}
                        for j in range(3)],
         } for i in range(6)]
-        notes = {"book": {}, "pages": pages}
+        notes = {"book": {}, "pages": pages, "brief_pool": "prototype"}
         a, _ = art_direction.compose(notes, base="magazine",
                                      card_system=True, scoring=True)
         b, _ = art_direction.compose(notes, base="magazine",
