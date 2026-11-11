@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, an offline native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261111.2"
+version: "20261111.3"
 author: "张三峯"
 ---
 
@@ -56,7 +56,7 @@ author: "张三峯"
 
 ## 开源工具链（纯 CLI，不依赖大模型）
 
-**适用范围**：没有 AI 宿主、CI 环境、内网/离线交付，或只想用命令行出片。以下链路全部离线、确定性、不编造数据。
+**适用范围**：没有 AI 宿主、CI 环境、内网/离线交付，或只想用命令行出片。以下链路（无 AI 宿主时）全部离线、确定性、不编造数据。
 
 ```bash
 # SVG 融合管线（对标豆包成品，落原生可编辑 pptx）：
@@ -242,7 +242,7 @@ python3 engine/debug_render.py examples/deck_notes_composed.json /tmp/preview
 
 也可单独派生主题：`python3 engine/cli.py style cover.jpg --book "书名" --out style.json`。
 
-**可复现**：同一份 notes + 同一张封面 → 同一份 DSL（seed = 书名 + 内容 + 封面 SHA256）；`style.json` 台账记录封面 SHA256、提取色板、主色块位置与对比度。全程离线，不调用大模型、不联网。
+**可复现**：同一份 notes + 同一张封面 → 同一份 DSL（seed = 书名 + 内容 + 封面 SHA256）；`style.json` 台账记录封面 SHA256、提取色板、主色块位置与对比度。抽色这一步（cover_style.py）全程离线、不调用大模型、不联网、确定性可复现；而整本「逐页怎么表达」的设计判断由宿主大模型承担，见上方「创作第一性原理」。
 
 **示例**：`examples/notes_renqing_mianzi.json`（9 页读书笔记）、`examples/deck_notes_composed.json`（9 页 9 种构图）、`examples/composition_compare.png`（九页拼版）、`examples/FreePPT_读书笔记_创作编排示例.pptx`、`examples/style_notes_derived.json`（来源台账）。封面图为示意重绘，可直接替换为真实封面重跑。
 

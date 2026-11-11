@@ -3,6 +3,15 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261111.3] - 2026-11-12
+
+Reconcile the offline claim with the "model as designer" first principle. The
+blanket "全程离线、不调用大模型、不联网" wording is replaced with a mode-aware
+statement: the engine/CLI path is offline & deterministic when there is no AI
+host; when driven by a host LLM, the per-page design decisions are made by the
+model (see 创作第一性原理). Scoped the remaining occurrences in SKILL.md and
+README.md. Version bump only; no engine behavior change.
+
 ## [20261111.2] - 2026-11-11
 
 Model-driven design-system extraction from a reference image. The engine stays
