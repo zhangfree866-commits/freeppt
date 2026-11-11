@@ -3,6 +3,26 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261111.2] - 2026-11-11
+
+Model-driven design-system extraction from a reference image. The engine stays
+offline but now makes the host model's "designer" judgment repeatable: a
+scaffolded Design System Card forces six visual dimensions (color climate, tone,
+typography, layout, shape language, motifs) each answered with evidence and a
+confidence label, then maps the result to reusable theme tokens and spec_lock
+roles. A validator reports unfilled fields (exit 1) but never invents answers;
+a user-approval gate must pass before the system is applied deck-wide.
+
+### Added
+
+- `engine/design_system.py`: `scaffold()` / `validate()` with the six
+  dimensions and reuse mapping; stdlib only, deterministic.
+- CLI: new `design-system` subcommand
+  (`design-system scaffold <ref>` / `design-system validate <card>`).
+- `SKILL.md`: new "参考图 → 设计系统（模型驱动）" section, task-routing row
+  and toolchain examples, including honest limits (font name cannot be read
+  off the image; copyrighted decoration is redrawn, not copied).
+
 ## [20261111.1] - 2026-11-11
 
 Authoring philosophy: elevate "the model acts as each page's designer" to the

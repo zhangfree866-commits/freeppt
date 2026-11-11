@@ -353,6 +353,29 @@ def cmd_style(args):
     return 0
 
 
+def cmd_design_system(args):
+    """Scaffold/validate a model-driven design-system card from a reference."""
+    from engine import design_system
+    if args.ds_action == "scaffold":
+        card, md = design_system.scaffold(args.reference or "", args.book)
+        with open(args.out, "w", encoding="utf-8") as f:
+            json.dump(card, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        with open(args.checklist, "w", encoding="utf-8") as f:
+            f.write(md)
+        print(f"design-system card -> {args.out} | checklist -> {args.checklist}")
+        return 0
+    card_path = args.card or args.reference
+    if not card_path:
+        print("design-system validate needs a card path", file=sys.stderr)
+        return 2
+    with open(card_path, "r", encoding="utf-8") as f:
+        card = json.load(f)
+    ok, report = design_system.validate(card)
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0 if ok else 1
+
+
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -398,6 +421,16 @@ def main():
     p_st.add_argument("--base", default="magazine")
     p_st.add_argument("--out")
     p_st.set_defaults(func=cmd_style)
+    p_ds = sub.add_parser(
+        "design-system",
+        help="scaffold/validate a model-driven design-system card from a reference image")
+    p_ds.add_argument("ds_action", choices=["scaffold", "validate"])
+    p_ds.add_argument("reference", nargs="?", help="reference image (scaffold) or card json (validate)")
+    p_ds.add_argument("--book", default="")
+    p_ds.add_argument("--out", default="design_system_card.json")
+    p_ds.add_argument("--checklist", default="design_system_checklist.md")
+    p_ds.add_argument("--card", help="filled card path for validate")
+    p_ds.set_defaults(func=cmd_design_system)
     p_mk = sub.add_parser("make", help="plain text -> PPTX, no LLM and no network")
     p_mk.add_argument("brief", nargs="?", help="rough notes; reads stdin if omitted")
     p_mk.add_argument("--from-file", help="read the brief from a UTF-8 text file")

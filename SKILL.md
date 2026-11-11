@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, an offline native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261111.1"
+version: "20261111.2"
 author: "张三峯"
 ---
 
@@ -45,6 +45,7 @@ author: "张三峯"
 | 从零 / 基于材料生成 | 遵循本文件五阶段主干（6 步落地） |
 | **长内容（30 页以上 / 分章 / 培训课件 / 读书笔记 / 方法论手册）** | **走 `docs/LONGFORM_SOP.md` 12 道工序**，不按 6 步裸跑 |
 | 读书笔记 / 品牌叙事 / 演讲稿（要版式变化、可附封面图） | 走「创作式编排」：`cli.py compose` → `lint` → `build` |
+| **给参考图、想要"同款设计风格"（不止配色）** | 走「**参考图 → 设计系统（模型驱动）**」工序（见下）：`cli.py design-system scaffold <图>` → 逐维度读图填卡 → `validate` → 用户定稿 → 映射主题 + spec_lock |
 | **定风格位 / 配色 / 封面 / 页眉页脚 / 内容页构图** | 查 `docs/DESIGN_GRAMMAR.md` 设计语法库 |
 | **单页不知道画什么 / 要"去 AI 味"** | 查 `docs/CONTENT_GRAPHICS.md` 逐单元图形化（40 条概念→图形映射） |
 | 周报 / 月报 / 经营分析等结构稳定报告 | 走 `reports.py` 骨架 + 10 套母版；无宿主可用 `cli.py make` 纯 CLI 出片 |
@@ -70,6 +71,10 @@ python3 engine/cli.py compile-svg <project_dir> out.pptx --strict
 # 一句话/零散要点 → 8 类报告任一 → lint → pptx（内容闸门 + 版面闸门）
 python3 engine/cli.py make "本周完成 3 项交付；满意度提升到 92%" \
   --type weekly --out out.pptx --out-deck out.json
+
+# 参考图 -> 设计系统（模型驱动）：脚手架 -> 读图填卡 -> 校验 -> 用户定稿
+python3 engine/cli.py design-system scaffold ref.png --book "书名"
+python3 engine/cli.py design-system validate design_system_card.json
 
 # 已有 pptx：结构导出 + 保留 run 字体的文字替换
 python3 engine/cli.py inspect old.pptx --out structure.json
@@ -134,6 +139,28 @@ python3 tools/benchmark.py --out bench.json
 4. **风格先路由**：按受众/场合选 scenario，锁死配色、字体、字号梯度、密度下限。
 5. **确定性优先**：版面合格由 lint 程序判定，不依赖肉眼截图或模型临场发挥。
 6. **内容决定构图，不是模板决定构图**：报告类可走固定母版；读书笔记、品牌叙事、演讲稿等创作类内容走 `composition: freeform`，逐页选择构图原型，并把「相邻页/全篇版式重复」写成 lint 硬错误。
+
+## 参考图 → 设计系统（模型驱动）
+
+当用户给参考图并希望"沿用这套设计"时，**不只跑引擎自动抽色，而是由宿主大模型当设计师，把图抽象成一套可复用设计系统**。引擎不会看图，所以这道工序把"必须看图回答的维度"卡成不可跳过的结构。
+
+**工序（强制顺序）**：
+
+1. 生成空白卡：
+   `python3 engine/cli.py design-system scaffold <参考图> --book "书名" --out card.json --checklist list.md`
+2. 大模型**逐维度目检参考图**填卡，每个结论都要写 `evidence`（图里看到的具体依据），把握不足标 `confidence`，看不清就留空并记入 `open_questions`。禁止"高级/好看"这类无证据判断。
+3. 六个必答维度：
+   - **color_climate 色彩气候**：主/辅/点缀色、冷暖与饱和度、签名色及理由；
+   - **tone 明暗基调**：深浅主导、对比强度、何时用深色页；
+   - **typography 字体气质**：中西文衬线/无衬线、建议的本机可用字体名、字重对比、字号层级；
+   - **layout 版式骨架**：栅格栏数、视觉主角位置与视线引导、留白比例、非对称/出血/错位；
+   - **shape_language 图形语言**：直角/圆角/有机/手绘、描边还是面块、图标风格；
+   - **motifs 装饰母题**：可复用母题（色带/竖线/点/网格/弧）、材质、该复用什么(do)、只属于这张图不该照搬什么(dont)。
+4. 映射为可复用构件（`reuse`）：`theme_tokens`（语义配色）、`spec_lock_roles`（反复出现的新字号角色）、`rules`（统一什么、允许每页变什么）。
+5. `python3 engine/cli.py design-system validate card.json`：未填全 → 列出缺项、退出码 1，需补齐；引擎只报缺、不代填。
+6. **确认闸**：把提炼出的设计系统（配色/字体/母题/样例页）给用户看，`approved=true` 后才铺全本。
+
+**诚实边界**：字体只能从图里推断气质、无法精确识别字体名（需用户确认或指定本机可用字体）；参考图里的具体插画/受版权装饰不会被复制，只能按同气质用原生 SVG/图标重绘；低清/强滤镜/多主体图提炼可能偏差，偏差项如实标 `low` 并提示用户补素材。
 
 ## 创作式编排（非固定模板）
 
