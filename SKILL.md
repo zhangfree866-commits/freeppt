@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, an offline native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261112.2"
+version: "20261112.3"
 author: "张三峯"
 ---
 
@@ -190,6 +190,16 @@ python3 tools/benchmark.py --out bench.json
 **为什么几何判据必须听坐标**：实测把 12 页同构页的 `archetype` 改成 12 个不同名字、几何一字不动，旧闸门照样 `ok=True` 放行。自报标签是靠不住的，所以兜底判据只读坐标。同一份实测也校准了阈值：正常产物最大同骨架组是 4 页，翻车样本是 11/8/8/7/7 页，所以取 5。仪式页（封面/章节/封底）豁免——一本书 11 个章节页长得一样是对的。
 
 **回归锚点**：`tests/test_design_brief_gate.py::TestRealWorldTemplateDeckRejected` 用一本真实的 122 页同构 deck 当样本，断言它必然被拒。以后谁把闸门改松，这条测试会红，而不是等成品拿到手才发现。
+
+**自己验，别听汇报**——跑这一条就够：
+
+```bash
+python3 engine/cli.py selfcheck
+```
+
+它不读文档、不看配置，而是**当场造样本跑一遍**：生成一份 122 页同构、每页只有版式名没有设计简报的 deck，交给 lint 判，同时生成一份正常产物做对照，再测「改名能否骗过判据」「占位话术是否算没填」「不传简报是否失败」。预期输出 `7/7 项通过 —— 闸门确实生效`；任何一道闸门被改松，它会当场报 `[FAIL]` 并以退出码 1 结束。
+
+这条命令存在的理由很直白：文档可以写得漂亮、汇报可以说得好听，但**造一份坏样本喂进去还拦不住，就说明闸门是假的**。
 
 
 老问题：`{template,data}` 展开后，每一页都被 `layout_slide` 强制套上「标题 + 横线 + 内容区 + 页脚」，而且 lint 的 SAFE_AREA / DENSITY / GAP 规则会把自由构图判成错误，于是多页内容看起来一模一样。现在这条链路被替换：

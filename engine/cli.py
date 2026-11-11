@@ -353,6 +353,120 @@ def cmd_style(args):
     return 0
 
 
+def cmd_selfcheck(args):
+    """验闸门本身是否真的存在、真的能拦。
+
+    做法不是读文档、也不是罗列配置，而是**当场造样本跑一遍**：
+    故意生成一份「122 页同构、每页只有版式名没有设计简报」的 deck，
+    交给 lint 判；再生成一份正常产物做对照，确认没有误伤。
+
+    任何人（包括不信这套说法的人）都可以跑这条命令自己看结果，
+    不需要相信任何人的汇报。
+    """
+    from engine import design_brief, layout_fingerprint
+
+    checks = []
+
+    # --- 样本一：122 页手写模板（复刻真实翻车形态）---
+    bad = {"composed": True, "theme": "consulting", "slides": []}
+    for i in range(122):
+        bad["slides"].append({
+            "type": "content", "tone": "light", "surface": "#FFFFFF",
+            "composition": "freeform",
+            # 每页自报一个不同的版式名——旧闸门就是这么被骗过去的
+            "archetype": f"自造版式-{i % 6}",
+            "density": "mid",
+            "children": [
+                {"t": "shape", "kind": "rect", "rect": [60, 184, 30, 30],
+                 "fill": "#12263A", "decor": True},
+                {"t": "text", "rect": [60, 86, 1080, 44],
+                 "text": f"第 {i} 页标题", "size": 32},
+                {"t": "text", "rect": [104, 190, 200, 24],
+                 "text": f"标签{i}", "size": 14},
+                {"t": "text", "rect": [340, 190, 860, 60],
+                 "text": f"说明文字{i}", "size": 11},
+            ],
+        })
+    res = lint_deck(prepare(bad))
+    codes = {e["code"] for e in res["errors"]}
+    checks.append((
+        "同构 deck（122 页、无设计简报）必须编译不过",
+        not res["ok"],
+        f"ok={res['ok']}, blockers={res['severity_summary']['blockers']}, "
+        f"codes={sorted(codes)}",
+    ))
+    checks.append((
+        "必须报出「缺设计简报」",
+        "DESIGN_BRIEF_MISSING" in codes, "DESIGN_BRIEF_MISSING",
+    ))
+    checks.append((
+        "必须报出「几何骨架重复」（不听自报版式名）",
+        "LAYOUT_SKELETON_REPEAT" in codes, "LAYOUT_SKELETON_REPEAT",
+    ))
+
+    # --- 样本二：改标签能不能骗过判据 ---
+    base = {"children": [
+        {"t": "text", "rect": [60, 80, 600, 40], "text": "标题"},
+        {"t": "text", "rect": [60, 200, 300, 24], "text": "标签"},
+    ]}
+    a = dict(base, archetype="名字甲")
+    b = dict(base, archetype="名字乙")
+    checks.append((
+        "换版式名但几何不变 → 判据仍认定同骨架",
+        layout_fingerprint.skeleton(a) == layout_fingerprint.skeleton(b),
+        "两页指纹相同",
+    ))
+
+    # --- 样本三：占位话术算不算没填 ---
+    junk_rejected = all(
+        design_brief.check_brief(
+            {"design_brief": {"carrier": "svg", "structure": junk,
+                              "visual_anchor": "一个主视觉图形",
+                              "image_decision": "svg",
+                              "rationale": "这页要并列对照，所以用左右两列"}}, 1)
+        for junk in ("无", "TBD", "同上", "  ")
+    )
+    checks.append(("简报里写「无 / TBD / 同上」算没填", junk_rejected,
+                   "占位话术被拒"))
+
+    # --- 样本四：正常产物不能被误伤 ---
+    notes_path = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "examples", "notes_renqing_mianzi.json")
+    if os.path.exists(notes_path):
+        from engine import art_direction as _ad
+        with open(notes_path, encoding="utf-8") as f:
+            ok_notes = json.load(f)
+        ok_notes["brief_pool"] = "prototype"
+        deck_ok, _ = _ad.compose(ok_notes,
+                                 os.path.dirname(notes_path))
+        res_ok = lint_deck(prepare(deck_ok))
+        checks.append(("正常产物不能被误伤", res_ok["ok"],
+                       f"ok={res_ok['ok']}, "
+                       f"blockers={res_ok['severity_summary']['blockers']}"))
+
+    # --- 样本五：入口闸门 ---
+    try:
+        _ad.compose({"book": {"title": "x"},
+                     "pages": [{"kind": "concept", "title": "测试页",
+                                "points": [{"head": "甲", "body": "内容"}]}]})
+        entry_ok = False
+    except ValueError:
+        entry_ok = True
+    checks.append(("compose() 没收到设计简报就失败", entry_ok, "抛出 ValueError"))
+
+    passed = sum(1 for _, ok, _ in checks if ok)
+    total = len(checks)
+    print("FreePPT 闸门自检 —— 现场造样本跑一遍，不读文档")
+    print("=" * 60)
+    for name, ok, detail in checks:
+        print(("  [PASS] " if ok else "  [FAIL] ") + name)
+        print("         " + detail)
+    print("-" * 60)
+    print(f"{passed}/{total} 项通过 —— "
+          + ("闸门确实生效" if passed == total else "有闸门未生效，需要修"))
+    return 0 if passed == total else 1
+
+
 def cmd_design_system(args):
     """Scaffold/validate a model-driven design-system card from a reference."""
     from engine import design_system
@@ -421,6 +535,11 @@ def main():
     p_st.add_argument("--base", default="magazine")
     p_st.add_argument("--out")
     p_st.set_defaults(func=cmd_style)
+    p_sc = sub.add_parser(
+        "selfcheck",
+        help="verify the per-page design gates actually fire (builds bad "
+             "samples and runs them, instead of trusting documentation)")
+    p_sc.set_defaults(func=cmd_selfcheck)
     p_ds = sub.add_parser(
         "design-system",
         help="scaffold/validate a model-driven design-system card from a reference image")

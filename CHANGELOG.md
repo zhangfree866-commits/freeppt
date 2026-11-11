@@ -3,6 +3,25 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261112.3] - 2026-11-12
+
+Add `cli.py selfcheck`, so the gates can be verified without trusting anyone's
+report. Documentation can describe a gate that does not actually fire; this
+command builds a bad sample and runs it through the real code path.
+
+- New `selfcheck` subcommand: generates a 122-page uniform deck whose pages
+  each claim a *different* archetype name and carry no design brief, runs
+  `lint_deck` on it, and asserts it is rejected with both
+  `DESIGN_BRIEF_MISSING` and `LAYOUT_SKELETON_REPEAT`. It also confirms that
+  relabelling does not hide identical geometry, that placeholder values
+  ("无" / "TBD" / "同上") count as unfilled, that normal composed output is
+  *not* falsely rejected, and that `compose()` refuses to run without briefs.
+- Exit code is 1 when any check fails, so it works in CI. Verified that
+  removing the skeleton gate on a copy makes it report `[FAIL]` — the check
+  is not decorative.
+- `SKILL.md` documents the command under the gate table with the rationale:
+  a gate that cannot reject a deliberately bad sample is not a gate.
+
 ## [20261112.2] - 2026-11-12
 
 Turn the per-page design principle into a **compile-time gate**. The previous
