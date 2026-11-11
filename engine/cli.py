@@ -253,6 +253,44 @@ def cmd_inspect(args):
     return 0
 
 
+def cmd_audit_pptx(args):
+    """检查已成型的 pptx 有没有照抄版面——只读坐标，不看 DSL。
+
+    这个命令存在的唯一理由：所有挂在 DSL 上的闸门，遇到「绕开 compose()、
+    自己写 Python 拼 pptx」的产物就完全失效。历史上有过 122 页这样的交付
+    物（lib.py 1011 行、22 个 p_* 函数、deck.json 里 design_brief 全空），
+    闸门一次都没执行。判据必须能落在最终产物的坐标上。
+    """
+    from engine import pptx_audit, pptx_edit
+    report = pptx_edit.inspect(args.pptx)
+    result = pptx_audit.audit_pptx(report, max_pages=args.max_pages)
+
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(f"审计对象: {os.path.basename(args.pptx)}")
+        print(f"页数: {result['slide_count']}   阈值: 单副骨架 ≥{result['threshold']} 页")
+        if result["exempted"]:
+            shown = "、".join(str(p) for p in result["exempted"][:10])
+            more = f" 等 {len(result['exempted'])} 页" if len(result["exempted"]) > 10 else ""
+            print(f"按仪式页豁免（文字极少）: 第 {shown}{more}")
+        print("-" * 60)
+        if result["ok"]:
+            print("通过：没有发现成片照抄同一副骨架的页面")
+        else:
+            print("不通过：以下页面共用同一副几何骨架")
+            for g in result["groups"]:
+                shown = "、".join(str(p) for p in g["pages"][:12])
+                more = f" 等 {g['count']} 页" if g["count"] > 12 else ""
+                print(f"  {g['count']:>3} 页  第 {shown}{more}")
+            print()
+            print("内容不同的页必须真的排出不同结构。这组页面的坐标骨架一样，"
+                  "说明是先有模板再往里填，不是读完内容再决定怎么排。")
+        if result["unreadable"]:
+            print(f"\n注意：{result['unreadable']} 个形状读不到坐标，未纳入判定")
+    return 0 if result["ok"] else 1
+
+
 def cmd_retext(args):
     """Replace text in an existing .pptx, preserving run formatting."""
     from engine import pptx_edit
@@ -454,6 +492,59 @@ def cmd_selfcheck(args):
         entry_ok = True
     checks.append(("compose() 没收到设计简报就失败", entry_ok, "抛出 ValueError"))
 
+    # --- 样本六：绕开 compose() 直接手写 pptx，闸门还能不能拦 ---
+    # 这是这套闸门曾经最大的漏口：所有 DSL 闸门对「自己写 Python 拼 pptx」
+    # 的产物完全失效，而那正是 122 页翻车产物的生成方式。所以这里真的
+    # 生成一份 pptx 文件，交给 audit-pptx 判——不是模拟，是端到端跑一遍。
+    try:
+        from pptx import Presentation
+        from pptx.util import Emu
+        from engine import pptx_audit, pptx_edit
+
+        prs = Presentation()
+        prs.slide_width = Emu(12192000)      # 16:9，与 DSL 画布 1280×720 对齐
+        prs.slide_height = Emu(6858000)
+        blank = prs.slide_layouts[6]
+        emu_per_px = 9525
+
+        def _box(slide, x, y, w, h, text=""):
+            tb = slide.shapes.add_textbox(
+                Emu(int(x * emu_per_px)), Emu(int(y * emu_per_px)),
+                Emu(int(w * emu_per_px)), Emu(int(h * emu_per_px)))
+            if text:
+                tb.text_frame.text = text
+            return tb
+
+        for i in range(12):
+            s = prs.slides.add_slide(blank)
+            _box(s, 60, 86, 1080, 44, f"第 {i} 页标题：这一页讲一件完全不同的事")
+            _box(s, 104, 190, 200, 24, f"标签{i}")
+            _box(s, 340, 190, 860, 60,
+                 "这是一整段说明文字，用来确保这一页被判定为内容页而不是"
+                 "文字极少的仪式页，长度故意超过豁免阈值。")
+            _box(s, 60, 300, 520, 120, "左下要点甲，内容各不相同")
+            _box(s, 620, 300, 520, 120, "右下要点乙，内容各不相同")
+
+        tmp_pptx = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "scratch", "_selfcheck_handwritten.pptx")
+        os.makedirs(os.path.dirname(tmp_pptx), exist_ok=True)
+        prs.save(tmp_pptx)
+
+        rep = pptx_edit.inspect(tmp_pptx)
+        hand = pptx_audit.audit_pptx(rep, max_pages=5)
+        checks.append((
+            "绕开 compose() 手写 pptx → audit-pptx 仍能抓住照抄版面",
+            not hand["ok"] and bool(hand["groups"]),
+            f"12 页同构结果 groups={[g['count'] for g in hand['groups']]}",
+        ))
+        os.remove(tmp_pptx)
+    except Exception as exc:                    # 环境缺 python-pptx 等
+        checks.append((
+            "绕开 compose() 手写 pptx → audit-pptx 仍能抓住照抄版面",
+            False, f"无法完成端到端验证：{type(exc).__name__}: {exc}",
+        ))
+
     passed = sum(1 for _, ok, _ in checks if ok)
     total = len(checks)
     print("FreePPT 闸门自检 —— 现场造样本跑一遍，不读文档")
@@ -570,6 +661,16 @@ def main():
     p_in.add_argument("pptx")
     p_in.add_argument("--out")
     p_in.set_defaults(func=cmd_inspect)
+    p_au = sub.add_parser(
+        "audit-pptx",
+        help="check a finished pptx for copied layouts (reads coordinates, "
+             "so it catches decks that bypassed compose() and wrote pptx by hand)")
+    p_au.add_argument("pptx")
+    p_au.add_argument("--max-pages", type=int, default=5,
+                      help="a skeleton shared by this many pages is a defect "
+                           "(default 5, calibrated on real output)")
+    p_au.add_argument("--json", action="store_true")
+    p_au.set_defaults(func=cmd_audit_pptx)
     p_rt = sub.add_parser("retext", help="replace text in an existing pptx")
     p_rt.add_argument("pptx")
     p_rt.add_argument("--map", required=True, help="JSON edit map")

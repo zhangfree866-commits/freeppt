@@ -3,6 +3,32 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261112.4] - 2026-11-12
+
+Close the largest remaining hole in the per-page design gates: they all lived on
+the DSL, so any deck written by hand-rolled Python passed untouched. The real
+122-page "consultative selling" delivery that motivated these gates was produced
+exactly that way — 1011 lines of `lib.py`, 22 `p_*` page functions, every
+`design_brief` empty — and not one gate ever ran.
+
+- New `engine/pptx_audit.py`: audits a *finished* `.pptx`. Reads only
+  `rect_px` coordinates via `pptx_edit.inspect()`, never the DSL and never a
+  self-reported `archetype`, so it applies equally to hand-written decks. Reuses
+  `layout_fingerprint.skeleton()` so the criterion and threshold stay identical
+  to the DSL side (single skeleton ≥5 pages fails; very-low-text pages exempt as
+  cover/chapter/closing).
+- New `cli.py audit-pptx <file.pptx> [--max-pages 5] [--json]`: prints the
+  offending page groups, exits 0/1 so it can gate CI.
+- `selfcheck` extended from 7 to 8 checks: it now writes a real 12-page uniform
+  pptx to disk with python-pptx and runs `audit-pptx` against it, so the
+  bypass path is verified end-to-end rather than described.
+- Measured contrast on real files: 122-page failing deck → `不通过`, 9 groups
+  (12/11/11/8/8/7/7/7/5 pages); 111-page healthy deck → `通过`. No false
+  positive on the healthy output.
+- New `tests/test_pptx_audit.py` (10 tests): hand-written decks caught, relabeling
+  cannot save them, 4 pages pass / 5 pages fail, ritual pages exempt, content
+  pages not exempt, unreadable shapes counted rather than silently dropped.
+
 ## [20261112.3] - 2026-11-12
 
 Add `cli.py selfcheck`, so the gates can be verified without trusting anyone's

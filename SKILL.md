@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, an offline native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261112.3"
+version: "20261112.4"
 author: "张三峯"
 ---
 
@@ -187,6 +187,22 @@ python3 tools/benchmark.py --out bench.json
 
 四条都不可 `lint_ack` 豁免。若某批页确实就是标准原型（固定报告/纯数据页），在 notes 顶层写 `"brief_pool": "prototype"` 显式声明走兜底——放行但留下 `BRIEF_POOL_FALLBACK` 痕迹，不静默。
 
+**第五道闸门：产物侧，落在 pptx 坐标上（这是曾经最大的漏口）**
+
+上面四道都挂在 DSL / `compose()` 上。只要有人绕开 `compose()`、自己写 Python 拼 pptx，它们一次都不会执行。历史上那套 122 页「顾问式营销」就是这么来的——1011 行 `lib.py`、22 个 `p_*` 页面函数、`deck.json` 里 122 页 `design_brief` 全空，四道闸门全程静默，产物照样交付。
+
+所以另开一个直接读终稿的命令：
+
+```bash
+python3 engine/cli.py audit-pptx 成品.pptx
+```
+
+它只读 `rect_px` 坐标，不看 DSL、不读 `archetype`、不需要简报，因此对「手写脚本拼出来的 pptx」一样有效。判据与 DSL 侧共用同一套分带指纹，判准也一致：单副骨架 ≥5 页即不通过，文字极少页（封面/章节/封底）自动豁免。
+
+实测对照：那套 122 页产物 → `不通过`，抓出 9 组同构（12/11/11/8/8/7/7/7/5 页）；111 页的正常产物 → `通过`。命令行退出码 0/1，可直接进 CI。
+
+**什么时候必须跑它**：只要交付物不是由 `compose()` 生成（手写脚本、别人的 pptx、外部工具产物），`audit-pptx` 就是唯一有效的一道。`compose()` 生成的产物也建议跑一次——它是终稿视角的最后一道。
+
 **为什么几何判据必须听坐标**：实测把 12 页同构页的 `archetype` 改成 12 个不同名字、几何一字不动，旧闸门照样 `ok=True` 放行。自报标签是靠不住的，所以兜底判据只读坐标。同一份实测也校准了阈值：正常产物最大同骨架组是 4 页，翻车样本是 11/8/8/7/7 页，所以取 5。仪式页（封面/章节/封底）豁免——一本书 11 个章节页长得一样是对的。
 
 **回归锚点**：`tests/test_design_brief_gate.py::TestRealWorldTemplateDeckRejected` 用一本真实的 122 页同构 deck 当样本，断言它必然被拒。以后谁把闸门改松，这条测试会红，而不是等成品拿到手才发现。
@@ -197,7 +213,7 @@ python3 tools/benchmark.py --out bench.json
 python3 engine/cli.py selfcheck
 ```
 
-它不读文档、不看配置，而是**当场造样本跑一遍**：生成一份 122 页同构、每页只有版式名没有设计简报的 deck，交给 lint 判，同时生成一份正常产物做对照，再测「改名能否骗过判据」「占位话术是否算没填」「不传简报是否失败」。预期输出 `7/7 项通过 —— 闸门确实生效`；任何一道闸门被改松，它会当场报 `[FAIL]` 并以退出码 1 结束。
+它不读文档、不看配置，而是**当场造样本跑一遍**：生成一份 122 页同构、每页只有版式名没有设计简报的 deck，交给 lint 判，同时生成一份正常产物做对照，再测「改名能否骗过判据」「占位话术是否算没填」「不传简报是否失败」，最后**真的用 python-pptx 手写一份 12 页同构 pptx 存到磁盘**，再让 `audit-pptx` 判它——端到端跑通，不是模拟。预期输出 `8/8 项通过 —— 闸门确实生效`；任何一道闸门被改松，它会当场报 `[FAIL]` 并以退出码 1 结束。
 
 这条命令存在的理由很直白：文档可以写得漂亮、汇报可以说得好听，但**造一份坏样本喂进去还拦不住，就说明闸门是假的**。
 
