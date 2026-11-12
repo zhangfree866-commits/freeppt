@@ -327,5 +327,68 @@ class TestBuildIsOnTheDeliveryPath(unittest.TestCase):
         self.assertEqual(rc, 0, "官方业务示例必须通过成品审计")
 
 
+class TestDesignSystemReachesTheGate(unittest.TestCase):
+    """回归锚点：design_system 必须真的传进六维闸门。
+
+    来历（2026-11-13）：compose 里写的是
+        design_spec.require_deck(slides, design_system=deck.get("design_system"))
+    可 compose 从来没往 deck 里放过这个键——`deck.get()` 恒为 None，于是
+    `check_brief` 里那段「引用不存在的令牌」的校验被 `elif design_system is
+    not None` 整个跳过。「统一设计语言」这条判据写在文档里、写在代码里，
+    却从来没有真正执行过一次。
+
+    这正是本项目反复出现的失败形态：判据存在，但没有拿到判据需要的输入。
+    """
+
+    def _notes(self):
+        pages = [{"kind": "content", "title": f"第 {i} 页标题",
+                  "points": ["第一层含义", "第二层含义", "怎么落地"]}
+                 for i in range(4)]
+        briefs = {}
+        for i in range(4):
+            b = copy.deepcopy(GOOD_BRIEF)
+            b["structure"] = f"结构{i}"      # 结构标签各不相同
+            briefs[str(i)] = b
+        return {"book": {"title": "测试"}, "design_system": DESIGN_SYSTEM,
+                "design_briefs": briefs, "pages": pages}
+
+    def _compose(self, notes):
+        """design_briefs 是 compose() 的参数，不是 notes 里的键。"""
+        return ad.compose(notes, design_briefs=notes["design_briefs"])
+
+    def test_design_system_is_written_into_the_composed_deck(self):
+        notes = self._notes()
+        deck, _ = self._compose(copy.deepcopy(notes))
+        self.assertIn("design_system", deck,
+                      "design_system 必须落进产物，否则下游校验拿不到令牌表")
+        self.assertEqual(sorted(deck["design_system"]),
+                         sorted(DESIGN_SYSTEM))
+
+    def test_bogus_token_reference_is_blocked(self):
+        """引用一个 deck 里不存在的令牌键 → compose 必须失败。"""
+        notes = self._notes()
+        notes["design_briefs"]["0"]["consistency"] = {"fake_token_abc": "x"}
+        with self.assertRaises(ValueError) as ctx:
+            self._compose(copy.deepcopy(notes))
+        self.assertIn("fake_token_abc", str(ctx.exception))
+
+    def test_valid_token_reference_passes(self):
+        """正常引用存在的令牌 → 通过。不能因为修严了就误伤正路。"""
+        notes = self._notes()
+        deck, ledger = self._compose(copy.deepcopy(notes))
+        self.assertTrue(deck.get("design_system"))
+        self.assertEqual(ledger["design_spec"]["pages_with_spec"], 4)
+        self.assertIn("palette", ledger["design_spec"]["tokens_declared"],
+                      "ledger 要记下这一本声明了哪些令牌，供事后追溯")
+
+    def test_empty_consistency_blocks(self):
+        """consistency 写空 → 拦。没声明沿用哪些令牌就等于各页自造一套。"""
+        notes = self._notes()
+        notes["design_briefs"]["0"]["consistency"] = {}
+        with self.assertRaises(ValueError) as ctx:
+            self._compose(copy.deepcopy(notes))
+        self.assertIn("consistency", str(ctx.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

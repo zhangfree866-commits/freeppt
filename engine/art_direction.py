@@ -1358,6 +1358,14 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
     # 可访问性 / 设计一致性。缺任一项直接失败，不提供 --force。
     # 例外：显式声明 brief_pool="prototype" 的标准原型 deck 不走六维闸门——
     # 但该声明会进 ledger 留痕，且 audit-design/audit-pptx 仍会拦套版。
+    #
+    # 关键修复（2026-11-13）：design_system 必须**写进产物**再校验。
+    # 之前这里是 `deck.get("design_system")`，可 compose 从来没往 deck 里放过
+    # 这个键——于是每页 consistency 引用的令牌都是在跟 None 比对，
+    # 「统一设计语言」这条判据实际上一直空转。现在先落到 deck 上，再校验。
+    if isinstance(notes.get("design_system"), dict):
+        deck["design_system"] = notes["design_system"]
+
     if briefs_by_idx and not pool_declared:
         from engine import design_spec
         spec_stats = design_spec.require_deck(
@@ -1366,6 +1374,8 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
             "pages_with_spec": spec_stats["with_spec"],
             "structure_counts": {k: len(v) for k, v
                                  in spec_stats["structure_counts"].items()},
+            "tokens_declared": sorted(
+                (deck.get("design_system") or {}).keys()),
         }
 
     return deck, ledger
