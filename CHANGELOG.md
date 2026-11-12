@@ -3,6 +3,49 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261112.7] - 2026-11-12
+
+Close the last measured hard gap: **speaker notes 0/91**. Notes now have a
+product-side judge and a product-side fixer, on the same principle as
+`audit-pptx` — a gate that only reads the DSL is inert the moment someone
+writes the pptx by hand.
+
+- **`engine/pptx_notes.py`** — `audit_notes(pptx_path)`. Reads only
+  `has_notes_slide` and `notes_text_frame.text`. Coverage plus per-page
+  thinness. The tier (*essay / standard / research*) is **inferred from the
+  deck's own mean note length** (≤70 / 70–180 / ≥180), then the floor of that
+  tier decides what counts as thin — so a 20-character quote deck is not
+  failed for being short, and a 60-character page inside a research deck is.
+  Thresholds come from the 12 Doubao samples (essay mean 25.3, standard
+  99–150, research 227.8/252.9). Ritual pages (≤24 visible chars) exempt.
+- **`engine/pptx_notes_fill.py`** — `fill_notes(...)`. Re-organises only the
+  text already on each page: no new facts, no invented numbers. Idempotent
+  (pages with existing notes are skipped unless `overwrite=True`) and
+  deterministic (two runs on the same input are byte-identical).
+  - `_NOISE_RE` filters chapter numbers, page numbers and all-caps running
+    heads (`02`, `P26`, `26 / 91`, `MODULE 04 / THE LEAP`) out of title
+    detection — without it a chapter page's note began "这一页讲的是 02".
+  - Dedup covers three shapes: mutual containment, prefix relation, and
+    identical first 12 characters. The prefix case is what happens when one
+    sentence is split across two text boxes of different widths.
+  - Bodies are whitespace-normalised before quoting (page text carries hard
+    wraps like `英伟\n达`) and get terminal punctuation, so blocks to not run
+    together into one unbroken sentence.
+- **`engine/cli.py`** — `audit-notes` (`--json`, exit 0/1) and `fill-notes`
+  (`--out`, `--overwrite`). `selfcheck` extended 8 → 11 checks: the 12-page
+  hand-written deck from the existing `audit-pptx` check is now also passed to
+  `audit-notes` (must fail at 0 notes), then to `fill-notes` (must reach 100%),
+  then to `fill-notes` again (must fill 0 pages — idempotency).
+- **`tests/test_pptx_notes.py`** — 19 tests. Verified by mutation: deleting the
+  dedup, forcing a flat 40-character cutoff, disabling the ritual exemption,
+  and removing the noise filter each turn the suite red.
+- Measured on the real deck: `0/91 → 91/91`, coverage 100%, mean 202.6 chars,
+  0 thin pages, tier auto-selected as research. Idempotent re-run fills 0
+  pages; a second run from the same input is byte-identical.
+- SKILL.md redlines #11/#12 and #27 updated from "最大未补缺口" to the closed
+  state, with the one-punch-and-one-fill commands documented next to
+  `audit-pptx`.
+
 ## [20261112.6] - 2026-11-12
 
 Write the acceptance bar into the top of SKILL.md, so "did we drift" is

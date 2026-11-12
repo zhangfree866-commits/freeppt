@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, a native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261112.6"
+version: "20261112.7"
 author: "张三峯"
 ---
 
@@ -70,8 +70,8 @@ author: "张三峯"
 | 8 | 允许峰值 | 单页峰值 500–778 字是正常的，不要为了「淡雅」砍内容 |
 | 9 | 有真论点论据 | 数据、案例、引文、来源齐备，不是口号拼接 |
 | 10 | 时效数字联网核实 | `research:true` 的页必须有 `sources` 台账 |
-| 11 | 演讲者备注全覆盖 | 目标 ≈100%（12 份样本 11 份满分）。**我方 91 页实测 0/91，最大未补缺口** |
-| 12 | 备注分档位 | 随笔 25–60 / 常规 100–160 / 研究 200+，不能一刀切 |
+| 11 | 演讲者备注全覆盖 | 目标 ≈100%（12 份样本 11 份满分）。成品用 `audit-notes` 判，缺口用 `fill-notes` 补——91 页实测已从 0/91 → 91/91 |
+| 12 | 备注分档位 | 随笔 25–60 / 常规 100–160 / 研究 200+，由 deck 自身均长推断，不能一刀切 |
 
 **技术产物**
 
@@ -96,7 +96,7 @@ author: "张三峯"
 | 24 | 附件框架图原生重绘 | 不贴图、也不丢图 |
 | 25 | 首版不达标如实说 | 续做到达标再交付，不拿半成品交差 |
 | 26 | 每页留设计简报 | `design_briefs` 是编译前提，不是建议 |
-| 27 | 产物侧也要查 | 手写脚本生成的 pptx 一样跑 `audit-pptx` |
+| 27 | 产物侧也要查 | 手写脚本生成的 pptx 一样跑 `audit-pptx`，备注跑 `audit-notes` |
 
 ### 不应该做成什么样
 
@@ -307,6 +307,19 @@ python3 engine/cli.py audit-pptx 成品.pptx
 
 **什么时候必须跑它**：只要交付物不是由 `compose()` 生成（手写脚本、别人的 pptx、外部工具产物），`audit-pptx` 就是唯一有效的一道。`compose()` 生成的产物也建议跑一次——它是终稿视角的最后一道。
 
+**同一道闸门的另一半：演讲者备注**
+
+版面能被抽查，备注同样会漏。那本 91 页《英伟达之道》也是绕开 `compose()` 手写的（`v2/` 下 6 个 builder 脚本），备注 **0/91**，一个 notesSlide 都没有，而 DSL 侧的 `NOTES_COVERAGE` 从头到尾没响过。所以备注也补了成品侧的一判一补：
+
+```bash
+python3 engine/cli.py audit-notes 成品.pptx          # 判：覆盖 + 分档厚度，退出码 0/1
+python3 engine/cli.py fill-notes  成品.pptx --out fixed.pptx   # 补：只重组页内文字
+```
+
+`audit-notes` 的判法与 `audit-pptx` 同源：只读成品文件，不看 DSL。**档位不是一刀切** —— 先用全篇备注均长推断这本 deck 属于哪一档（≤70 随笔 / 70–180 常规 / ≥180 研究），再按本档下限判「过薄」，所以一篇 20 字短注的语录型 deck 不会被误判，而研究型 deck 里夹一页 60 字会被告警。分档阈值来自 12 份豆包样本实测（随笔均 25.3、常规 99–150、研究 227.8/252.9）。
+
+`fill-notes` 刻意克制：**只重组该页已有文字**，不生成新事实、不编造数字；**幂等**（已有非空备注默认跳过，要重写加 `--overwrite`）；**确定性**（同一输入两次结果逐字一致）。实测 91 页：`0/91 → 91/91`，均长 202.6 字，0 页过薄，档位自动落到 research。它是急救版讲稿，交付前仍应人工打磨成真的讲法。
+
 **为什么几何判据必须听坐标**：实测把 12 页同构页的 `archetype` 改成 12 个不同名字、几何一字不动，旧闸门照样 `ok=True` 放行。自报标签是靠不住的，所以兜底判据只读坐标。同一份实测也校准了阈值：正常产物最大同骨架组是 4 页，翻车样本是 11/8/8/7/7 页，所以取 5。仪式页（封面/章节/封底）豁免——一本书 11 个章节页长得一样是对的。
 
 **回归锚点**：`tests/test_design_brief_gate.py::TestRealWorldTemplateDeckRejected` 用一本真实的 122 页同构 deck 当样本，断言它必然被拒。以后谁把闸门改松，这条测试会红，而不是等成品拿到手才发现。
@@ -317,7 +330,7 @@ python3 engine/cli.py audit-pptx 成品.pptx
 python3 engine/cli.py selfcheck
 ```
 
-它不读文档、不看配置，而是**当场造样本跑一遍**：生成一份 122 页同构、每页只有版式名没有设计简报的 deck，交给 lint 判，同时生成一份正常产物做对照，再测「改名能否骗过判据」「占位话术是否算没填」「不传简报是否失败」，最后**真的用 python-pptx 手写一份 12 页同构 pptx 存到磁盘**，再让 `audit-pptx` 判它——端到端跑通，不是模拟。预期输出 `8/8 项通过 —— 闸门确实生效`；任何一道闸门被改松，它会当场报 `[FAIL]` 并以退出码 1 结束。
+它不读文档、不看配置，而是**当场造样本跑一遍**：生成一份 122 页同构、每页只有版式名没有设计简报的 deck，交给 lint 判，同时生成一份正常产物做对照，再测「改名能否骗过判据」「占位话术是否算没填」「不传简报是否失败」，最后**真的用 python-pptx 手写一份 12 页同构 pptx 存到磁盘**，再让 `audit-pptx` 判版面、让 `audit-notes` 判备注、让 `fill-notes` 补一版再判一次——端到端跑通，不是模拟。预期输出 `11/11 项通过 —— 闸门确实生效`；任何一道闸门被改松，它会当场报 `[FAIL]` 并以退出码 1 结束。
 
 这条命令存在的理由很直白：文档可以写得漂亮、汇报可以说得好听，但**造一份坏样本喂进去还拦不住，就说明闸门是假的**。
 
@@ -358,6 +371,9 @@ python3 engine/cli.py selfcheck
 
 - compose 默认对每页生成**确定性**的讲稿（`_speaker_notes`）：只把该页已有的标题/导语/要点/引文重组为口语化串场，不编造数据；页面自带 `notes` 字段时原样优先。讲稿编译为真实 `notesSlide`，不出现在画面上。
 - lint：开启讲稿覆盖时（composed deck 默认），缺讲稿触发阻断规则 `NOTES_COVERAGE`；讲稿不足 40 字给 `NOTES_THIN` 提示（非阻断）。可用 `speaker_notes:false` 关闭生成。
+- **成品侧的判与补（重要）**：上面两条都挂在 DSL 上，绕开 `compose()` 手写 pptx 时全程静默——真实事故是 91 页那本备注 0/91、lint 从没响过。所以另有两个只看成品文件的命令：
+  - `audit-notes deck.pptx` —— 判。读 `has_notes_slide`，档位（随笔/常规/研究）由**该 deck 自身均长**推断，再按本档下限判「过薄」，仪式页（文字 ≤24）豁免。不通过退出码 1。
+  - `fill-notes deck.pptx --out fixed.pptx` —— 补。只重组该页已有文字，不引入页面外信息；**幂等**（已有备注默认不覆盖，要重写加 `--overwrite`）；**确定性**（同一输入两次结果逐字一致）。这是急救版讲稿，交付前仍应人工打磨成真的讲法。
 - 内容密度：composed 内容页可见文字少于 60 字时给 `CONTENT_DENSITY` 警告，引导结合研究台账向页均 150–250 字靠拢；封面/章节/封底/引文/图表/表格原型豁免，警告不阻断构建。
 
 **新增硬闸门（阶段 4，不通过就回到 DSL 返工）**：
@@ -370,7 +386,7 @@ python3 engine/cli.py selfcheck
 - `TABLE_SHAPE`：原生表格缺 headers/rows 或行列数不一致 → 错误；
 - `LONG_DECK_FORCED`：长 deck 护栏被显式绕过 → 警告（非阻断）；
 - `DENSITY_FLAT`：全篇密度一致 → 警告；
-- `NOTES_COVERAGE`：开启讲稿覆盖的页缺演讲者备注 → 错误；`NOTES_THIN`：讲稿不足 40 字 → 警告（随笔/语录类 deck 可用短注档位，例外条件见 `docs/DESIGN_GRAMMAR.md` §9）；
+- `NOTES_COVERAGE`：开启讲稿覆盖的页缺演讲者备注 → 错误；`NOTES_THIN`：讲稿不足 40 字 → 警告（随笔/语录类 deck 可用短注档位，例外条件见 `docs/DESIGN_GRAMMAR.md` §9）。**成品侧另有 `audit-pptx` / `audit-notes` 两道只看文件的闸门，专治 DSL 闸门静默的绕道产物**；
 - `TYPO_FOUND`：上台文本命中常见错别字词对（登陆/登录、帐户/账户等）→ 警告（确定性词典，可 `lint_ack` 裁定）；
 - `TEXT_DUP`：≥ 10 字的整句在不同页重复出现 → 警告（跨页复制粘贴滑痕）；
 - `FACT_UNSOURCED`：含事实型表述（数字/年份/占比/排名）的页未登记 `sources`/`source` 台账 → **info 级提醒**（引擎只提醒不代核实；`verify --strict` 不因 info 失败）；
@@ -467,7 +483,7 @@ deck 顶层用 `"theme": "<id>"` 选主题（兼容旧 `"scenario"`，theme 优�
 - **母版版式库**：10 套模板（cover/agenda/section/three_cards/kpi_row/chart_insight/image_text/process/timeline/closing），写数据即出片，见 engine/templates.py。
 - **自由画布 + 创作式编排**：`composition:freeform` 绝对定位、节点 `rect/rotate/opacity/border_opacity/valign/on/decor/bleed/shadow` 与顶层 `col_start/col_span`（12 列网格）、竖向分隔线；17 种逐页构图原型（含玻璃卡/图标网格/编号卡三个 opt-in 卡片原型）、封面图派生配色与母题、版式重复硬拦截、长 deck 分章护栏、`--scoring` 确定性选版，见 engine/art_direction.py 与 engine/cover_style.py。
 - **渐变/毛玻璃/阴影视觉系统**：节点/页面 `gradient`（含 `"theme"` 哨兵）编译为真实 OOXML `gradFill`；形状/文字/描边三类 alpha 通道统一注入，可做毛玻璃卡；深色卡片页自动套主题渐变；`shadow` 注入可编辑 `outerShdw` 外阴影。
-- **演讲者备注**：compose 确定性生成每页讲稿（只重组页面已有文字，不编造数据），编译为真实 notesSlide；`NOTES_COVERAGE`/`NOTES_THIN` 闸门管覆盖与厚度，`speaker_notes:false` 可关。
+- **演讲者备注**：compose 确定性生成每页讲稿（只重组页面已有文字，不编造数据），编译为真实 notesSlide；`NOTES_COVERAGE`/`NOTES_THIN` 闸门管覆盖与厚度，`speaker_notes:false` 可关。**成品侧**另有 `audit-notes`（只读文件判覆盖与分档厚度）与 `fill-notes`（幂等、确定性地补一版只重组页内文字的急救讲稿），专治绕开 `compose()` 的产物。
 - **原生数据原语**：页面携带 `chart`（kind/categories/series）或 `table`（headers/rows）数据时，compose 自动路由到 chart-story / table-board 原型，编译为 PowerPoint 原生可编辑图表与表格（非贴图、非文本框伪装）；inspect 可回读图表/表格结构。
 - **动画与转场**：slide 级 `transition:"fade"` 与 `anims`（fade / fly-up，按 `_name` 定位），由 engine/animator.py 注入 OOXML（python-pptx 本身不支持）。
 - **内容质量闸门**：`CONTENT_DENSITY` 警告薄内容页（< 60 字，引导向页均 150–250 字靠拢）、`RESEARCH_LEDGER` 拦截有研究标记无来源台账的页、`ICON_NAME` 拦截非法图标名。

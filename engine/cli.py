@@ -291,6 +291,60 @@ def cmd_audit_pptx(args):
     return 0 if result["ok"] else 1
 
 
+def cmd_audit_notes(args):
+    """检查已成型的 pptx 有没有演讲者备注——只读成品，不看 DSL。
+
+    与 audit-pptx 同源：DSL 侧的 NOTES_COVERAGE 闸门对「绕开 compose() 手写
+    pptx」的产物静默失效。实测那本 91 页《英伟达之道》备注 0/91，lint 从没响过。
+    """
+    from engine import pptx_notes
+    result = pptx_notes.audit_notes(args.pptx)
+
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["ok"] else 1
+
+    print(f"审计对象: {os.path.basename(args.pptx)}")
+    print(f"页数: {result['slide_count']}   参与判定: {result['judged_slides']}"
+          f"   备注覆盖: {result['covered']}/{result['judged_slides']}"
+          f" ({result['coverage']:.1%})")
+    print(f"档位: {result['tier']}   均长: {result['mean_len']} 字"
+          f"   过薄线: {result['tier_floor']} 字")
+    if result["exempted"]:
+        shown = "、".join(str(p) for p in result["exempted"][:10])
+        more = f" 等 {len(result['exempted'])} 页" if len(result["exempted"]) > 10 else ""
+        print(f"按仪式页豁免（文字极少）: 第 {shown}{more}")
+    print("-" * 60)
+    if result["ok"]:
+        print("通过：每页都有足够讲稿")
+    else:
+        if result["missing_pages"]:
+            shown = "、".join(str(p) for p in result["missing_pages"][:15])
+            more = (f" 等 {len(result['missing_pages'])} 页"
+                    if len(result["missing_pages"]) > 15 else "")
+            print(f"缺备注: 第 {shown}{more}")
+        if result["thin_pages"]:
+            shown = "、".join(f"第{t['page']}页({t['len']}字)"
+                             for t in result["thin_pages"][:10])
+            more = (f" 等 {len(result['thin_pages'])} 页"
+                    if len(result["thin_pages"]) > 10 else "")
+            print(f"过薄: {shown}{more}")
+        print()
+        print("演讲者备注是交付物的一部分，不是可选项。可以试运行 `fill-notes`")
+        print("先补一版只重组页内文字的讲稿，再人工打磨成真正的讲法。")
+    return 0 if result["ok"] else 1
+
+
+def cmd_fill_notes(args):
+    """从页面已有文字回填演讲者备注——只重组，不编造。"""
+    from engine import pptx_notes_fill
+    r = pptx_notes_fill.fill_notes(
+        args.pptx, out_path=args.out, overwrite=args.overwrite)
+    print(f"回填 {r['filled']}/{r['total']} 页"
+          f"（跳过已有备注 {r['skipped']} 页）→ {r['out']}")
+    return 0
+
+
 def cmd_retext(args):
     """Replace text in an existing .pptx, preserving run formatting."""
     from engine import pptx_edit
@@ -538,7 +592,41 @@ def cmd_selfcheck(args):
             not hand["ok"] and bool(hand["groups"]),
             f"12 页同构结果 groups={[g['count'] for g in hand['groups']]}",
         ))
-        os.remove(tmp_pptx)
+
+        # --- 样本七：备注。同一份手写 pptx 一个 notesSlide 都没有，
+        # DSL 侧的 NOTES_COVERAGE 全程静默（真实事故：91 页那本备注 0/91）。
+        # 这里同样端到端跑：先判它不通过，再回填，再判它通过。
+        from engine import pptx_notes, pptx_notes_fill
+
+        n_before = pptx_notes.audit_notes(tmp_pptx)
+        checks.append((
+            "绕开 compose() 手写 pptx → audit-notes 仍能判出备注缺失",
+            not n_before["ok"] and n_before["covered"] == 0,
+            f"0 备注结果 covered={n_before['covered']}/"
+            f"{n_before['judged_slides']}, ok={n_before['ok']}",
+        ))
+
+        fill_out = os.path.join(os.path.dirname(tmp_pptx), "_selfcheck_notes.pptx")
+        pptx_notes_fill.fill_notes(tmp_pptx, out_path=fill_out)
+        n_after = pptx_notes.audit_notes(fill_out)
+        checks.append((
+            "fill-notes 能把备注缺口补上（只重组页内文字）",
+            n_after["ok"] and n_after["coverage"] == 1.0,
+            f"回填后覆盖={n_after['coverage']:.1%} 均长={n_after['mean_len']} "
+            f"档位={n_after['tier']}",
+        ))
+
+        # 幂等：对已回填的文件再跑一次，应当一页都不改
+        n_idem = pptx_notes_fill.fill_notes(fill_out, out_path=fill_out)
+        checks.append((
+            "fill-notes 默认幂等（已有备注不被覆盖）",
+            n_idem["filled"] == 0,
+            f"二次运行回填了 {n_idem['filled']} 页",
+        ))
+
+        for p in (tmp_pptx, fill_out):
+            if os.path.exists(p):
+                os.remove(p)
     except Exception as exc:                    # 环境缺 python-pptx 等
         checks.append((
             "绕开 compose() 手写 pptx → audit-pptx 仍能抓住照抄版面",
@@ -671,6 +759,22 @@ def main():
                            "(default 5, calibrated on real output)")
     p_au.add_argument("--json", action="store_true")
     p_au.set_defaults(func=cmd_audit_pptx)
+    p_an = sub.add_parser(
+        "audit-notes",
+        help="check speaker notes on a finished pptx (reads the file, so it "
+             "catches decks that bypassed compose() and wrote pptx by hand)")
+    p_an.add_argument("pptx")
+    p_an.add_argument("--json", action="store_true")
+    p_an.set_defaults(func=cmd_audit_notes)
+    p_fn = sub.add_parser(
+        "fill-notes",
+        help="fill speaker notes by re-organising the text already on each page "
+             "(no invented facts, idempotent, deterministic)")
+    p_fn.add_argument("pptx")
+    p_fn.add_argument("--out", help="output pptx (default: overwrite in place)")
+    p_fn.add_argument("--overwrite", action="store_true",
+                      help="rewrite pages that already have notes")
+    p_fn.set_defaults(func=cmd_fill_notes)
     p_rt = sub.add_parser("retext", help="replace text in an existing pptx")
     p_rt.add_argument("pptx")
     p_rt.add_argument("--map", required=True, help="JSON edit map")
