@@ -1,17 +1,20 @@
-"""从成品 pptx 的页面内容回填演讲者备注——修复，不只是审计。
+"""把讲稿写进成品 pptx——两条通道，别搞混。
 
-`pptx_notes.audit_notes()` 负责判；这里负责补。两条都落在**成品文件**上，
-因为实测发现：绕开 `compose()` 手写的 deck，DSL 侧闸门全程静默
-（91 页那本备注 0/91，一个 notesSlide 都没有）。
+**正路：模型逐页写，`fill_notes_from_file()` 只负责写。**
+每一页怎么开场，取决于这一页在讲什么：封面是欢迎+这本书要解决什么，数据页是
+"看这个数字它反常识在哪"，案例页是"先讲情形再讲判断"。这个判断只有模型能下。
+所以正路是模型先产出讲稿 JSON，再灌进 pptx——引擎不生成一个字。
 
-写法刻意的克制：
-* **只重组该页已有文字**，不生成新事实、不编造数字。宁可讲稿朴素，也不许
-  出现页面上没有的数据——这条与 SKILL.md「禁止编造数据」一致。
-* **幂等**：已有非空备注的页不覆盖，只补空缺；要重写用 `overwrite=True`。
-* **确定性**：同一份 pptx 两次回填结果逐字一致，便于 diff 与回归。
+**急救：`fill_notes()` 只重组页内文字。**
+存在的理由是「备注空着比有草稿更糟」。但它的能力边界必须说清：既然只能重组
+页内文字，每页就必然长成同一个模子。实测 91 页产物字数达标、覆盖 100%，可
+结尾 12 字 91 页全同、87 页连接词序列一字不差——`audit-notes` 判它「模板化」
+不通过。**这是对的行为**：字数够不等于讲得出口，模板化必须被拦下。
 
-生成的讲稿形态参考 12 份豆包样本的档位（随笔 25–60 / 常规 100–160 /
-研究 200+），按页内实际信息量决定长短，不做一刀切。
+写作纪律（两条通道都适用）：
+* 不生成页面外的事实、不编造数字。宁可讲得朴素，也不许出现页面上没有的数据。
+* 已有非空备注默认不覆盖，要重写用 `overwrite=True`。
+* 确定性：同一份输入两次运行结果逐字一致，便于 diff 与回归。
 """
 
 import re
@@ -141,8 +144,91 @@ def _compose_note(head, bodies, page_no, total):
     return "".join(parts)
 
 
+def fill_notes_from_file(pptx_path, notes_json, out_path=None, overwrite=False):
+    """把**模型逐页写好**的讲稿写进 pptx——这才是正路。
+
+    `fill_notes()` 是急救通道：它只能重组页内已有文字，因而必然带模板痕迹
+    （实测 91 页结尾 100% 相同）。真讲稿的每一页开场取决于这一页在讲什么，
+    这个判断只有模型能下。所以这里不生成任何文字，只做一件事：把模型给的
+    讲稿按页号写进去，缺页报错而不是拿模板顶上。
+
+    notes_json 形态（数组，按页顺序；也可用 {"pages":[{page, text}]} 显式指定页号）：
+        ["第1页讲稿", "第2页讲稿", ...]
+        [{"page": 1, "text": "..."}, ...]
+
+    参数：
+        overwrite  默认只填空页；已有讲稿的页保持不动
+    返回 dict：written / skipped / missing（模型没给讲稿的页号）/ out
+    """
+    import json
+
+    from pptx import Presentation
+
+    with open(notes_json, encoding="utf-8") as f:
+        spec = json.load(f)
+
+    if isinstance(spec, dict):
+        spec = spec.get("pages") or spec.get("notes") or []
+
+    # 统一成 {页号: 讲稿}
+    by_page = {}
+    if spec and isinstance(spec[0], dict):
+        for item in spec:
+            no = int(item.get("page") or item.get("no") or 0)
+            if no:
+                by_page[no] = (item.get("text") or item.get("notes") or "").strip()
+    else:
+        for idx, text in enumerate(spec, 1):
+            by_page[idx] = (text or "").strip()
+
+    prs = Presentation(pptx_path)
+    slides = list(prs.slides)
+    total = len(slides)
+
+    written, skipped = [], []
+    for i, s in enumerate(slides, 1):
+        existing = ""
+        if s.has_notes_slide:
+            try:
+                existing = (s.notes_slide.notes_text_frame.text or "").strip()
+            except (AttributeError, KeyError):
+                existing = ""
+
+        if existing and not overwrite:
+            skipped.append(i)
+            continue
+
+        text = by_page.get(i, "")
+        if not text:
+            continue        # 模型没给这页写，就不动它——不拿模板顶上
+
+        tf = s.notes_slide.notes_text_frame
+        tf.clear()
+        tf.text = text
+        written.append(i)
+
+    missing = sorted(set(range(1, total + 1)) - set(by_page))
+
+    target = out_path or pptx_path
+    prs.save(target)
+    return {
+        "total": total,
+        "written": len(written),
+        "skipped": len(skipped),
+        "missing": missing,
+        "written_pages": written,
+        "out": target,
+    }
+
+
 def fill_notes(pptx_path, out_path=None, overwrite=False, min_len=10):
-    """给成品 pptx 回填演讲者备注。
+    """给成品 pptx 回填演讲者备注——**急救通道，不是正路**。
+
+    ⚠ 明确它的能力边界：这里只重组页内已有文字，因此每页的讲法必带同一个
+    模子的痕迹。实测 91 页产物：字数达标（均 202.6）、覆盖 100%，但结尾
+    12 字 91 页全同、开头 91 页全同、87 页连接词序列一字不差——`audit-notes`
+    会判它 `模板化` 不通过。这符合预期：**真讲稿只能由模型逐页判断**，
+    用 `fill_notes_from_file()` 写入。本函数只用于「先把空备注补上，别空着」
 
     参数：
         pptx_path  源文件

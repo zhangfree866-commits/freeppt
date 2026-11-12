@@ -43,6 +43,51 @@ def _make_deck(path, pages, notes=None):
     return path
 
 
+
+def _distinct_notes(n, target=150):
+    """造 n 段长度接近 target、但开头/结尾各不相同的讲稿。
+
+    为什么不能再用 [note] * n：`audit_notes` 现在会判「模板化」——同一句话
+    反复出现在多页就是模板，不是逐页设计的讲法。用完全相同的字符串造测试数据，
+    会被正当地判不通过。这里让每段有自己的主题词，模拟真实讲稿。
+    """
+    topics = ["定位", "生存", "跃迁", "组织", "边界", "反思", "取舍", "节奏",
+              "责任", "信息", "现金流", "生态", "问责", "结构", "机制"]
+    out = []
+    for i in range(n):
+        t = topics[i % len(topics)]
+        head = f"第{i + 1}处讲{t}这件事："
+        body = (f"这里的要点在于{t}并不是一句口号，而是可以拆成条件来判断的东西；"
+                f"先说清它在什么情况下成立，再说清它在什么情况下失效，"
+                f"最后落到一个具体可做的动作上。")
+        text = head + body
+        # 补到接近 target，用不重复的编号避免结尾撞车
+        k = 0
+        while len(text) < target:
+            text += f"第{k}条补充说明针对的是{t}的不同侧面。"
+            k += 1
+        out.append(text)
+    return out
+
+
+def _short_notes(n, target=24):
+    """造 n 段随笔档的短注：每段 20–30 字，开头各不相同。
+
+    随笔档（均长 ≤70）要能成立，但同样不能是同一句话复制 n 遍——
+    "短"不是"重复"的豁免理由。
+    """
+    verbs = ["先看结论", "换一个角度", "回到起点", "把话说白", "落到动作",
+             "反向推一遍", "拆成两步", "问一个为什么"]
+    out = []
+    for i in range(n):
+        v = verbs[i % len(verbs)]
+        t = f"第{i + 1}页只讲一件事：{v}，别急着下判断。"
+        while len(t) < target:
+            t += f"这里补第{i}处细节。"
+        out.append(t)
+    return out
+
+
 # 内容页：文字足够多，不会被当成仪式页
 def _content_blocks(tag):
     return [
@@ -70,7 +115,7 @@ class TestMissingNotesCaught(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             p = _make_deck(os.path.join(d, "a.pptx"),
                            [_content_blocks(i) for i in range(6)],
-                           notes=[note] * 6)
+                           notes=_distinct_notes(6))
             r = pptx_notes.audit_notes(p)
         self.assertTrue(r["ok"], r)
         self.assertEqual(r["coverage"], 1.0)
@@ -103,7 +148,7 @@ class TestTierNotFlatCutoff(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             p = _make_deck(os.path.join(d, "a.pptx"),
                            [_content_blocks(i) for i in range(6)],
-                           notes=[note] * 6)
+                           notes=_short_notes(6))
             r = pptx_notes.audit_notes(p)
         self.assertEqual(r["tier"], "essay")
         self.assertTrue(r["ok"], r)
@@ -128,7 +173,7 @@ class TestRitualExempt(unittest.TestCase):
     def test_sparse_page_exempted(self):
         pages = [_content_blocks(i) for i in range(5)]
         pages.insert(0, ["封面"])          # 文字极少 → 豁免
-        notes = [None] + ["讲稿" * 40] * 5
+        notes = [None] + _distinct_notes(5)
         with tempfile.TemporaryDirectory() as d:
             p = _make_deck(os.path.join(d, "a.pptx"), pages, notes=notes)
             r = pptx_notes.audit_notes(p)
@@ -155,6 +200,13 @@ class TestFillNotes(unittest.TestCase):
                           [_content_blocks(i) for i in range(5)])
 
     def test_fill_closes_the_gap(self):
+        """急救通道：补满覆盖，但仍被判模板化——这是设计意图，不是缺陷。
+
+        `fill_notes()` 只能重组页内文字，所以每页开头/结尾必然同款。审计对它
+        亮红灯是对的（实测 91 页版本正是这样被抓的）。要过闸，得走
+        `fill_notes_from_file()` 让模型逐页写。本测试把这条边界钉住：
+        谁哪天把模板化判据放宽到能放过 `fill_notes()`，这里立刻红。
+        """
         with tempfile.TemporaryDirectory() as d:
             src = self._deck(d)
             out = os.path.join(d, "out.pptx")
@@ -162,7 +214,24 @@ class TestFillNotes(unittest.TestCase):
             before = pptx_notes.audit_notes(src)
             after = pptx_notes.audit_notes(out)
         self.assertEqual(before["covered"], 0)
-        self.assertEqual(after["coverage"], 1.0)
+        self.assertEqual(after["coverage"], 1.0)          # 空备注被补满了
+        self.assertEqual(after["missing_pages"], [])
+        self.assertTrue(after["templated"], after)        # 但仍带模板痕迹
+        self.assertFalse(after["ok"], after)              # 所以不算达标
+
+    def test_fill_from_file_passes_audit(self):
+        """正路：模型逐页写好讲稿，灌进去要能过审计。"""
+        import json
+        with tempfile.TemporaryDirectory() as d:
+            src = self._deck(d)
+            spec = os.path.join(d, "notes.json")
+            with open(spec, "w", encoding="utf-8") as f:
+                json.dump(_distinct_notes(5), f, ensure_ascii=False)
+            out = os.path.join(d, "out.pptx")
+            r = pptx_notes_fill.fill_notes_from_file(src, spec, out_path=out)
+            after = pptx_notes.audit_notes(out)
+        self.assertEqual(r["written"], 5)
+        self.assertEqual(r["missing"], [])
         self.assertTrue(after["ok"], after)
 
     def test_idempotent_by_default(self):

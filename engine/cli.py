@@ -316,7 +316,7 @@ def cmd_audit_notes(args):
         print(f"按仪式页豁免（文字极少）: 第 {shown}{more}")
     print("-" * 60)
     if result["ok"]:
-        print("通过：每页都有足够讲稿")
+        print("通过：每页都有足够讲稿，且没有成片模板化")
     else:
         if result["missing_pages"]:
             shown = "、".join(str(p) for p in result["missing_pages"][:15])
@@ -329,19 +329,146 @@ def cmd_audit_notes(args):
             more = (f" 等 {len(result['thin_pages'])} 页"
                     if len(result["thin_pages"]) > 10 else "")
             print(f"过薄: {shown}{more}")
-        print()
-        print("演讲者备注是交付物的一部分，不是可选项。可以试运行 `fill-notes`")
-        print("先补一版只重组页内文字的讲稿，再人工打磨成真正的讲法。")
+        if result["templated"]:
+            t = result["template"]
+            print(f"模板化: 同一句话反复出现，超过 {result['template_limit']:.0%} 的线")
+            if t["tail_repeat"] > result["template_limit"]:
+                print(f"  结尾 12 字重复 {t['tail_repeat']:.1%} → {t['top_tail']!r}")
+            if t["head_repeat"] > result["template_limit"]:
+                print(f"  开头 8 字重复 {t['head_repeat']:.1%} → {t['top_head']!r}")
+            print("  字数凑够了不等于讲得出口。每页该怎么讲，取决于这一页讲的是什么，"                  "不能套同一个模子。")
+        if result["missing_pages"] or result["thin_pages"] or result["templated"]:
+            print()
+            print("演讲者备注是交付物的一部分，不是可选项。`fill-notes` 只能"
+                  "出一版只重组页内文字的急救稿；要交货，讲稿得逐页写。")
     return 0 if result["ok"] else 1
 
 
 def cmd_fill_notes(args):
-    """从页面已有文字回填演讲者备注——只重组，不编造。"""
+    """把讲稿写进成品 pptx。
+
+    两种模式，能力边界完全不同：
+      --notes-file  正路。模型逐页写好讲稿，引擎只负责写进去。
+      不给          急救。引擎只能重组页内已有文字，必然带模板痕迹，
+                    audit-notes 会判「模板化」。
+    """
     from engine import pptx_notes_fill
+
+    if args.notes_file:
+        r = pptx_notes_fill.fill_notes_from_file(
+            args.pptx, args.notes_file, out_path=args.out,
+            overwrite=args.overwrite)
+        print(f"写入 {r['written']}/{r['total']} 页讲稿"
+              f"（跳过已有讲稿 {r['skipped']} 页）→ {r['out']}")
+        if r["missing"]:
+            shown = "、".join(str(p) for p in r["missing"][:20])
+            more = f" 等 {len(r['missing'])} 页" if len(r["missing"]) > 20 else ""
+            print(f"注意：讲稿没覆盖到第 {shown}{more}——这些页保持原样，"                  f"引擎不会拿模板顶上")
+        return 0
+
     r = pptx_notes_fill.fill_notes(
         args.pptx, out_path=args.out, overwrite=args.overwrite)
-    print(f"回填 {r['filled']}/{r['total']} 页"
+    print(f"急救稿回填 {r['filled']}/{r['total']} 页"
           f"（跳过已有备注 {r['skipped']} 页）→ {r['out']}")
+    print("提醒：这是只重组页内文字的急救稿，必然带模板痕迹。"
+          "正路是模型逐页写好讲稿后用 --notes-file 写入。")
+    return 0
+
+
+def cmd_audit_design(args):
+    """检查成品 pptx 的版面设计——判「这一页有没有被设计过」。
+
+    存在的理由：我长期把「配图数量」当成版面质量的指标，方向是错的。用户拿出
+    一份 10 页的参照（零配图、每页 38.7 个形状、45 条分隔线），明说「页面设计
+    才是核心」。实测对照后确认：版面质量来自页面框架、结构件密度、分隔线组织、
+    以及每页不同的视觉论证，跟有没有图片无关。
+    """
+    from engine import design_audit
+    r = design_audit.audit_design(args.pptx)
+
+    if args.json:
+        print(json.dumps(r, ensure_ascii=False, indent=2))
+        return 0 if r["ok"] else 1
+
+    pp = r["per_page"]
+    shapes = sorted(p["shapes"] for p in pp)
+    structs = sorted(p["structure"] for p in pp)
+    print(f"审计对象: {os.path.basename(args.pptx)}")
+    print(f"页数: {r['slide_count']}")
+    print(f"形状/页: 中位 {shapes[len(shapes) // 2]}  最少 {shapes[0]}  最多 {shapes[-1]}")
+    print(f"结构件/页（色块/线条等）: 中位 {structs[len(structs) // 2]}  最少 {structs[0]}")
+    print(f"分隔线: {r['dividers_total']} 条，覆盖 {r['divider_ratio']:.0%} 的页面")
+    print(f"页面框架: 页眉 {r['chrome']['header']}/{r['slide_count']} 页"
+          f"，页脚 {r['chrome']['footer']}/{r['slide_count']} 页")
+    print(f"配图: {sum(p['pictures'] for p in pp)} 张"
+          f"（不参与判定——参照 deck 是零配图）")
+    print("-" * 60)
+    print(("通过：" if r["ok"] else "不通过：") + r["verdict"])
+    if r["skeleton_groups"]:
+        print()
+        print("同骨架页组（视觉论证重复）:")
+        for g in r["skeleton_groups"][:6]:
+            shown = "、".join(str(p) for p in g["pages"][:10])
+            print(f"  {g['count']:>3} 页  第 {shown}")
+    if not r["ok"]:
+        print()
+        print("每一页的版面形状应该是这页内容的论证结构：递进就用阶梯，对比就用")
+        print("两栏，分类就用矩阵，占比就用条形。形状重复意味着没在读内容。")
+    return 0 if r["ok"] else 1
+
+
+def cmd_preview(args):
+    """把 pptx 渲染成 PNG，一页一张——几何判据看不见「字压字」。
+
+    存在的理由（教训）：audit-design 曾给一份 5 页样本判 ok=True，而实际渲染
+    出来标题压在正文上、色带里的标签和说明叠成一团、右下角页码被裁掉一半。
+    几何测量能数清「有几个结构件」，数不出「这两个字是不是叠在一起」。
+
+    所以判据通过之后必须再看一眼。这条命令就是那一眼。
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    src = os.path.abspath(args.pptx)
+    out_dir = os.path.abspath(args.out_dir)
+    os.makedirs(out_dir, exist_ok=True)
+
+    soffice = shutil.which("soffice") or shutil.which("libreoffice")
+    if not soffice:
+        print("需要 LibreOffice 才能渲染。装好后重试，或直接打开 pptx 看。",
+              file=sys.stderr)
+        return 2
+
+    with tempfile.TemporaryDirectory() as tmp:
+        r = subprocess.run([soffice, "--headless", "--convert-to", "pdf",
+                            "--outdir", tmp, src],
+                           capture_output=True, text=True, timeout=180)
+        pdfs = [f for f in os.listdir(tmp) if f.endswith(".pdf")]
+        if not pdfs:
+            print("转换失败：" + (r.stderr or r.stdout)[-400:], file=sys.stderr)
+            return 1
+        pdf = os.path.join(tmp, pdfs[0])
+
+        try:
+            import pymupdf
+        except ImportError:
+            # 没有 pymupdf 就保留 PDF，让人自己翻
+            shutil.copy(pdf, os.path.join(out_dir, "deck.pdf"))
+            print(f"未装 pymupdf，已保留 PDF: {os.path.join(out_dir, 'deck.pdf')}")
+            return 0
+
+        doc = pymupdf.open(pdf)
+        written = []
+        for i, page in enumerate(doc, 1):
+            p = os.path.join(out_dir, f"p{i:02d}.png")
+            page.get_pixmap(dpi=args.dpi).save(p)
+            written.append(p)
+        doc.close()
+
+    print(f"渲染 {len(written)} 页 -> {out_dir}")
+    for p in written:
+        print(p)
     return 0
 
 
@@ -609,9 +736,12 @@ def cmd_selfcheck(args):
         fill_out = os.path.join(os.path.dirname(tmp_pptx), "_selfcheck_notes.pptx")
         pptx_notes_fill.fill_notes(tmp_pptx, out_path=fill_out)
         n_after = pptx_notes.audit_notes(fill_out)
+        # 急救通道的定位：把空备注补满（覆盖 100%），但不假装它达标。
+        # 上一版这里断言 n_after["ok"] —— 加了模板化判据后它必然为 False，
+        # 断言的其实是旧认知（"填满就算过"）。现在如实拆成两条。
         checks.append((
-            "fill-notes 能把备注缺口补上（只重组页内文字）",
-            n_after["ok"] and n_after["coverage"] == 1.0,
+            "fill-notes 能把备注缺口补满（覆盖率到 100%）",
+            n_after["coverage"] == 1.0 and n_after["missing_pages"] == [],
             f"回填后覆盖={n_after['coverage']:.1%} 均长={n_after['mean_len']} "
             f"档位={n_after['tier']}",
         ))
@@ -624,7 +754,53 @@ def cmd_selfcheck(args):
             f"二次运行回填了 {n_idem['filled']} 页",
         ))
 
-        for p in (tmp_pptx, fill_out):
+        # 急救通道本身带模板痕迹，审计必须拦下它——这是刻意设的红灯。
+        checks.append((
+            "fill-notes 的产物被判「模板化」（急救通道就该拦）",
+            n_after["templated"] and not n_after["ok"],
+            f"结尾重复率={n_after['template']['tail_repeat']:.0%}",
+        ))
+
+        # --- 样本八：版面设计。三组对照，全部端到端造文件：
+        #   ① 只有文字块的裸排布 → 必须判不成立（我方 91 页翻车形态）
+        #   ② 参照语法（页眉框架+徽章+细条+分隔线+每页不同论证）→ 必须判成立
+        #   ③ 把②的分隔线全删掉 → 必须重新判不成立（证明分隔线判据有约束力）
+        from engine import design_audit
+
+        def _bare_page(s, i):
+            _box(s, 60, 86, 1080, 44, f"第 {i} 页标题")
+            _box(s, 104, 190, 900, 60, "一整段说明文字，用来把这一页变成内容页。")
+            _box(s, 60, 300, 520, 120, "要点甲")
+            _box(s, 620, 300, 520, 120, "要点乙")
+
+        bare_prs = Presentation()
+        bare_prs.slide_width = Emu(12192000)
+        bare_prs.slide_height = Emu(6858000)
+        for i in range(6):
+            _bare_page(bare_prs.slides.add_slide(blank), i)
+        bare_path = os.path.join(os.path.dirname(tmp_pptx), "_selfcheck_bare.pptx")
+        bare_prs.save(bare_path)
+        d_bare = design_audit.audit_design(bare_path)
+        checks.append((
+            "只有文字块、没有版面结构 → audit-design 判不成立",
+            not d_bare["ok"],
+            f"结构件中位={sorted(p['structure'] for p in d_bare['per_page'])[len(d_bare['per_page']) // 2]}, "
+            f"分隔线页占比={d_bare['divider_ratio']:.0%}",
+        ))
+
+        designed = design_audit.build_reference_sample()   # 用参照语法现造一份
+        designed_path = os.path.join(os.path.dirname(tmp_pptx), "_selfcheck_designed.pptx")
+        designed.save(designed_path)
+        d_ok = design_audit.audit_design(designed_path)
+        checks.append((
+            "参照语法（框架+徽章+细条+分隔线+每页不同论证）→ 判成立",
+            d_ok["ok"],
+            f"每页形状 {min(p['shapes'] for p in d_ok['per_page'])}–"
+            f"{max(p['shapes'] for p in d_ok['per_page'])}，"
+            f"分隔线 {d_ok['dividers_total']} 条，同骨架最多 {d_ok['max_repeat']} 页",
+        ))
+
+        for p in (tmp_pptx, fill_out, bare_path, designed_path):
             if os.path.exists(p):
                 os.remove(p)
     except Exception as exc:                    # 环境缺 python-pptx 等
@@ -766,12 +942,30 @@ def main():
     p_an.add_argument("pptx")
     p_an.add_argument("--json", action="store_true")
     p_an.set_defaults(func=cmd_audit_notes)
+    p_ad = sub.add_parser(
+        "audit-design",
+        help="check whether each page was actually designed (frame, structure "
+             "density, dividers, variety) — images are NOT part of the judgement")
+    p_ad.add_argument("pptx")
+    p_ad.add_argument("--json", action="store_true")
+    p_ad.set_defaults(func=cmd_audit_design)
+    p_pv = sub.add_parser(
+        "preview",
+        help="render a pptx to one PNG per page — the check geometry can't do: "
+             "whether text actually overlaps")
+    p_pv.add_argument("pptx")
+    p_pv.add_argument("out_dir")
+    p_pv.add_argument("--dpi", type=int, default=110)
+    p_pv.set_defaults(func=cmd_preview)
     p_fn = sub.add_parser(
         "fill-notes",
-        help="fill speaker notes by re-organising the text already on each page "
-             "(no invented facts, idempotent, deterministic)")
+        help="write speaker notes into a finished pptx: --notes-file for "
+             "model-written scripts (the real path), or no flag for an "
+             "emergency re-organisation of page text")
     p_fn.add_argument("pptx")
     p_fn.add_argument("--out", help="output pptx (default: overwrite in place)")
+    p_fn.add_argument("--notes-file", help="JSON of model-written notes, the "
+                                          "real path; engine writes, never invents")
     p_fn.add_argument("--overwrite", action="store_true",
                       help="rewrite pages that already have notes")
     p_fn.set_defaults(func=cmd_fill_notes)

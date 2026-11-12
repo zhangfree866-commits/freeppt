@@ -31,6 +31,17 @@ TIERS = {
 ESSAY_CEILING = 70
 RESEARCH_FLOOR = 180
 
+# 模板化阈值。标定依据（12 份豆包样本 + 我方实测，见
+# doubao-benchmark/TWELVE_SAMPLE_BENCHMARK.md）：
+#   结尾 12 字最高重复率   豆包 1.0%–17.4%（models20 是异常本 17.4%，其余 ≤3.5%）
+#   开头 8 字最高重复率    豆包 1.0%–17.4%
+# 我方第一版 fill-notes 是 100% / 5.5%——字数达标、结构全同。所以「够长」不等于
+# 「讲得出口」。取 25% 作线：高于它说明有同一句话反复出现在过半平方的页上，
+# 那就是模板，不是逐页设计的讲法。
+TEMPLATE_REPEAT_LIMIT = 0.25
+_TEMPLATE_HEAD = 8
+_TEMPLATE_TAIL = 12
+
 
 def _tier_of(mean_len):
     if mean_len <= ESSAY_CEILING:
@@ -43,6 +54,38 @@ def _tier_of(mean_len):
 def _is_ritual_by_text(slide_text_len):
     """文字极少的页按仪式页处理（与 pptx_audit 同一启发式）。"""
     return slide_text_len <= RITUAL_TEXT_MAX
+
+
+def _template_signature(texts):
+    """找出「同一句话反复出现在多页」的滑痕。
+
+    为什么需要它：字数、覆盖、档位都达标的讲稿仍可能是模板产物。实测第一版
+    fill-notes 交出 91 页，结尾 12 字 100% 相同（"…对照自己手上的材料想一想"），
+    开头 91 页全一样，87 页连接词序列一字不差——字数审计给绿灯，人一读就知道
+    没人在设计。所以模板化必须单独判。
+
+    只看最靠近两端的定长片段：它抓的是"每页都用同一句开场/收尾"，这正是
+    模板最藏不住的地方，且对正文内容差异不敏感（不会误伤合理复用）。
+    """
+    if not texts:
+        return {"head_repeat": 0.0, "tail_repeat": 0.0,
+                "top_head": "", "top_tail": ""}
+    n = len(texts)
+    heads = {}
+    tails = {}
+    for t in texts:
+        h = t[:_TEMPLATE_HEAD]
+        tl = t[-_TEMPLATE_TAIL:]
+        heads[h] = heads.get(h, 0) + 1
+        tails[tl] = tails.get(tl, 0) + 1
+    top_head, top_head_n = max(heads.items(), key=lambda kv: kv[1])
+    top_tail, top_tail_n = max(tails.items(), key=lambda kv: kv[1])
+    return {
+        "head_repeat": round(top_head_n / n, 4),
+        "tail_repeat": round(top_tail_n / n, 4),
+        "top_head": top_head,
+        "top_tail": top_tail,
+    }
 
 
 def audit_notes(pptx_path):
@@ -66,6 +109,7 @@ def audit_notes(pptx_path):
     total = len(slides)
 
     missing, thin, covered_lens, exempted = [], [], [], []
+    covered_texts = []
     for i, s in enumerate(slides, 1):
         # 页内可见文字量：用来判仪式页，必须在读备注前算
         visible = 0
@@ -87,6 +131,7 @@ def audit_notes(pptx_path):
                 missing.append(i)
         else:
             covered_lens.append(len(text))
+            covered_texts.append(text)
 
     covered = len(covered_lens)
     mean_len = round(sum(covered_lens) / covered, 1) if covered else 0.0
@@ -103,8 +148,12 @@ def audit_notes(pptx_path):
     judged = total - len(exempted)
     coverage = round(covered / judged, 4) if judged else 1.0
 
+    tpl = _template_signature(covered_texts)
+    templated = (tpl["tail_repeat"] > TEMPLATE_REPEAT_LIMIT
+                 or tpl["head_repeat"] > TEMPLATE_REPEAT_LIMIT)
+
     return {
-        "ok": not missing and not thin,
+        "ok": not missing and not thin and not templated,
         "slide_count": total,
         "judged_slides": judged,
         "covered": covered,
@@ -115,4 +164,7 @@ def audit_notes(pptx_path):
         "thin_pages": thin,
         "missing_pages": missing,
         "exempted": exempted,
+        "templated": templated,
+        "template": tpl,
+        "template_limit": TEMPLATE_REPEAT_LIMIT,
     }

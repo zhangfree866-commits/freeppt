@@ -3,6 +3,44 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261112.8] - 2026-11-12
+
+The user handed over a 10-page reference deck and said: **"page design is the
+core, notes are optional, you're being dumb."** Measuring it overturned my
+whole direction — the reference has **zero images**. So the image-density chase
+was wrong. This release builds the design audit around what actually makes that
+deck good, then immediately catches its own bugs with it.
+
+- **`engine/design_audit.py`** — `audit_design(pptx_path)`. Judges four things,
+  none of them images: page chrome (header rule / footer source line / page
+  badge), structure density (≥20 shapes, ≥7 non-text structures per page),
+  dividers (≥50% of pages), and argument variety (no skeleton on >4 pages).
+  Calibrated on the reference: 38.7 shapes/page, 45 dividers over 100% of
+  pages, max 2 pages sharing a skeleton.
+- **Text collisions and clipping** — added after the reference-grammar sample
+  passed L1–L6 and *still looked broken on screen*: titles sitting on ledes,
+  band labels merged with their descriptions, `/ 05` half off-canvas. Both are
+  now first-class judgements (`collisions`, `clipped`), computed from estimated
+  real text extents (font size × line count), not `shape.height` — PowerPoint
+  does not clip overflowing text, so box height misses that whole class.
+- **`engine/cli.py`** — new `preview` subcommand: pptx → one PNG per page via
+  LibreOffice + PyMuPDF. The check geometry cannot do is "does it look right".
+- **`build_reference_sample()`** — the reference grammar as executable code:
+  chrome, 34×34 badges, 118×30 label bars, 8px ticks, full-width rules, and
+  five pages with five genuinely different visual arguments (staircase,
+  progress bands, concentric rings, 2×2 matrix, horizontal bars). `selfcheck`
+  builds it and requires `audit_design` to pass it, so the thresholds and the
+  vocabulary cannot drift apart.
+- **`audit_notes` gains a template judge** — head-8/tail-12 repetition >25% is
+  a template, not a script. This at last fails my own `fill_notes()` output
+  (100% identical 12-char endings across 91 pages) instead of passing it with
+  100% coverage. `fill_notes_from_file()` is the real path: the model writes
+  each page's script, the engine only writes it in.
+- **Layout implementation rules** learned the hard way, now in `SKILL.md`:
+  stack text by `_line_h(size)` never by hard-coded offsets; 33pt Chinese is
+  ~55px tall, not 40; no `↑ →` glyphs (Arial drops them); no rotated text boxes
+  for axis labels (rotation pivots on centre and spills into the next column).
+
 ## [20261112.7] - 2026-11-12
 
 Close the last measured hard gap: **speaker notes 0/91**. Notes now have a
