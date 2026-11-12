@@ -496,7 +496,15 @@ def _slide_geometry(slide):
         monotone_top = (all(tops[i] >= tops[i + 1] for i in range(len(tops) - 1))
                         or all(tops[i] <= tops[i + 1]
                                for i in range(len(tops) - 1)))
-        if left_up and monotone_top and offset >= 80:
+        # 台阶的每一级都有自己的水平区间：N 级台阶就是 N 个**不同的**左缘。
+        # 没有这条，马赛克会被误判成台阶——实测（20261113，《11枚戒指》p05
+        # grid-mosaic 的「一大两小」布局）：左大格 x=64，右两小格 x=646 上下
+        # 堆叠，left 64→646→646 递增、top 132→132→392 单调、累计横移 582px，
+        # 三条全中 stair 判据，于是规格说 grid、成品被判成 stair，正路被拦。
+        # 但马赛克的本质是「同一列里上下放两块」，根本不是逐级横移的台阶。
+        distinct_x = len({x for x, _ in by_x})
+        if (left_up and monotone_top and offset >= 80
+                and distinct_x == len(blocks)):
             found.add("stair")
         # 网格：横纵都要有**多个**位置（2×2 起）。早先这里是无条件
         # found.add("grid")，只要两个块位置不同就算网格——于是错位三联

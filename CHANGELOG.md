@@ -3,6 +3,47 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261113.3] - 2026-11-13
+
+**回归第一性原理审计**：删掉一切把「手段」当「目标」、以及文档与引擎不符的残留。
+
+起因是用户要求按最高原则（模型逐页当设计师；载体是读完内容后的结果，不是预设；
+被否定的只有「先有固定模板再往里填」）重新检查 skill 是否走在正确道路上。通读
+`SKILL.md` + 引擎 + 渲染图后，修掉 4 类问题：
+
+### 1. 文档闸门与真实代码不符（会误导执行）
+
+- 「创作式编排」的闸门表原写 **carrier / structure / visual_anchor /
+  image_decision / rationale 五字段**、错误码 `DESIGN_BRIEF_MISSING`；但引擎
+  (`compose` / `lint`) 实际跑的是**六维**规格、错误码是 `DESIGN_SPEC_MISSING` /
+  `DESIGN_SYSTEM_INCOMPLETE` / `STRUCTURE_REUSED` / `SPEC_NOT_COMPILED`。
+  全部改为与代码一致，补上「设计系统」与「规格兑现」两道真实闸门。
+- CLI 示例参数名 `--brief` 改正为 `--briefs`。
+
+### 2. 旧原则直接否定「模型临场判断」
+
+底部「核心设计原则」第 5 条原文是「确定性优先：版面合格由 lint 程序判定，
+不依赖肉眼截图或**模型临场发挥**」——与第一性原理正相反。改为「模型逐页当
+设计师，判据守底线」；第 3、4、6 条一并对齐「统一审美、不统一结构」。
+
+### 3. 抓出一处真实的「先有图再硬配」（文档审计救回的缺陷）
+
+重跑《11枚戒指》渲染图逐页看，发现封面右半嵌的竟是**《人情与面子》书封**。
+根因：`notes_eleven_rings.json` 的 `book.cover` 照搬了
+`assets/book_cover_demo.png`（那张 demo 图本就是《人情与面子》示意封），
+而该书并不需要这张图——典型的「先有图再往里配」。删除该引用后，封面退化为
+干净成立的纯字体/色块版面，符合「不为配图而配图」。
+
+### 4. 几何误判修复 + 第二本逐页设计实例入库
+
+- `design_spec._slide_geometry()`：stair 判据补 `distinct_x == len(blocks)`，
+  修掉 grid-mosaic「一大两小」被误判成 stair 的假阳性（《11枚戒指》p05）。
+- 新增 `tests/test_design_spec.py::TestSlideGeometry`（真台阶 / 马赛克两条）。
+- `tools/check_all.sh` 接入《11枚戒指》10 页 compose→lint，防腐化。
+
+实测：`bash tools/check_all.sh` 全绿；《11枚戒指》10 页 10 种原型、渲染图逐页
+复核无压字/出界/错图。
+
 ## [20261113.2] - 2026-11-13
 
 **判据与渲染器对齐口径**，外加四页真实缺陷的引擎重写。

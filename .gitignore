@@ -17,6 +17,7 @@ dist/
 /out/
 /tmp/
 /scratch/
+examples/eleven_out/
 *.tmp.pptx
 *.bak
 

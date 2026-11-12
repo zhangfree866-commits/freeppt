@@ -263,6 +263,37 @@ class TestSpecMustDriveLayout:
         assert "SPEC_NOT_COMPILED" in str(exc.value)
 
 
+class TestSlideGeometry:
+    """从坐标反推几何，stair 与 grid 必须分得开。"""
+
+    def test_true_stair_detected(self):
+        """四个不同左缘、顶边单调上抬、累计横移够大 → stair。"""
+        s = {"children": [
+            {"t": "box", "rect": [60, 460, 200, 140]},
+            {"t": "box", "rect": [270, 350, 200, 140]},
+            {"t": "box", "rect": [480, 240, 200, 140]},
+            {"t": "box", "rect": [690, 130, 200, 140]},
+        ]}
+        geo = ds._slide_geometry(s)
+        assert "stair" in geo
+
+    def test_grid_mosaic_not_misread_as_stair(self):
+        """马赛克「一大两小」：左大格，右列两小格上下堆叠。
+
+        回归（2026-11-13，《11枚戒指》p05）：旧判据只看左缘递增 + 顶边
+        单调 + 横移够大，而右列两块左缘相同也照样通过，于是 grid 被误判
+        成 stair，规格说 grid、成品被判 stair，正路被拦。
+        """
+        s = {"children": [
+            {"t": "box", "rect": [64, 132, 560, 500]},    # 左大格
+            {"t": "box", "rect": [646, 132, 570, 248]},   # 右上小格
+            {"t": "box", "rect": [646, 392, 570, 240]},   # 右下小格
+        ]}
+        geo = ds._slide_geometry(s)
+        assert "stair" not in geo
+        assert "grid" in geo
+
+
 class TestBriefsFileShape:
     """简报文件的**形态**必须是扁平映射。
 

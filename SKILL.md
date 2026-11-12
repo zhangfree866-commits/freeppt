@@ -2,11 +2,11 @@
 name: freeppt
 display_name: "FreePPT"
 display_name_en: "FreePPT"
-description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、零散要点或读书笔记（可附参考封面图），产出逐页创作编排、原生可编辑的 .pptx；内置 17 种构图原型（含原生图表/表格页与玻璃卡/图标卡/编号卡）、渐变与毛玻璃 alpha、原生形状图标库、演讲者备注自动生成、封面图配色派生、16 套视觉主题、8 类企业固定报告、长 deck 分章护栏、版式账本零重复硬闸（layout_id 全局唯一/相邻不同族/同族页码间隔）、研究来源台账与内容密度校验、纯 CLI 出片与已有 pptx 文字改稿。触发词：FreePPT、freeppt、做PPT、生成PPT、改PPT、读书笔记、幻灯片、pptx。"
+description: "FreePPT：创建专业 PowerPoint。第一原则是让模型逐页当设计师——先读懂这一页内容，再决定用真实照片 / 原生 SVG / 纯字体版面 / 数据可视化还是混合手段；统一审美语言与质量底线，不统一版面结构，千页千面，否定「先有固定模板再往里填」。产出逐页设计、原生可编辑的 .pptx；内置 17 种构图原型作为构件库而非起点（含原生图表/表格页与玻璃卡/图标卡/编号卡）、渐变与毛玻璃 alpha、原生形状图标库、演讲者备注自动生成、封面图配色派生、16 套视觉主题、8 类企业固定报告、长 deck 分章护栏、六维设计规格闸门与几何骨架重复硬闸（不听自报标签、直接比对坐标）、研究来源台账与内容密度校验、无宿主时的纯 CLI 出片与已有 pptx 文字改稿。触发词：FreePPT、freeppt、做PPT、生成PPT、改PPT、读书笔记、幻灯片、pptx。"
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, a native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261113.2"
+version: "20261113.3"
 author: "张三峯"
 ---
 
@@ -402,7 +402,7 @@ python3 engine/cli.py compose notes.json --briefs briefs.json --out deck.json
 #    写简报：手写 JSON（key=页索引或 page id），或复用 design-system 工序：
 python3 engine/cli.py design-system scaffold ref.png --book "书名"
 #    把简报传给 compose（缺省则不传，回退到原型池兜底）：
-python3 engine/cli.py compose notes.json --emit-plan plan.json --brief design_briefs.json
+python3 engine/cli.py compose notes.json --emit-plan plan.json --briefs design_briefs.json
 python3 engine/cli.py svgguard plan.json svg_output/
 python3 engine/cli.py ledger layout_ledger.json   # 版式零重复硬闸：唯一 id/相邻不同族/同族间隔
 python3 engine/cli.py compile-svg <project_dir> out.pptx --strict
@@ -476,10 +476,10 @@ python3 tools/benchmark.py --out bench.json
 
 1. **不直接写 OOXML**：用受限 JSON DSL 描述每页，引擎做确定性布局，再编译成原生 .pptx。
 2. **五阶段主干不可打乱**：规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染。渲染永远在最后，且被 lint 闸门拦截（见下节）。
-3. **审美数值化、可判定**：所有规范见 references/design-principle.md，lint 不通过即回 DSL 返工，不做「先出页面再看图审美返工」。
-4. **风格先路由**：按受众/场合选 scenario，锁死配色、字体、字号梯度、密度下限。
-5. **确定性优先**：版面合格由 lint 程序判定，不依赖肉眼截图或模型临场发挥。
-6. **内容决定构图，不是模板决定构图**：报告类可走固定母版；读书笔记、品牌叙事、演讲稿等创作类内容走 `composition: freeform`，逐页选择构图原型，并把「相邻页/全篇版式重复」写成 lint 硬错误。
+3. **审美数值化、可判定**：底线规范（压字、出界、溢出、字体缺字形、套版）见 references/design-principle.md，由 lint 拦截；但判据只管「读不到 / 被压住」，不管「好不好看」——审美上限靠模型逐页判断，不被 lint 绑死。
+4. **统一审美语言、不统一结构**：报告类可锁固定母版；创作类先在 notes 顶层声明一次 `design_system`（配色 / 字阶 / 间距 / 字体），全书气质统一，但每页结构由该页内容重新决定。
+5. **模型逐页当设计师，判据守底线**：版面的创造性来自模型读懂内容后的逐页判断（可含临场变化），lint 与成品审计负责拦住客观缺陷，而不是取代设计。判据通过后仍须渲染肉眼复核。
+6. **内容决定构图，不是模板决定构图**：读书笔记、品牌叙事、演讲稿等创作类内容走 `composition: freeform`，逐页决定载体与结构，并把「几何骨架 ≥5 页重复」写成不可豁免的硬错误。
 
 ## 参考图 → 设计系统（模型驱动）
 
@@ -509,18 +509,20 @@ python3 tools/benchmark.py --out bench.json
 
 > 定位提醒：本节的「17 原型自动分配」是**引擎在没有逐页人工设计时的高质量兜底**——它让相邻页不重样，但仍属于「从构件库里选」。追求对标豆包的成品级效果时，按顶部「创作第一性原理」由宿主大模型**逐页判断载体**（可直接调用这些原型，也可完全不按原型），原型是素材而非起点。
 
-**强制工序（创作类 deck 必走，且已做成编译前提）**：宿主大模型在调用 `compose` 之前，先**逐页产出 `design_briefs`**——每页一条：`carrier`（svg / photo / pure-type / data-viz / prototype）、`structure`（这页用什么结构，一个短标签如「否定墙」「证据阶梯」「因果链」）、`visual_anchor`（主视觉是什么）、`image_decision`（ai / real-photo / svg / none）、`rationale`（为什么这样表达最有效）。通过 `compose(notes, design_briefs=...)` 或 CLI `compose --brief briefs.json` 传入；给定原型就钉用该原型，给定 `__host__` 就留空占位交宿主手绘。简报原文原样写进每张 slide 的 `design_brief` 字段，可追溯。
+**强制工序（创作类 deck 必走，且已做成编译前提）**：宿主大模型在调用 `compose` 之前，先**逐页产出 `design_briefs`**——每页一份**六维**完整方案（`structure` / `hierarchy` / `components` / `states` / `responsive` / `a11y` / `consistency` / `rationale`，口径见上方「六维规格」表），并可用 `archetype` 字段钉用某个构件原型、或设为 `__host__` 留空占位交宿主亲手画（如一张手绘 SVG）。通过 `compose(notes, design_briefs=...)` 或 CLI `compose --briefs briefs.json` 传入。载体选择（真实照片 / 原生 SVG / 纯字体 / 数据可视化 / AI 图）写在 `structure` 与 `rationale` 里，是想清楚之后的结论，不是预设。简报原文原样写进每张 slide 的 `design_brief` 字段，可追溯。
 
-**这不是建议，是闸门——三道都编译不过就出不了文件**：
+**这不是建议，是闸门——任何一道不过都出不了文件**：
 
-| 闸门 | 判据 | 行为 |
+| 闸门 | 判据 | 行为 / 错误码 |
 |---|---|---|
-| 入口 | `compose()` 没收到 `design_briefs` | 直接 `ValueError`，报出两种合法做法 |
-| 简报完整性 | 任一页缺 `design_brief`，或五字段有空/占位话术（"无" "TBD" "同上"）/ 过短 / `image_decision` 非法 | `DESIGN_BRIEF_MISSING` **blocker** |
+| 入口 | `compose()` 既没收到 `design_briefs`，notes 也没声明 `brief_pool` | 直接 `ValueError`，报出两种合法做法 |
+| 简报完整性 | 任一页缺 `design_brief`，或六维任一项缺失 / 占位话术（"无" "TBD" "同上"）/ 过短 | `DESIGN_SPEC_MISSING` **blocker** |
+| 设计系统 | notes 顶层缺 `design_system`，或缺 `palette`/`type_scale`/`spacing`/`font_pair` 令牌；某页 `consistency` 引用了不存在的键 | `DESIGN_SYSTEM_INCOMPLETE` **blocker** |
 | 结构复用 | 同一 `structure` 标签超过 3 页 | `STRUCTURE_REUSED` **blocker** |
+| 规格兑现 | 简报声明的几何（如 stair/grid/split）与成品实际几何对不上——只填字段没驱动版面 | `SPEC_NOT_COMPILED` **blocker** |
 | 几何兜底 | 单副几何骨架出现 ≥5 页（**不听自报的版式名，直接比对坐标**） | `LAYOUT_SKELETON_REPEAT` **blocker** |
 
-四条都不可 `lint_ack` 豁免。若某批页确实就是标准原型（固定报告/纯数据页），在 notes 顶层写 `"brief_pool": "prototype"` 显式声明走兜底——放行但留下 `BRIEF_POOL_FALLBACK` 痕迹，不静默。
+这些都不可 `lint_ack` 豁免，也没有 `--force` 旁路。若某批页确实就是标准原型（固定报告/纯数据页），在 notes 顶层写 `"brief_pool": "prototype"` 显式声明走兜底——六维闸门放行但留下 `BRIEF_POOL_FALLBACK` 痕迹，不静默；几何骨架与成品审计照样运行。
 
 **第五道闸门：产物侧，落在 pptx 坐标上（这是曾经最大的漏口）**
 

@@ -321,10 +321,16 @@ def a_chapter_opener(p, S, c):
                on=S["deep"], weight="bold")]
     kids += _motif(S, 900, 120, 2.6, 2)
     kids.append(_d(70, 430, 520, S["accent"], thickness=4))
-    kids.append(_t(70, 462, 900, _head(p, "章节"), 52, S["ondark"],
-                   max_h=140, min_size=34, weight="bold", on=S["deep"]))
+    title = _t(70, 462, 900, _head(p, "章节"), 52, S["ondark"],
+               max_h=140, min_size=34, weight="bold", on=S["deep"])
+    kids.append(title)
     if p.get("en"):
-        kids.append(_t(72, 588, 800, p["en"], 18, S["soft"], on=S["deep"]))
+        # 英文注脚的位置由标题**实际**底边推出，不能写死 y=588。
+        # 实测（20261113，《11枚戒指》p02）：「从 11 枚戒指往回看：冠军
+        # 背后不是战术板」在 900px 里折成两行，标题框撑到 140px 高、
+        # 底边 602，写死的 588 正好压进标题第二行，audit 报文字压字。
+        en_y = title["rect"][1] + title["rect"][3] + 14
+        kids.append(_t(72, en_y, 800, p["en"], 18, S["soft"], on=S["deep"]))
     kids += _chrome(S, c, 1060, 640, on=S["deep"], align="right", w=160)
     return kids, S["deep"], "dark", "airy"
 
@@ -407,16 +413,30 @@ def a_editorial_spread(p, S, c):
             y = n["rect"][1] + n["rect"][3] + gap_item
     if p.get("note"):
         note_w = rw - 32
+        note_x = rx
         note_line = _wrap_h(p["note"], note_w, 16)
         note_h = note_line + 24
         body_bottom = y - gap_item            # 循环末尾多加的那段不算正文
         note_y = body_bottom + gap_note
-        # 兜底：真正塞不下时把批注块压进 630 以内，宁可离正文近一点。
-        # 绝不越过 630 —— 648 是页码行，越过就是「色块压页码」。
         if note_y + note_h > page_bottom:
-            note_y = max(body_bottom + 8, page_bottom - note_h)
-        kids.append(_b(rx, note_y, rw, note_h, S["soft"]))
-        kids.append(_t(rx + 16, note_y + 12, note_w, p["note"], 16, S["ink"],
+            # 放不下：先试「全宽注脚条」——同样字数横跨全宽，行数减半。
+            # 杂志标准手法：margin note 放不下就变 footnote。
+            w2 = W - 128
+            lines2 = _wrap_h(p["note"], w2 - 32, 16)
+            h2 = lines2 + 24
+            y2 = page_bottom - h2
+            if y2 >= body_bottom + 8:
+                note_x, note_w, note_line, note_h, note_y = \
+                    64, w2 - 32, lines2, h2, y2
+            else:
+                # 全宽也放不下：**绝不许越过 630**，宁可贴正文。
+                # 实测（20261113，《11枚戒指》p03）：原 max() 取 body_bottom+8，
+                # 批注块 611→683 压住 648 页码行与来源行，audit 报两处压字。
+                # 兜底的优先级必须反过来：先保证不越界，再谈离正文多远。
+                note_y = page_bottom - note_h
+        note_bw = (W - 128) if note_x == 64 else rw
+        kids.append(_b(note_x, note_y, note_bw, note_h, S["soft"]))
+        kids.append(_t(note_x + 16, note_y + 12, note_w, p["note"], 16, S["ink"],
                        max_h=note_line, on=S["soft"]))
     kids += _source(S, p, 64, 648, 700, on=S["paper"])
     kids += _chrome(S, c, 1060, 648, on=S["paper"], align="right", w=160)

@@ -25,6 +25,13 @@ python3 engine/cli.py compose examples/notes_renqing_mianzi.json \
 python3 engine/cli.py lint /tmp/freeppt_check_deck.json > /dev/null
 python3 engine/cli.py build /tmp/freeppt_check_deck.json /tmp/freeppt_check.pptx
 
+# 第二本逐页设计实例：《11枚戒指》10 页。同样必须带 --briefs，
+# 且不许给封面硬塞错图（曾因 book.cover 照搬 demo 而配成《人情与面子》书封）。
+python3 engine/cli.py compose examples/notes_eleven_rings.json \
+  --briefs examples/briefs_eleven_rings.json \
+  --out /tmp/freeppt_rings_deck.json
+python3 engine/cli.py lint /tmp/freeppt_rings_deck.json > /dev/null
+
 echo "== 4/4 pure CLI smoke =="
 python3 engine/cli.py make "本周完成 3 项交付；客户满意度提升到 92%；上线新版引导流程" \
   --type weekly --out /tmp/freeppt_brief.pptx
