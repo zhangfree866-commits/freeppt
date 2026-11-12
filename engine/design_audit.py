@@ -83,7 +83,27 @@ def _text_boxes(slide):
     PowerPoint 不会裁掉超出的字，它会溢出来盖住别人——所以判断重叠必须用
     真实文字高度，用框高会漏掉「框很小、字溢出来」这一整类问题。
     """
+    import unicodedata
     out = []
+
+    def _char_unit(ch):
+        """一个字占多少 em：全宽中日韩字 1.0，西文与数字约 0.55，空格更窄。
+
+        必须按字宽加权，不能把所有字符都算 1.0——参照 deck 的来源行含大量英文
+        （Covey、FranklinCovey、MBA），按全宽算会凭空多出一行，于是黄金标准
+        被自己的判据判成出界，假阳性会让判据失去信誉。
+        """
+        if ch == " ":
+            return 0.30
+        if ch == "\t":
+            return 0.60
+        ea = unicodedata.east_asian_width(ch)
+        if ea in ("W", "F"):
+            return 1.0
+        if ch.isalnum():
+            return 0.56
+        return 0.52
+
     for sh in slide.shapes:
         if not (sh.has_text_frame and sh.text.strip()):
             continue
@@ -96,10 +116,13 @@ def _text_boxes(slide):
                     break
             break
         w = _px(sh.width)
-        # 粗估每行能放几个中文字：中文 1em、西文约 0.55em
         em = size * 1.333
-        per_line = max(int(w / em), 1)
-        lines = max(1, -(-len(txt) // per_line))
+        cap = max(w / em, 1.0)           # 每行容得下多少 em
+        # 手动换行符要分段累计行数；段内再按字宽总和是否超出行宽决定折行。
+        lines = 0
+        for seg in txt.split("\n"):
+            units = sum(_char_unit(c) for c in seg)
+            lines += max(1, -(-int(round(units * 100)) // int(round(cap * 100))))
         out.append({
             "text": txt,
             "x": _px(sh.left), "y": _px(sh.top),

@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, a native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261112.8"
+version: "20261112.9"
 author: "张三峯"
 ---
 
@@ -100,6 +100,11 @@ author: "张三峯"
    PowerPoint 不裁字、让字溢出来盖人，用框高判会漏掉整类问题）。
 2. **判据通过之后必须看一眼**：`python3 engine/cli.py preview 成品.pptx 输出目录`
    渲染成 PNG。判据能证明"没退化"，证明不了"好看"。
+3. **判据必须判黄金参照通过（校准铁律）**：拿参照 deck 跑 `audit-design`，
+   必须 0 碰撞、0 出界。若判据连要追赶的目标都判不通过，先改判据、别改目标。
+   20261112.9 就踩过：占位估算把每个英文字母/数字/空格都按全宽中文字算，
+   导致黄金参照被判 3 碰撞 + 5 出界。修正办法是按 Unicode 东亚字宽加权
+   （全宽字 1.0em、字母数字 ≈0.56、空格 0.30），手动换行符 `\n` 单独折行。
 
 **排版实现纪律**（否则一定压字，我自己踩了 10 次）：
 

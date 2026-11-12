@@ -3,6 +3,38 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261112.9] - 2026-11-12
+
+The reference grammar only existed as a 5-page selfcheck sample. This release
+uses it to build a **complete 10-page reading-notes deck**, and in doing so
+finds that the text-extent estimator from .8 was too crude — it counted every
+ASCII letter, digit and space as a full-width CJK glyph, so the golden
+reference itself was judged as 3 collisions + 5 clips. A gate that fails the
+target it is supposed to chase has no authority, so the estimator was fixed
+before anything else.
+
+- **`engine/design_audit.py` — weighted text-extent estimate.** Each character
+  now contributes its real width via Unicode East Asian Width: W/F glyphs 1.0
+  em, alphanumerics ~0.56, spaces 0.30; manual newlines (`\n`) wrap separately.
+  After the fix the reference deck audits **0 collisions / 0 clips**. This is
+  the calibration rule: the judge must pass the golden standard.
+- **`engine/seven_habits_deck.py` (new) — full 10-page deck builder.** Every
+  coordinate comes from shape-level measurement of the reference (canvas
+  1280×720). Four layouts, ten distinct left-side visual arguments (cover
+  stairs, framework bands, concentric circles, two-creation bands, 2×2
+  quadrants, win-win split + emotional bank account, listen/express blocks,
+  1+1>2 trust columns, four-dimension grid, four-week landing table) — no two
+  content pages share a skeleton. Reuses the same primitives as the audit so
+  judge and output stay one vocabulary.
+- **Real bugs it caught:** P6/P7 used a 130px section-label box that ran into
+  body text starting at x=200; narrowed to the reference's 110px. Caught by
+  `collisions`, confirmed by `preview` — the render loop earned its place.
+- **`tests/test_seven_habits_deck.py` (new)** — 3 tests: ten slides, audit
+  `ok` with no collisions/clips, every page has ≥10 shapes and ≥1 divider.
+- **Verification:** 339 tests + 24 subtests pass; selfcheck 14/14. Delivered
+  `artifacts/七个习惯_精读10页.pptx` with per-page PNGs in
+  `artifacts/preview10/`.
+
 ## [20261112.8] - 2026-11-12
 
 The user handed over a 10-page reference deck and said: **"page design is the
