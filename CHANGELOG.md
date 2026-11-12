@@ -3,6 +3,35 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261112.6] - 2026-11-12
+
+Write the acceptance bar into the top of SKILL.md, so "did we drift" is
+answerable from the file instead of from memory. Two new sections sit above the
+existing 创作第一性原理 and directly after it.
+
+- **最高目标与裁决规则** — states the single goal (成品效果追赶豆包) and the
+  meta-rule that decides conflicts: offline, determinism, engine-generated, and
+  architectural purity are means, not constraints, and must never be escalated
+  into a decision the user has to make.
+- **交付自检红线** — 27 things it should be plus 21 things it should not be,
+  each with a checkable criterion rather than an adjective:
+  - 应该 (27): per-page carrier decision, skeleton ≤4 pages per shape, content
+    density 144–360 chars/page, notes ≈100%, editable ratio >0.95, native
+    charts, dual typeface, size tiers, function-colour consistency, gradient on
+    demand, chapter breathers, sources printed visibly, plus 7 process items.
+  - 不应该 (21): fixed-template-fill, same layout for different content,
+    image-on-every-page, per-chapter layout reuse, relabelling to fool gates,
+    hand-written pptx bypassing `compose()`, doc-only fixes, `--force` instead
+    of a real fix, and an explicit "not a template library / not a screenshot
+    tool" positioning block.
+- Every claim in the tables is tied to measured data where one exists, and the
+  two known gaps are written in rather than hidden: **notes coverage 0/91** and
+  **1 image vs a Doubao median of 5**.
+
+Verified: backup `SKILL.md.bak-20261112_130918` (418 lines) compared against the
+new file — 16 → 18 `##` headings (2 added, 0 lost), 66 → 66 table rows
+(0 lost), +104 lines.
+
 ## [20261112.5] - 2026-11-12
 
 Remove the enforced-offline constraint. It was never a capability requirement;
