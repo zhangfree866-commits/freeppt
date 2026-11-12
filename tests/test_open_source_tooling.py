@@ -175,10 +175,19 @@ class TestPptxEdit(unittest.TestCase):
 
 
 class TestBenchmarkAndInstaller(unittest.TestCase):
-    def test_offline_static_scan(self):
-        off = benchmark.offline_readiness()
-        self.assertEqual(off["core_pipeline_network_hits"], 0)
-        self.assertEqual(len(off["runtime_dependencies"]), 3)
+    def test_network_usage_is_reported(self):
+        """网络使用只被统计，不被限制。
+
+        这里曾经断言 `core_pipeline_network_hits == 0`，等于把「引擎不许
+        联网」变成测试红线。那条断言已删除：离线不是本 skill 的设计约束，
+        能提升成品效果就该用网络。
+        """
+        net = benchmark.network_usage()
+        self.assertIn("engine_network_call_hits", net)
+        self.assertIsInstance(net["engine_network_call_hits"], int)
+        self.assertNotIn("core_pipeline_network_hits", net,
+                         "「核心管线零联网」这个判据应当彻底消失")
+        self.assertEqual(len(net["runtime_dependencies"]), 3)
 
     def test_shape_stats_on_example(self):
         p = os.path.join(ROOT, "examples",

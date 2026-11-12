@@ -3,7 +3,7 @@
 **作者：张三峯** ｜ 公众号：**AI龙卷风**
 
 本页只列出仓库里**实际存在**的文件。所有 `.pptx` 都是原生可编辑形状，可以
-直接用 PowerPoint / WPS / Keynote 打开改字；PNG 是离线渲染的预览，不是产物。
+直接用 PowerPoint / WPS / Keynote 打开改字；PNG 是本地渲染的预览，不是产物。
 
 ## 逐页创作编排（版式不重复）
 
@@ -63,7 +63,7 @@ python3 engine/cli.py patch out.json --set "slides.0.data.title=改后的标题"
 
 ## 边界
 
-- 预览 PNG 由 `engine/debug_render.py` 用 Pillow 离线绘制，**不模拟 PowerPoint 的
+- 预览 PNG 由 `engine/debug_render.py` 用 Pillow 绘制，**不模拟 PowerPoint 的
   圆角、衬线字体渲染与动画**；真实效果以打开的 .pptx 为准。
 - 动画/转场 XML 尚未在 Microsoft PowerPoint 中实测。
 - 本页不声称任何视觉效果优于其他项目；横评方法见 `docs/BENCHMARK.md`。

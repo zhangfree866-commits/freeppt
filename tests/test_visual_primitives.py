@@ -2,7 +2,7 @@
 
 Covers the native-shape icon set, OOXML gradient fills, the three alpha
 channels (fill / text run / outline), speaker notes, and their full
-layout -> lint -> compiler -> debug-render wiring. Everything stays offline
+layout -> lint -> compiler -> debug-render wiring. Nothing hits the network
 and deterministic; no bitmap or SVG assets are involved.
 """
 

@@ -8,7 +8,7 @@ This module replaces that step for creative decks:
     content semantics + reference cover -> per-page composition archetype
     -> absolute rects -> standard DSL -> the SAME layout/lint/build pipeline
 
-Guarantees (all deterministic, no LLM, no network):
+Guarantees (all deterministic, no LLM in this path):
   * adjacent pages never reuse an archetype (lint LAYOUT_REPETITION blocks it)
   * each chapter needs >= half its content pages to be visually distinct;
     beyond CHAPTER_PAGE_CAP pages a deck MUST declare chapters or compose()
@@ -94,7 +94,7 @@ def _o(x, y, d, fill, **kw):
 
 
 def _ic(x, y, size, name, color, **kw):
-    """Native-shape icon node (offline, editable, theme-accent tinted)."""
+    """Native-shape icon node (editable, theme-accent tinted)."""
     n = {"t": "icon", "name": name, "color": str(color).upper(),
          "rect": [round(x, 1), round(y, 1), round(size, 1), round(size, 1)]}
     n.update({k: v for k, v in kw.items() if v is not None})
@@ -203,7 +203,7 @@ def _motif(S, x, y, scale=1.0, variant=0):
 
 
 # ---------------------------------------------------------------------------
-# offline speaker-notes generation (deterministic; no LLM, no network)
+# speaker-notes generation (deterministic; no LLM in this path)
 # ---------------------------------------------------------------------------
 
 # Connective tissue for turning bullet content into spoken prose. The notes
@@ -1139,7 +1139,7 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
 
     card_system opt-in: adds the glass-panel / icon-grid / numbered-cards
     archetypes to the planning pool. Off by default to preserve determinism.
-    speaker_notes: generate an offline speaker script for every page (a page's
+    speaker_notes: generate a speaker script for every page (a page's
     own `notes` field always wins). Default on for composed decks.
     scoring opt-in: rank archetypes by deterministic content fitness instead
     of rng.shuffle, so the same notes yield the same layout plan under every
@@ -1202,7 +1202,7 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
             "在 notes 顶层写 \"brief_pool\": \"prototype\" 显式声明走兜底。\n"
             f"本次 notes 共 {len(pages)} 页，未收到任何 design_briefs。")
 
-    # resolve cover relative to the notes file (offline, no network)
+    # resolve cover relative to the notes file
     cover = cover_path or notes.get("cover") or book.get("cover")
     if cover and not os.path.isabs(cover):
         cover = os.path.join(notes_dir or ".", cover)
@@ -1299,12 +1299,12 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
             }
         if card_system and tone == "dark" and theme_grad:
             slide["gradient"] = "theme"
-        # A page may carry its own verbatim notes; otherwise the offline
+        # A page may carry its own verbatim notes; otherwise the
         # generator derives a deterministic spoken script from its content.
         if speaker_notes:
             slide["notes"] = page.get("notes") or _speaker_notes(page, arch, ctx)
         # Research demand and provenance pass through to the slide level so
-        # the lint gate can verify them (the engine itself stays offline).
+        # the lint gate can verify them.
         if page.get("research") is not None:
             slide["research"] = page["research"]
         if page.get("sources"):

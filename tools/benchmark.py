@@ -10,7 +10,7 @@ Metrics per deck:
   editable_ratio  - native editable shapes / all shapes in the built pptx
   lint_seconds / build_seconds
 Repo-wide:
-  offline_readiness - static scan of engine/ for network client usage
+  network_usage - static scan of engine/ for network client usage (informational)
 """
 
 import argparse
@@ -78,8 +78,16 @@ def shape_stats(path):
             "editable_ratio": round(editable / total, 4) if total else 0.0}
 
 
-def offline_readiness():
-    """Static scan, NOT a runtime proof of offline behaviour."""
+def network_usage():
+    """Report which engine modules make network calls — information, not a gate.
+
+    This used to be `offline_readiness()` and it asserted that the core
+    pipeline made zero network calls. That assertion is gone: being offline is
+    not a design constraint of this skill. Capability decides; if a network
+    call produces a better deck, take the call.
+
+    The scan is kept purely so the figure stays visible in benchmark output.
+    """
     hits = []
     for p in sorted(glob.glob(os.path.join(ROOT, "engine", "*.py"))):
         with open(p, encoding="utf-8") as f:
@@ -90,19 +98,15 @@ def offline_readiness():
     with open(os.path.join(ROOT, "requirements.txt"), encoding="utf-8") as f:
         deps = [l.strip() for l in f
                 if l.strip() and not l.strip().startswith("#")]
-    optional = ("web_images.py", "web_search.py")
-    core_hits = [h for h in hits if h["file"] not in optional]
     return {
         "runtime_dependencies": deps,
         "engine_network_call_hits": len(hits),
-        "core_pipeline_network_hits": len(core_hits),
-        "optional_web_image_channel_files": sorted(
-            {h["file"] for h in hits if h["file"] in optional}),
+        "files_with_network_calls": sorted({h["file"] for h in hits}),
         "hits": hits,
         "method": "static regex scan of engine/*.py; not a network trace",
-        "note": ("Network calls live only in the opt-in web-image search "
-                 "channel. The five-stage core (DSL/layout/lint/compiler) "
-                 "and the default vector/licensed-image path make none."),
+        "note": ("Informational only. No gate depends on this number — the "
+                 "skill is free to use the network whenever it improves the "
+                 "result."),
     }
 
 
@@ -160,11 +164,11 @@ def main():
             "mean_build_seconds": round(
                 sum(r["build_seconds"] for r in rows) / len(rows), 4) if rows else 0,
         },
-        "offline": offline_readiness(),
+        "network_usage": network_usage(),
         "limitations": [
             "editable_ratio counts native shapes; it does not judge visual quality",
             "overflow_rate is derived from lint diagnostics, not from pixels",
-            "offline readiness is a static scan, not a runtime network trace",
+            "network usage is a static scan, not a runtime network trace",
             "no competitor was executed; cross-project numbers must be measured separately",
         ],
     }

@@ -50,7 +50,7 @@ remaining items are manual web-UI steps.
 3. Set repository topics (GitHub web UI → About → topics):
    `pptx`, `powerpoint`, `slides`, `presentation`, `python-pptx`,
    `design-system`, `chinese`, `ai-agent`, `agent-skills`, `skill`,
-   `ppt`, `deck`, `lint`, `offline`, `editable-pptx`.
+   `ppt`, `deck`, `lint`, `editable-pptx`.
 4. Enable GitHub Discussions. Suggested categories:
    `Announcements`, `Show and tell` (deck gallery), `Q&A`,
    `Themes & masters`, `Ideas`.

@@ -31,19 +31,19 @@ Two paths, chosen by content type:
 | Page-by-page composition | 17 archetypes: the 14 standard ones (editorial cover, section page, cross-page spread, full-page quote, offset three-column, split spread, margin annotation, stepped list, number focus, uneven grid, timeline, closing echo, native chart story, native table board) plus 3 card archetypes (glass-panel, icon-grid, numbered-cards) that enter the pool only with `--card-system`, which stays off by default to preserve byte-for-byte legacy output. Text height is computed from actual line wrapping; the variety budget is evaluated per chapter so the same archetype may legitimately recur across chapters. Selection is seed-shuffled by default; `--scoring` switches to deterministic content-feature scoring so the same notes yield the same archetype plan under any seed. |
 | Visual primitives and icon library | Nodes and pages support real OOXML gradient fills (`gradient`; the `"theme"` sentinel resolves to the active theme's built-in gradient). Shape fill, text run, and stroke each have an independent alpha channel (`opacity` / `border_opacity`), enabling frosted-glass cards. An outer `shadow` (`none`/`soft`/`medium`) compiles to a real `outerShdw`; the node field overrides the theme token, which activates the previously dormant soft shadow on tech/microsoft/stripe, and `SHADOW_VALUE` rejects illegal levels. The icon library builds 14 icons plus 27 semantic aliases from native PowerPoint shapes on a 100×100 grid—no bitmap assets, fully editable, theme-accent driven; unknown icon names are blocked by `ICON_NAME`. |
 | Deterministic selection and 12-column grid | `compose --scoring` ranks candidate archetypes by hand-authored preference order plus point-count capacity and structural cues (quote / split / kpi / timeline) instead of `rng.shuffle`, giving seed-stable layouts while the RNG still drives per-shape jitter. Top-level freeform nodes accept `col_start`/`col_span` for declarative column placement, consuming the theme `grid_columns` (12) over the content band (x 60→1220, 24px gutter) and enabling asymmetric 7+5 splits; `GRID_COLUMN` blocks out-of-bounds spans and `GRID_COLUMN_NESTED` warns on nested misuse. Both stay off by default, so legacy decks are byte-identical. |
-| Speaker notes and content density | compose generates an offline, deterministic speaker script for every page by default (it only restructures the page's own title, lead, and bullets; it never invents data) and compiles it to real notes slides. A missing script raises `NOTES_COVERAGE`; a thin one raises `NOTES_THIN`. Content pages under 60 visible characters raise a non-blocking `CONTENT_DENSITY` warning toward a 150–250 character target, with cover/section/closing/quote/chart/table archetypes exempt. |
+| Speaker notes and content density | compose generates a deterministic speaker script for every page by default (it only restructures the page's own title, lead, and bullets; it never invents data) and compiles it to real notes slides. A missing script raises `NOTES_COVERAGE`; a thin one raises `NOTES_THIN`. Content pages under 60 visible characters raise a non-blocking `CONTENT_DENSITY` warning toward a 150–250 character target, with cover/section/closing/quote/chart/table archetypes exempt. |
 | Long-deck guardrails | A flat file is capped at 24 pages; beyond that, compose refuses to run without chapter pages and prints the fix. An explicit override leaves a forced-build marker inside the produced pptx, so `--force` is no longer a silent back door. |
-| Research source ledger | Pages can declare a `research` demand with a `sources` ledger (title plus URL/publisher); lint blocks any researched page without a usable source. The engine stays offline; the host still performs the actual research. |
+| Research source ledger | Pages can declare a `research` demand with a `sources` ledger (title plus URL/publisher); lint blocks any researched page without a usable source. The host performs the actual research. |
 | Cover-derived art direction | `engine/cover_style.py` scores the accent by chroma × coverage × mid-tone so large paper areas do not win, then derives semantic colors, type personality, and a recurring motif (band, rule, arc, dot, grid). The cover SHA256 and extracted palette are written to a provenance ledger. |
 | Masters (10) | Cover, contents, section, three cards, KPI row, chart insight, image + text, process, timeline, closing. |
 | Freeform DSL | `composition: freeform` supports absolute `rect`, bleed blocks, vertical rules, rotation, opacity (including stroke opacity and gradients), and vertical alignment. The engine does not impose a title + rule + footer skeleton. |
 | Artwork (three channels) | Procedural vectors: 10 diagram families, emitted as both PNG and editable SVG. Licensed web images: keyword search → local download → source ledger → mandatory credit on the page that uses them. Generative images: opt-in, used only when the first two cannot cover a photographic scene. |
 | Motion | Page fade transitions and element fade/rise entrances are written as ordinary editable shapes. |
-| Offline verification | Full-page PNG export works without Office; remote CI installs LibreOffice for PDF/PNG render regression. |
-| Pure CLI | `cli.py make` turns a brief into a skeleton, a content gate, lint, and .pptx with no LLM and no network. All 8 report types work this way. |
+| No-Office verification | Full-page PNG export works without Office; remote CI installs LibreOffice for PDF/PNG render regression. |
+| Pure CLI | `cli.py make` turns a brief into a skeleton, a content gate, lint, and .pptx with no LLM. All 8 report types work this way. |
 | Editing existing .pptx | `inspect` exports shape, text, and coordinate structure; `retext` replaces text while preserving run fonts; `patch` revises one DSL node and re-runs lint. |
 | CJK typography | Kinsoku line-break prohibitions, hanging punctuation, unbreakable dash/ellipsis runs, optional CJK/Latin hair spacing, and a declarative font fallback stack; `CJK_KINSHOKU` is a lint rule. |
-| Benchmark | `tools/benchmark.py` reports layout errors, editable-shape ratio, text overflow, offline readiness, and runtime. Method: `docs/BENCHMARK.md`. |
+| Benchmark | `tools/benchmark.py` reports layout errors, editable-shape ratio, text overflow, and runtime. Method: `docs/BENCHMARK.md`. |
 | Install | `install.sh` covers WorkBuddy, Claude Code, Codex CLI, Cursor, and DSH (DeepSeek Harness), at user or project scope, with idempotent bootstrap blocks, self-check, and uninstall backup. |
 
 ## AI labels and compliance
@@ -62,7 +62,7 @@ bash tools/check_all.sh
 `./install.sh --host workbuddy --scope user` installs to one host; `--host all` covers all five. `./install.sh --host dsh --scope project --bootstrap` sets up a project scope. Host path provenance and verification status: `docs/PUBLISHING.md`. The development source and the user-level install at `~/.workbuddy/skills/freeppt/` are copies, so source changes need a sync.
 
 ```bash
-# pure CLI, no LLM, no network
+# pure CLI, no LLM
 python3 engine/cli.py make "Q3 revenue up 12%; churn fell to 1.8%; launch onboarding v2" \
   --type weekly --theme consulting --out out.pptx
 
@@ -84,7 +84,7 @@ A report type gives you the full chapter structure; a theme id changes the visua
 
 ## Measured status (2026-11-08)
 
-- `python3 -m unittest discover -s tests -q`: 181 offline tests pass (this round adds 30 for shadow / scoring / the 12-column grid: 11 + 7 + 12; the prior 151 stay regression-free, and a git-worktree byte comparison confirms the default path is byte-identical).
+- `python3 -m unittest discover -s tests -q`: 181 tests pass without network access (this round adds 30 for shadow / scoring / the 12-column grid: 11 + 7 + 12; the prior 151 stay regression-free, and a git-worktree byte comparison confirms the default path is byte-identical).
 - `engine/cli.py lint`: all 8 example decks pass with zero errors.
 - `bash tools/check_all.sh`: all four stages green, including compose → lint → build (9 pages, 9 archetypes) and a pure-CLI 6-page deck.
 - `tools/benchmark.py`: 0 layout errors, mean editable-shape ratio 0.9647, 0.0 overflow rate, 0 network hits in the core pipeline (static scan). Method: `docs/BENCHMARK.md`.
@@ -99,7 +99,7 @@ Reproduce with `bash tools/check_all.sh` and `python3 tools/benchmark.py --out b
 - The 6 enterprise-style themes use industry-standard approximations; the 4 data-driven themes use public extracted design tokens. Neither is an official brand guideline, and the repository contains no third-party logos.
 - Prose expansion is done by the host agent following `references/content-playbook.md`. The code provides structural planning, note routing, and a quality gate. No LLM client or API key is bundled.
 - Animation XML passes XML parsing but has not been played back in Microsoft PowerPoint on this machine.
-- The live web-image search endpoint is unreachable in this environment. Its response parser was verified offline against real data samples, and the download → verify → ledger chain was verified end to end against a local server.
+- The live web-image search endpoint is unreachable in this environment. Its response parser was verified against real data samples, and the download → verify → ledger chain was verified end to end against a local server.
 - Archived Linear and Notion tokens are not registered as themes. Both systems use dark content pages, while the current skeleton is a dark cover plus light content pages; applying those tokens would make text unreadable.
 - Editing an existing .pptx means structure export and format-preserving text replacement. A full existing-pptx → DSL round trip is not implemented (`references/edit-existing.md`). Gradient fills, the alpha channels, controlled outer shadows (`shadow`), and the 12-column grid (`col_start`/`col_span`) now ship; chart-to-infographic conversion remains on the backlog.
 - `soffice` is absent locally, so the LibreOffice regression is skipped here; skipped is not passed. Remote CI installs the dependency and asserts `status=ok`. Pixel-level baseline diffing is not implemented.
@@ -108,7 +108,7 @@ Reproduce with `bash tools/check_all.sh` and `python3 tools/benchmark.py --out b
 
 ## Implementation and dependencies
 
-The layout algorithm, lint rules, masters, vector artwork, animation injection, and search/download code are implemented in this repository. The directory is self-contained. Runtime dependencies are `python-pptx`, `Pillow`, `lxml`, and the Python standard library; the core generation path makes no network calls. The project is independently authored and does not reference, depend on, or modify another product's skill.
+The layout algorithm, lint rules, masters, vector artwork, animation injection, and search/download code are implemented in this repository. The directory is self-contained. Runtime dependencies are `python-pptx`, `Pillow`, `lxml`, and the Python standard library; design decisions are made by the model and the engine compiles them. The project is independently authored and does not reference, depend on, or modify another product's skill.
 
 The four data-driven themes reference public CSS design tokens collected by VoltAgent/awesome-design-md (MIT). Only numeric values (colors, corner radius) are used; no prose, code, logo, or image asset is copied (VoltAgent). Each value is traceable via `references/imported/theme_mapping.json` → `design_tokens.json` → source SHA256; see `references/design-token-sources.md`. The upstream repository is not a runtime dependency.
 

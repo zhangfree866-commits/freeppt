@@ -641,7 +641,7 @@ def main():
     p_ds.add_argument("--checklist", default="design_system_checklist.md")
     p_ds.add_argument("--card", help="filled card path for validate")
     p_ds.set_defaults(func=cmd_design_system)
-    p_mk = sub.add_parser("make", help="plain text -> PPTX, no LLM and no network")
+    p_mk = sub.add_parser("make", help="plain text -> PPTX, no LLM")
     p_mk.add_argument("brief", nargs="?", help="rough notes; reads stdin if omitted")
     p_mk.add_argument("--from-file", help="read the brief from a UTF-8 text file")
     p_mk.add_argument("--type", default="weekly",

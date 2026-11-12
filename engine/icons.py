@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Deterministic, editable native-shape icon set (no image assets, no network).
+"""Deterministic, editable native-shape icon set (no image assets).
 
 Each icon is a small composition of native PowerPoint shapes laid out on a
 100x100 logical grid; the compiler scales the grid to the target rect. This
 mirrors the "icon card" language of modern generated decks while staying fully
-editable, theme-tinted (one accent color), and offline — unlike bitmap/SVG
+editable and theme-tinted (one accent color) — unlike bitmap/SVG
 asset packs, there is nothing to license or download.
 
 Spec vocabulary (coordinates in the 0..100 grid):

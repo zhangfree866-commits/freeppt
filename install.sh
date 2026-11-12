@@ -186,7 +186,7 @@ append_bootstrap() {
     printf '%s\n' "$BEGIN_MARK"
     printf '%s\n' "- FreePPT (freeppt) is installed at \`$skill_path\`. Read its SKILL.md when the user asks for PPT/PPTX/slides, says \"FreePPT\", provides reading notes, or supplies a book cover image."
     printf '%s\n' "- FreePPT pipeline is fixed: planning -> generate DSL -> layout -> lint -> compile/render. Run \`python3 engine/cli.py lint <deck.json>\` before \`build\`; do not bypass the lint gate."
-    printf '%s\n' "- Pure CLI (no LLM, no network): \`python3 engine/cli.py make \"<brief>\" --type weekly --out out.pptx\`."
+    printf '%s\n' "- Pure CLI (no LLM): \`python3 engine/cli.py make \"<brief>\" --type weekly --out out.pptx\`."
     printf '%s\n' "$END_MARK"
   } >> "$f"
   log "bootstrap appended -> $f"

@@ -64,9 +64,9 @@ B 路径解决的是「同一份材料做出来的十页都长一个样」：它
 | `references/design-principle.md` | 1/4 | 数值化设计规范，是 lint 规则的判定依据 |
 | `references/dsl.md` | 2 | DSL 节点白名单与字段、动画/转场、配图三通道说明 |
 | `engine/templates.py` | 2→3 | 10 套母版；`expand_deck` 把 `{template,data}` 展开成裸 deck |
-| `engine/art_direction.py` | 1/2 | **创作编排**：17 种构图原型（14 常规 + glass-panel/icon-grid/numbered-cards 三个 `card_system` opt-in 卡片原型，含 chart-story/table-board 数据原型）、MIN_POINTS 内容适配、章节感知 `plan_archetypes()`（相邻不同 + 章内优先未用 + 跨章重置）、`scoring` opt-in 评分选版（`_archetype_score` 用人工偏好序 + 要点容量 + 金句/对比/指标/时间线结构信号替代 `rng.shuffle`，同内容跨 seed 版式稳定）、chart/table 数据页显式路由、长 deck 护栏、离线确定性 `_speaker_notes()` 讲稿生成、按文本实测高度生成绝对 rect、seed 可复现，产出 `composed:true` 的标准 DSL |
-| `engine/icons.py` | 2/4/5 | **离线原生图标库**：14 个图标用 MSO 原生形状在 100×100 逻辑网格拼合 + 27 个语义别名，`resolve()/specs()` 供 layout/lint/compiler 共用；零素材、可编辑、主题 accent 单色 |
-| `engine/cover_style.py` | 1 | **参考图派生**：Pillow 中位切分量化 → 彩度×占比×中间调打分选主色（避开大面积纸底）→ 纸底/墨色/强调色对比度保障 → 主色块位置决定母题 → `derived_theme` + SHA256 台账；纯离线、确定性 |
+| `engine/art_direction.py` | 1/2 | **创作编排**：17 种构图原型（14 常规 + glass-panel/icon-grid/numbered-cards 三个 `card_system` opt-in 卡片原型，含 chart-story/table-board 数据原型）、MIN_POINTS 内容适配、章节感知 `plan_archetypes()`（相邻不同 + 章内优先未用 + 跨章重置）、`scoring` opt-in 评分选版（`_archetype_score` 用人工偏好序 + 要点容量 + 金句/对比/指标/时间线结构信号替代 `rng.shuffle`，同内容跨 seed 版式稳定）、chart/table 数据页显式路由、长 deck 护栏、确定性 `_speaker_notes()` 讲稿生成、按文本实测高度生成绝对 rect、seed 可复现，产出 `composed:true` 的标准 DSL |
+| `engine/icons.py` | 2/4/5 | **原生形状图标库**：14 个图标用 MSO 原生形状在 100×100 逻辑网格拼合 + 27 个语义别名，`resolve()/specs()` 供 layout/lint/compiler 共用；零素材、可编辑、主题 accent 单色 |
+| `engine/cover_style.py` | 1 | **参考图派生**：Pillow 中位切分量化 → 彩度×占比×中间调打分选主色（避开大面积纸底）→ 纸底/墨色/强调色对比度保障 → 主色块位置决定母题 → `derived_theme` + SHA256 台账；确定性 |
 | `examples/notes_renqing_mianzi.json` | 输入 | 9 页读书笔记素材（封面图 + 逐页内容语义） |
 | `examples/composition_compare.png` | 验收 | 九页拼版，直观验证逐页构图差异 |
 | `engine/layout.py` | 3 | 固定矩形布局引擎：行列分配、CJK/拉丁混合换行、图片比例、坐标落位；`_place_free()` 处理 freeform 绝对 rect 与父子局部坐标；`grid_spec()`/`_grid_xw()` 消费主题 `grid_columns`（默认 12）实现顶层节点 `col_start`/`col_span` 声明式列定位（内容带 60→1220、列距 24px） |
@@ -74,12 +74,12 @@ B 路径解决的是「同一份材料做出来的十页都长一个样」：它
 | `engine/compiler.py` | 5 | python-pptx 渲染：文本/KPI/卡片/原生图表/原生表格/形状/图片/蒙层；freeform 额外渲染填充色块、旋转、半透明、垂直对齐、竖向分隔线；视觉原语层手工注入 OOXML `a:gradFill` 渐变、形状/文字/描边三类 `a:alpha`，`SHADOW_PRESETS`/`_apply_shadow()` 按节点或主题 shadow token 注入 `a:effectLst/a:outerShdw` 外阴影（none 仅关继承、保旧产物字节一致），`add_icon()` 按 icons 规格拼原生形状图标，`add_notes()` 写真实 notesSlide；`--force` 时在产物内写 FreePPTForcedBuildMarker，输出 .pptx |
 | `engine/animator.py` | 5 | python-pptx 无动画 API，自写 `p:timing`/`p:transition` 注入 OOXML |
 | `engine/cli.py` | 1–5 | 入口：`compose`（笔记→创作编排 DSL）、`style`（封面→派生主题）、`make`（纯 CLI：brief→骨架→内容闸门→lint→pptx）、`inspect`/`retext`（已有 pptx）、`patch`（单节点改稿）、`lint`、`build`（校验闸门+编译） |
-| `engine/debug_render.py` | 验收 | 离线把 deck 渲染成全页 PNG，供无 Office 环境视觉复核；支持 freeform 色块、圆角、竖向线、token 感知换行，以及渐变逐像素近似、alpha 混合、外阴影偏移近似与图标/毛玻璃绘制（结构验证用，非像素级还原） |
+| `engine/debug_render.py` | 验收 | 把 deck 渲染成全页 PNG，供无 Office 环境视觉复核；支持 freeform 色块、圆角、竖向线、token 感知换行，以及渐变逐像素近似、alpha 混合、外阴影偏移近似与图标/毛玻璃绘制（结构验证用，非像素级还原） |
 | `engine/brief_fill.py` | 1/2 | 纯 CLI 填充器：brief 要点路由进 8 类报告骨架，未提供的字段写明确空态说明，图表数值只取自输入；不编造事实、不调 LLM |
 | `engine/typography.py` | 3/4 | 中文避头尾禁则、标点悬挂、`——/……` 不拆行、可选中英混排窄空格、声明式字体回退栈；`CJK_KINSHOKU` 进 lint |
 | `engine/pptx_edit.py` | 编辑 | 已有 pptx 结构导出与保留 run 字体的文字替换；明确不做 pptx→DSL 往返 |
 | `engine/deck_patch.py` | 2 | 点号路径改 DSL 单节点，改完仍由阶段 4 复检 |
-| `tools/benchmark.py` / `tools/render_check.py` | 验收 | 可量化自测基准（版面错误/可编辑率/溢出率/离线就绪/耗时）；LibreOffice PDF/PNG 回归（缺依赖明确 skipped，CI 强制 ok） |
+| `tools/benchmark.py` / `tools/render_check.py` | 验收 | 可量化自测基准（版面错误/可编辑率/溢出率/耗时）；LibreOffice PDF/PNG 回归（缺依赖明确 skipped，CI 强制 ok） |
 | `install.sh` / `docs/PUBLISHING.md` | 分发 | 五宿主一键安装（WorkBuddy / Claude Code / Codex CLI / Cursor / DSH），路径来源逐条标注|
 | `tests/test_art_direction.py` / `tests/test_long_deck_guard.py` | 验收 | 创作编排单测：派生配色对比度/确定性、逐页原型不重样、重复版式与缺多样性被拦、自由画布不受母版教条误判、PPTX 原生形状可编辑、旧 deck 零回归；`TestScoringSelection` 7 项验证评分选版跨 seed 不变、旧 shuffle 仍随 seed、特化路由与 chart/table 强路由保留；护栏单测：长扁平文件 compose 拦截、分章 deck 过闸、跨章复用、force 产物标记、RESEARCH_LEDGER、原生 chart/table 编译与 inspect 回读 |
 | `tests/test_visual_primitives.py` | 验收 | 45 项视觉原语单测：图标库别名解析与正方形布局、gradFill/alpha OOXML 落地、外阴影 outerShdw 注入与 none 字节回归、讲稿 notesSlide 与 NOTES 类 lint、卡片三原型、主题渐变哨兵、CONTENT_DENSITY/研究闭环协同 |
@@ -96,7 +96,7 @@ B 路径解决的是「同一份材料做出来的十页都长一个样」：它
 | 模块 | 通道 | 职责 |
 |---|---|---|
 | `engine/vector_art.py` | 程序化矢量（首选） | 统一图形 IR，双后端输出 PNG + 可编辑 SVG，10 个 motif，无水印无授权问题 |
-| `engine/web_search.py` | 网页授权图·检索 | Commons 关键词检索；网络层与解析层解耦，支持离线 fixture |
+| `engine/web_search.py` | 网页授权图·检索 | Commons 关键词检索；网络层与解析层解耦，支持录像 fixture |
 | `engine/web_images.py` | 网页授权图·下载 | manifest 下载 + PIL 校验 + 写 `sources.json` 来源台账 |
 | `engine/make_cover_bg.py` | 程序化封面 | PIL 绘制封面背景，非 AI 生成、无标识 |
 | 生成式 ImageGen | 生成式（需显式选用） | 写实场景；标识由生成服务方添加，FreePPT 不修改、不擦除 |
@@ -114,7 +114,7 @@ ppt-skill/
 ├── engine/                  # 全部原创引擎代码
 ├── references/              # 设计规范、DSL、scenario、本架构文档
 ├── examples/                # deck 示例、web_manifest、assets 资产
-└── tests/                   # 离线单测与真实 schema fixture
+└── tests/                   # 单测与真实 schema fixture
 ```
 
 ## 四、独立性与依赖边界
@@ -122,7 +122,7 @@ ppt-skill/
 - 内部 import 只在 `engine.*` 之间发生；没有任何对外部厂商/产品 skill 的引用或调用。
 - 外部依赖仅为通用开源基础库与 Python 标准库（见 `requirements.txt`）：
   - **python-pptx**：生成 OOXML/.pptx 的通用库
-  - **Pillow**：图片校验、程序化位图绘制、离线验收渲染
+  - **Pillow**：图片校验、程序化位图绘制、免 Office 验收渲染
   - **lxml**：OOXML XML 处理（python-pptx 同栈，动画注入直接使用）
 - 联网仅发生在用户显式走网图通道时（Wikimedia Commons 检索 / 图片下载），
-  且检索的解析逻辑可完全离线测试；核心生成流程不依赖网络。
+  且检索的解析逻辑可用录像样本测试。

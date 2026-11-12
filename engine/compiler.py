@@ -232,7 +232,7 @@ def _set_gradient(shape, grad):
     grad = {"stops": [{"color": "#RRGGBB", "pos": 0..100000,
                        "opacity": 0..100 (optional)}],
             "angle": degrees (0 = left-to-right, 90 = top-to-bottom)}
-    Replaces any existing fill on the shape. Deterministic, no network.
+    Replaces any existing fill on the shape. Deterministic.
     """
     spPr = shape._element.spPr
     for tag in _FILL_TAGS:
@@ -399,7 +399,7 @@ def add_icon(slide, node, color_default):
     node: {"t": "icon", "name": <canonical or alias>, "color"? ,
            "stroke_w"? , "_rect": [x, y, w, h], ...}
     Every icon is a group of editable autoshapes/lines tinted with one accent
-    color, so it stays fully offline and theme-driven (no bitmap/SVG assets).
+    color, so it stays theme-driven (no bitmap/SVG assets).
     """
     from .icons import GRID
     specs = _icons.specs(node.get("name", ""))
@@ -745,7 +745,7 @@ def build_pptx(deck, out_path, force=False):
                 add_divider(slide, fl)
             elif fl["t"] == "text":
                 add_text(slide, fl, text_default)
-        # speaker notes (offline deliverable; never rendered on the slide)
+        # speaker notes (never rendered on the slide)
         if sdef.get("notes"):
             add_notes(slide, sdef["notes"])
         metas.append({"anims": sdef.get("anims"),

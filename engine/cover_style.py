@@ -8,7 +8,7 @@ contrast and dominant composition, then express it differently on every page.
 Output is a `derived_theme` spec understood by engine.themes.activate(), plus
 a provenance ledger (cover SHA256, extracted swatches, dominant color block,
 motif choice). Same cover + same book title => byte-identical spec; no clocks,
-no randomness, no network.
+no randomness.
 
 Only dependency: Pillow (already required by FreePPT).
 """
@@ -141,7 +141,7 @@ def extract_swatches(path, limit=8):
 
 
 def derive(path, book_title="", base="magazine"):
-    """Return (derived_theme_spec, ledger). Deterministic, offline."""
+    """Return (derived_theme_spec, ledger). Deterministic."""
     if not os.path.exists(path):
         raise FileNotFoundError(path)
     with open(path, "rb") as f:

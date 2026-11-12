@@ -112,7 +112,7 @@ deck 可写成模板形式，`slides:[{template,data}]`，由 engine/templates.p
 }
 ```
 
-- **slide 级**：`composition:"freeform"` 关闭固定骨架；`tone`（light/dark）决定默认文字色；`surface` 指定整页底色；`gradient` 指定整页背景渐变（或写 `"theme"` 用主题渐变，与 `surface` 二选一）；`archetype` 标记构图原型；`density`（airy/mid/dense）记录疏密节奏；`research` 声明研究需求、`sources` 附来源台账；`notes` 是该页演讲者备注（字符串），compose 未显式给定时会按页面已有文字离线生成。`composed:true` 会启用分章版式多样性校验与研究台账校验。
+- **slide 级**：`composition:"freeform"` 关闭固定骨架；`tone`（light/dark）决定默认文字色；`surface` 指定整页底色；`gradient` 指定整页背景渐变（或写 `"theme"` 用主题渐变，与 `surface` 二选一）；`archetype` 标记构图原型；`density`（airy/mid/dense）记录疏密节奏；`research` 声明研究需求、`sources` 附来源台账；`notes` 是该页演讲者备注（字符串），compose 未显式给定时会按页面已有文字确定性生成。`composed:true` 会启用分章版式多样性校验与研究台账校验。
 - **节点级 `rect:[x,y,w,h]`**：freeform 下每个节点必填；子节点坐标**以父矩形左上角为局部原点**，布局时换算为绝对坐标。文本节点高度由分词换行实测自动收缩，不需要手工算。
 - **自由画布新增字段**：`rotate`（旋转角度）、`opacity`（填充不透明度 0–100）、`border_opacity`（描边不透明度 0–100）、`gradient`（渐变填充，与 fill 同时存在时渐变优先）、`valign`（top/middle/bottom）、`on`（声明文字所在底色，用于 WCAG 对比度校验）、`decor`（装饰性文字，豁免字号/对比度）、`bleed`（允许出血、豁免越界）、divider 的 `vertical`/`thickness`、box 的 `kind:"roundrect"`/`radius`、`shadow`/`shadow_color`（外阴影，见上）、`col_start`/`col_span`（仅顶层节点的 12 列声明式定位：`col_start` 为 1 基起始列、`col_span` 为连续跨列数，缺省 1；水平 x/width 由网格算出，`rect` 仍负责 y/h，列间距 24px、内容带 60→1220）。
 - **box 带 fill 在 freeform 下会被真实渲染为色块**（旧母版里 box 仅作透明布局容器，行为不变）。

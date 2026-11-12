@@ -3,6 +3,55 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261112.5] - 2026-11-12
+
+Remove the enforced-offline constraint. It was never a capability requirement;
+it was a self-imposed limit, and it contradicted the top-level goal of matching
+frontier deck quality. If a network call, a model call, or an external service
+makes a page land better, it should be used.
+
+The constraint had one real enforcement point, not just prose:
+
+```python
+# tests/test_open_source_tooling.py, before
+self.assertEqual(benchmark.offline_readiness()["core_pipeline_network_hits"], 0)
+```
+
+Any network call added anywhere in `engine/` turned the suite red. Verified
+before/after by appending a `urllib.request` probe to `engine/layout.py`:
+
+| | probe injected into `engine/layout.py` |
+|---|---|
+| before | `FAILED (failures=1)` — `AssertionError: 1 != 0` |
+| after | `OK`, 25 tests pass |
+
+- `tools/benchmark.py`: `offline_readiness()` → `network_usage()`. Drops
+  `core_pipeline_network_hits` and the "zero network calls" promise; keeps the
+  scan as a reported number with `"Informational only. No gate depends on this
+  number"`. Report field `offline` → `network_usage`.
+- `tests/test_open_source_tooling.py`: the zero-network assertion is replaced by
+  a guard asserting the field is *gone* (`assertNotIn`), so nobody reintroduces
+  it by accident.
+- Docs de-positioned from "offline is our feature" to plain description:
+  `SKILL.md` (description, 职责边界, 适用范围, 图标库, 讲稿, 验收, Step 2/6),
+  `README.md`, `README.en.md`, `references/architecture.md`, `references/dsl.md`,
+  `references/dsl-spec.md`, `docs/FREEFORM_PLAYBOOK.md`, `docs/BENCHMARK.md`,
+  `docs/GAP_ASSESSMENT.md`, `docs/PUBLISHING.md`, `examples/GALLERY.md`,
+  `install.sh`, and module docstrings in `art_direction`, `compiler`,
+  `design_system`, `cover_style`, `icons`, `brief_fill`, `debug_render`, `cli`.
+- `SKILL.md` 职责边界 now states the replacement principle explicitly: 载体需要
+  什么手段就用什么手段；网络和外部服务都不是禁区，唯一标准是这页表达是否更有效。
+
+Deliberately kept, because deleting them would be wrong rather than liberating:
+
+- `engine/web_search.py --offline` — a functional flag that parses a recorded
+  JSON instead of issuing HTTP. Renaming it would break the CLI.
+- "offline tests" in test docstrings — these describe tests that need no network,
+  which is a test-quality property, not a product constraint.
+- `CHANGELOG.md` history — past entries are records, not claims to retract.
+
+305 tests OK after the change.
+
 ## [20261112.4] - 2026-11-12
 
 Close the largest remaining hole in the per-page design gates: they all lived on

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render laid-out deck to PNG contact sheet for offline visual verification."""
+"""Render laid-out deck to PNG contact sheet for visual verification without Office."""
 
 import os
 import sys

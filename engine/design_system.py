@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Model-driven design-system extraction from a reference image.
 
-The engine is offline and cannot "look" at an image itself. What it CAN do is
+The engine cannot "look" at an image itself. What it CAN do is
 make the host model's per-image design judgment repeatable and hard to skip:
 
   1. `scaffold()` emits a structured Design System Card (JSON) whose every
@@ -12,7 +12,7 @@ make the host model's per-image design judgment repeatable and hard to skip:
      FreePPT primitives (theme spec + spec_lock roles). It never invents the
      answers — absent answers are reported, not guessed.
 
-No network, no randomness. Only stdlib.
+No randomness. Only stdlib.
 """
 
 import argparse
@@ -65,7 +65,7 @@ def _blank_entry(prompt):
 
 
 def scaffold(reference_path="", book_title=""):
-    """Return (card_dict, markdown_checklist). Deterministic, offline."""
+    """Return (card_dict, markdown_checklist). Deterministic."""
     card = {
         "schema": "freeppt-design-system-card/v1",
         "status": "draft",

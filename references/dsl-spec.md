@@ -52,7 +52,7 @@ image_text / process / timeline / closing`。
 | `density` | string | 疏密标记，全篇不得完全一致 |
 | `research` | bool/string | 该页需要外部研究；为真时必须附 `sources` 或 `source`，否则 RESEARCH_LEDGER 阻断 |
 | `sources` | array | 研究来源台账 `[{title, url, publisher}]`，每项须有 title 且至少有 url 或 publisher |
-| `notes` | string | 演讲者备注，编译为 notesSlide；compose 默认离线生成（只重组本页文字），可显式覆盖，`speaker_notes:false` 关闭 |
+| `notes` | string | 演讲者备注，编译为 notesSlide；compose 默认确定性生成（只重组本页文字），可显式覆盖，`speaker_notes:false` 关闭 |
 | `children` | array | 绝对定位节点；子节点 `rect` 以父节点左上角为局部原点 |
 
 ## 3. 节点类型

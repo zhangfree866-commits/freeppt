@@ -1,6 +1,6 @@
 # Freeform 逐页手搓 Playbook（豆包式在线手绘 SOP）
 
-> 适用场景：宿主多模态 agent 当「逐页手绘设计师」，引擎退居纯离线「手艺人工具箱」。
+> 适用场景：宿主多模态 agent 当「逐页手绘设计师」，引擎退居「手艺人工具箱」。
 > 目标是做出**全原生可编辑、零贴图、逐页不重样**、对标豆包成品设计水准的 deck。
 > 配套可运行样例：[`examples/deck_freeform_handbuilt.json`](../examples/deck_freeform_handbuilt.json)。
 
@@ -9,7 +9,7 @@
 ## 1. 分工与边界
 
 - **大脑（宿主 agent）**：定选题、排母题、逐页写绝对坐标 DSL、看图研判、回修。引擎不内置 LLM、不管 API key。
-- **工具箱（本引擎，纯离线）**：
+- **工具箱（本引擎）**：
   - `render`：deck DSL → PNG 联系表（视觉回读，不用开 PowerPoint）。
   - `lint` / `verify`：版面/几何/对比度/调色板/收尾一致性闸门。
   - `build`：DSL → 真正的 .pptx（OOXML 原生形状）。

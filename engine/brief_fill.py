@@ -1,4 +1,4 @@
-"""Pure-CLI brief -> deck spec filler. No LLM, no network, no invented facts.
+"""Pure-CLI brief -> deck spec filler. No LLM, no invented facts.
 
 `reports.build_skeleton()` emits a structurally valid deck whose fields are all
 placeholders. The host agent normally fills them with written prose. When there
