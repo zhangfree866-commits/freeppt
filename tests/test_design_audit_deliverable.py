@@ -21,8 +21,29 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from engine import design_audit  # noqa: E402
+from engine.design_audit import (  # noqa: E402
+    _slides_of,
+    _text_boxes,
+    audit_design,
+)
+
+from pptx import Presentation  # noqa: E402
+from pptx.dml.color import RGBColor  # noqa: E402
+from pptx.enum.shapes import MSO_SHAPE  # noqa: E402
+from pptx.util import Emu as E  # noqa: E402
+from pptx.util import Pt  # noqa: E402
 
 PS = 9525  # EMU per px
+
+
+def _e(px):
+    """像素 → EMU。
+
+    注意：`pptx.util.Emu` 不是换算函数，它只是 int 的子类。`Emu(1280)` 会
+    原样当成 1280 EMU 传给 slide_width，然后抛
+    「value must be in range(914400, 51206400)」。必须先乘 PS 再包。
+    """
+    return E(int(round(px * PS)))
 
 
 def _tmp(name):
@@ -192,6 +213,81 @@ class TestSolidBlockCoversText(unittest.TestCase):
             assert r["collisions"] == []
         finally:
             os.remove(path)
+
+
+class TestLineSpacingComesFromTheFile(unittest.TestCase):
+    """判据的行高必须读文件里真实的 line_spacing，不能用固定系数。
+
+    实测（20261113，《人情与面子》p03）：主题 magazine 写的是 1.32，判据原
+    写死 1.28。两行 13.5pt 正文估算 46.07px、实际 47.51px —— 差 1.4px，
+    正好让「正文底边 559.5 咬进批注块顶边 558」这件事以 oy=+0.1 逃过判据，
+    渲染图里那行字的下沿被切掉。判据和渲染器用两套行高口径，等于自说自话。
+    """
+
+    def _pptx_with(self, spacing):
+        prs = Presentation()
+        prs.slide_width, prs.slide_height = _e(1280), _e(720)
+        s = prs.slides.add_slide(prs.slide_layouts[6])
+        # 一块正文，强制折两行
+        tb = s.shapes.add_textbox(_e(100), _e(100), _e(400), _e(40))
+        tf = tb.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.line_spacing = spacing
+        r = p.add_run()
+        r.text = "一二三四五六七八九十一二三四五六七八九十" * 2
+        r.font.size = Pt(13.5)
+        out = _tmp("sp.pptx")
+        prs.save(out)
+        return out
+
+    def test_taller_spacing_yields_taller_box(self):
+        tight = _text_boxes(_slides_of(self._pptx_with(1.28))[0])[0]["h"]
+        loose = _text_boxes(_slides_of(self._pptx_with(1.60))[0])[0]["h"]
+        self.assertGreater(loose, tight + 1.0,
+                           "行距变大而判据算出的高度没变，说明它没用文件里的值")
+
+    def test_missing_spacing_still_measures(self):
+        """文件没写行距时要能算出高度，不能崩。"""
+        h = _text_boxes(_slides_of(self._pptx_with(None))[0])[0]["h"]
+        self.assertGreater(h, 20)
+
+
+class TestSmallContainerStillChecked(unittest.TestCase):
+    """容器的尺寸门槛不能高到把真正的容器筛掉。
+
+    实测：批注块 558×72 被原来的 h>=90 排除，而它恰好是文字溢出的那一块。
+    72px 高完全托得住三行 16pt 文字，是标准容器尺寸，不是装饰。
+    """
+
+    def _deck(self, block_h, text):
+        prs = Presentation()
+        prs.slide_width, prs.slide_height = _e(1280), _e(720)
+        s = prs.slides.add_slide(prs.slide_layouts[6])
+        # 只留这一块，不铺全幅背景。
+        # 铺了背景就等于给判据递了一个 1280×720 的大容器，文字必然也算在它名下，
+        # 于是「批注块被门槛筛掉」这件事会被背景兜住，测试就失去了隔离性。
+        blk = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, _e(100), _e(300),
+                                 _e(558), _e(block_h))
+        blk.fill.solid(); blk.fill.fore_color.rgb = RGBColor(0xE7, 0xD8, 0xC9)
+        tb = s.shapes.add_textbox(_e(116), _e(310), _e(526), _e(40))
+        tb.text_frame.word_wrap = True
+        r = tb.text_frame.paragraphs[0].add_run()
+        r.text = text
+        r.font.size = Pt(16)
+        out = _tmp("c.pptx")
+        prs.save(out)
+        return out
+
+    def test_72px_block_is_still_a_container(self):
+        """72px 高的批注块里塞 6 行字，必须报溢出。"""
+        path = self._deck(72, "很长的一段批注文字，" * 20)
+        probs = audit_design(path)["overflows"]
+        self.assertTrue(probs, "72px 高的容器被跳过了，溢出查不出来")
+
+    def test_roomy_block_passes(self):
+        path = self._deck(300, "短批注。")
+        self.assertEqual(audit_design(path)["overflows"], [])
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, a native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261113.1"
+version: "20261113.2"
 author: "张三峯"
 ---
 
@@ -232,6 +232,23 @@ python3 engine/cli.py compose notes.json --briefs briefs.json --out deck.json
   2026-11-13 的溢出判据第一版就把《七个习惯》10 页全判死，渲染图逐页看
   完全正常——判据错，不是成品错。**判据把成立的设计判死，比漏判更糟。**
 
+**判据的边界：只管「读不到」和「压住了」，不管「好不好看」**：
+
+判据能拦的是客观缺陷——文字溢出色块、色块压住文字、文字出界、字体缺中文字形、
+整页只有文字堆叠没有版面。这些是「打开文件就错了」。
+
+判据**不能**拦的：内容落在页面哪个高度、下方留白多不多、疏密、配色偏好。
+2026-11-13 差点加了一条「垂直居中」判据，实测三版全被反例打死：
+
+| 口径 | 反例 |
+|---|---|
+| 内容底边 ≥ 阈值 | 每份 deck 的封面底边都在 232（封面本就该写顶部） |
+| 内部最大空洞 ≤ X | 空洞大小完全取决于版式，正常页和缺陷页分不开 |
+| 下留白 / 上留白 ≤ R | `FreePPT_Stripe令牌主题示例` p6 比值 4.76 —— 那页插图撑满版面中部，**成立的设计被误杀** |
+
+**留白是风格，不是缺陷。** 想让引擎更好看，改引擎；想让判据更严，先找到
+一张渲染图里的具体缺陷，再说它该判什么。
+
 **排版实现纪律**（否则一定压字，我自己踩了 10 次）：
 
 - 两块文字上下叠放，位置一律用 `_line_h(size)` 算，不写死偏移。
@@ -246,6 +263,24 @@ python3 engine/cli.py compose notes.json --briefs briefs.json --out deck.json
 - **别把装饰线贴在文字底边**：LibreOffice 与 PowerPoint 的 44pt 行盒都比
   几何估算高，`rect 底边 +34` 和 `+26` 两版都会被穿。改设计位置（移到引言
   上方），别继续调数值。
+- **判据的行高必须读文件自己的 `line_spacing`**，不能写死系数。2026-11-13
+  实测：主题 magazine 写 1.32，判据写死 1.28，两行 13.5pt 正文差 1.4px——
+  正好让「正文底边 559.5 咬进批注块顶边 558」以 `oy=+0.1` 逃过压字判据，
+  渲染图里那行字的下沿被切掉。判据和渲染器两套行高口径 = 判据自说自话。
+- **容器的尺寸门槛要低到能兜住真容器**：批注块 558×72 曾被 `h>=90` 筛掉，
+  而它恰好是溢出的那一块。72px 高完全托得住三行 16pt 文字。现在是
+  `w>=120 and h>=48`。
+
+**踩过的两个静默失效（都不报错，必须靠盯结果发现）**：
+
+- **`--cover` 相对路径被重复拼接**：`compose()` 里非绝对路径一律按 notes
+  所在目录拼，而命令行上的相对路径是相对**当前工作目录**的 →
+  `examples/examples/assets/x.png` → `os.path.exists` 判假 → 封面图
+  **无声消失**（渲染图里只剩一块空深色块）。现在 CLI 先解析成绝对路径，
+  找不到时打印 `WARNING`。
+- **`--briefs` 包一层就静默回退**：`_resolve_brief()` 只认扁平映射，写成
+  `{"design_briefs": {...}}` 会 compose 成功、页数正确、**九页设计全部退回
+  原型池**。已加 3 条测试钉住（见 `tests/test_design_spec.py::TestBriefsFileShape`）。
 
 自检命令：`python3 engine/cli.py audit-design 成品.pptx`（只读成品文件，退出码 0/1）
 肉眼看：`python3 engine/cli.py preview 成品.pptx ./预览图`

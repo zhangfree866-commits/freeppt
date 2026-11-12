@@ -339,33 +339,82 @@ def a_editorial_spread(p, S, c):
                    h=540, thickness=2))
     rx = 64 + left_w + 78
     rw = W - rx - 72
-    y = 110 + r.randint(-10, 20)
+    # ------------------------------------------------------------------
+    # 先量、再排版。这一页的构件全部由内容决定位置，没有一处写死 y。
+    #
+    # 为什么要「先量」：原实现边排边推 y，排到批注块时才发现没地方了，
+    # 只好从底边 630 倒推批注位置 —— 于是正文被挤到批注块底下（实测渲染
+    # p03：正文最后一行「可反复使用的互动秩序。」下沿被切掉）。
+    # 先量一遍总需求，再决定间距，就不会出现「排到最后发现放不下」。
+    # ------------------------------------------------------------------
     lead = p.get("lead") or ""
+    pts = _points(p)[:3]
+    body_w = rw - 20
+    lead_h = _wrap_h(lead, rw, 23) if lead else 0
+    head_hs = [_wrap_h(pt["head"], rw, 24) if pt["head"] else 0 for pt in pts]
+    body_hs = [_wrap_h(pt["body"], body_w, 18) if pt["body"] else 0 for pt in pts]
+    note_h16 = _wrap_h(p["note"], rw - 32, 16) + 24 if p.get("note") else 0
+
+    top = 110 + r.randint(-10, 20)
+    page_bottom = 630                     # 648 是页码行，630 是硬上限
+    fixed = lead_h + sum(head_hs) + sum(body_hs)
+    # 间距分三段：导语后 gap_lead、每组标题→正文 gap_h2b、组间 gap_item。
+    # 默认值来自参照 deck 的实测节奏；总高不够时按同一比例一起收紧，
+    # 而不是只砍最后一处（那样会有一处突然变挤，版面节奏就断了）。
+    gap_lead, gap_h2b, gap_item, gap_note = 34, 10, 22, 16
+    want = (fixed + (gap_lead if lead else 0) + gap_h2b * sum(head_hs)
+            + gap_item * len(pts) + (gap_note + note_h16 if note_h16 else 0))
+    avail = page_bottom - top
+    if want > avail and note_h16:
+        # 先收批注：它是辅助信息，可以更贴近正文。
+        gap_note = 10
+        want = (fixed + (gap_lead if lead else 0) + gap_h2b * sum(head_hs)
+                + gap_item * len(pts) + gap_note + note_h16)
+    if want > avail:
+        # 还超就整体压缩「组间 / 导语后」这类弹性间距。
+        # 保底 14 而不是 8：rect 高度是按 LINE_FACTOR 算的，而渲染用的是主题
+        # 自己的 line_spacing（magazine 是 1.32），每行实际比 rect 高一点。
+        # 压到 8 会让相邻两块按真实行高算时叠在一起（实测 p03 就是这么翻的）。
+        flex = ((gap_lead if lead else 0) + gap_item * len(pts)
+                + (gap_note + note_h16 if note_h16 else 0))
+        fixed2 = fixed + gap_h2b * sum(head_hs)
+        floor = 14 * (1 if lead else 0) + 14 * len(pts)
+        if fixed2 + flex > avail:
+            squash = max(floor + (gap_note + note_h16 if note_h16 else 0),
+                         avail - fixed2)
+            ratio = squash / flex if flex else 1.0
+            if lead:
+                gap_lead = max(14, int(gap_lead * ratio))
+            gap_item = max(14, int(gap_item * ratio))
+            if note_h16:
+                gap_note = max(10, int(gap_note * ratio))
+
+    y = top
     if lead:
-        n = _t(rx, y, rw, lead, 23, S["body"], max_h=170, on=S["paper"])
+        n = _t(rx, y, rw, lead, 23, S["body"], on=S["paper"])
         kids.append(n)
-        y = n["rect"][1] + n["rect"][3] + 34
-    for pt in _points(p)[:3]:
+        y = n["rect"][1] + n["rect"][3] + gap_lead
+    for pt in pts:
         if pt["head"]:
             n = _t(rx, y, rw, pt["head"], 24, S["accent"],
                    weight="bold", on=S["paper"])
             kids.append(n)
-            y = n["rect"][1] + n["rect"][3] + 10
+            y = n["rect"][1] + n["rect"][3] + gap_h2b
         if pt["body"]:
-            n = _t(rx, y, rw - 20, pt["body"], 18, S["body"],
+            n = _t(rx, y, body_w, pt["body"], 18, S["body"],
                    max_h=110, on=S["paper"])
             kids.append(n)
-            y = n["rect"][1] + n["rect"][3] + 22
+            y = n["rect"][1] + n["rect"][3] + gap_item
     if p.get("note"):
-        # 批注块高度必须跟着文字走。原来是写死的 58px + 文字 max_h=44：
-        # 批注一写长，第 3 行就掉到色块外面（实测渲染有「原文逐字引用。」
-        # 落在块外）。先量文字要多高，再倒推色块高度，底边对齐页脚上沿。
         note_w = rw - 32
         note_line = _wrap_h(p["note"], note_w, 16)
-        note_h = note_line + 24            # 上下各 12px 内边距
-        # 底边不能低于 630：下面 648 处是页码行，636 会让色块压住页码
-        # （渲染实测「03 / 09」被浅色块盖掉一半）。
-        note_y = min(max(560, 630 - note_h), 630 - note_h)
+        note_h = note_line + 24
+        body_bottom = y - gap_item            # 循环末尾多加的那段不算正文
+        note_y = body_bottom + gap_note
+        # 兜底：真正塞不下时把批注块压进 630 以内，宁可离正文近一点。
+        # 绝不越过 630 —— 648 是页码行，越过就是「色块压页码」。
+        if note_y + note_h > page_bottom:
+            note_y = max(body_bottom + 8, page_bottom - note_h)
         kids.append(_b(rx, note_y, rw, note_h, S["soft"]))
         kids.append(_t(rx + 16, note_y + 12, note_w, p["note"], 16, S["ink"],
                        max_h=note_line, on=S["soft"]))
@@ -396,23 +445,80 @@ def a_offset_triptych(p, S, c):
     # 卡片上方 46px 处，标题两行时编号就压进标题了（成品审计实测第 5 页
     # collisions: 标题 ↔「01」）。标题框高是排版留位，不是视觉边界。
     title_bottom = title["rect"][1] + title["rect"][3]
-    num_h = 30 * 1.333 * 1.28                  # 编号行高
-    num_gap = 46                               # 编号与卡片之间的间距
-    min_card_y = title_bottom + 10 + num_h + num_gap
+    num_size = 30
+    num_h = num_size * 1.333 * 1.32             # 编号真实行高（与渲染同口径）
+    num_gap = 18                                # 编号底边到卡片顶边
+    min_card_y = title_bottom + 14 + num_h + num_gap
 
-    # 卡片高度压到 340：原来 380 时第二块（y≈254）底边会到 634，
-    # 直接压住 y=626 的批注行。
-    card_h = 340 if n == 3 else 360
-    floor_y = 600 - card_h                     # 给批注行留出呼吸
-    ys = [min(max(y + r.randint(0, 16), min_card_y), floor_y) for y in ys]
+    # 卡片高度由**内容**决定，不是写死 340。
+    # 写死会出现两个问题（都在《人情与面子》p05 实测到）：
+    #   * 内容只有三行时，卡片底部 40% 全空 —— 看着像没做完
+    #   * 内容变多时，_rc 会按 measured 撑高，反而压住下面的批注行
+    # 量法直接按块累加，不用 L.hug_h —— 实测 hug_h 对 richcard 的 padding
+    # 口径与 _rc 不一致（传 356 宽算 163，_rc 实际要 190），会少算一行。
+    card_pad = 22
+    space_before = 12
+
+    # 深色强调卡的标题：中文 + 拼音混排时容易折成两行，把正文挤出块外。
+    # 实测（p05 第三张卡）：「关系 guanxi 与报 bao」在 312px 内实际折两行，
+    # 而 _wrap_h 只算出一行（拼音按 0.56em 估宽，Georgia 实际更宽）。
+    # 折行估不准就别赌 —— 直接按「能不能放进一行」降字号，控住结果。
+    def _head_size(i, pt):
+        if fills[i] != S["accent"]:
+            return 23
+        inner = ws[i] - 2 * card_pad
+        # 一行的判定必须留余量，不能刚好卡在边界上。
+        # 实测（p05 第三张卡）：「关系 guanxi 与报 bao」按 0.56em 估宽刚好
+        # 判定成一行，但 Georgia 的拼音比估算宽，渲染折成了两行，正文被挤出
+        # 深色块。所以用一个 1.12 的保守系数：估算宽度乘它仍在框内，才算一行。
+        for size in (30, 26, 23):
+            single = _wrap_h("中", inner, size)
+            if _wrap_h(pt["head"], inner / 1.12, size) <= single + 2:
+                return size
+        return 23
+
+    def _card_need(i, pt):
+        inner = ws[i] - 2 * card_pad
+        total = 2 * card_pad
+        if pt["head"]:
+            total += _wrap_h(pt["head"], inner, _head_size(i, pt))
+        if pt["body"]:
+            total += space_before + _wrap_h(pt["body"], inner, 18)
+        return total
+
+    needs = [_card_need(i, pt) for i, pt in enumerate(pts)]
+    # 底部边界：有批注时批注在 626，卡片底边要留 18px 呼吸；没有就到 660。
+    bottom_limit = (626 - 18) if p.get("note") else 660
+    # 三张卡取同一高度（视觉齐平），上限是整页剩余空间。
+    card_h = min(max(needs), max(bottom_limit - min_card_y, 140))
+
+    # 整组在可用区里垂直居中。
+    # 实测（《人情与面子》p05）：卡片高度从写死 340 改成按内容算之后，三张卡
+    # 只有 173 高，顶边 200–260、底边 373–433，而可用区一直到 608 —— 页面下半
+    # 部空出 190px，比上半部还空，看着像内容没写完就交稿了。
+    # 错落偏移（三张卡刻意错开）必须保留，所以要居中的是**外接框**，不是每张卡：
+    # 先取相对偏移，整组居中，再把偏移加回去。
+    ys = [max(y + r.randint(0, 16), min_card_y) for y in ys]
+    delta = [y - min(ys) for y in ys]
+    group_h = max(delta) + card_h
+    avail_top = min_card_y
+    avail_bot = bottom_limit
+    group_top = avail_top + max(0, (avail_bot - avail_top - group_h)) // 2
+    # 分组居中后再兜一次底：内容特别高时仍不许越到批注/页脚下面。
+    group_top = min(group_top, max(avail_bot - group_h, avail_top))
+    ys = [group_top + d for d in delta]
 
     for i, (pt, x, w_, y) in enumerate(zip(pts, xs, ws, ys)):
-        kids.append(_t(x, y - num_gap, 100, f"{i + 1:02d}", 30, S["accent"],
-                       decor=True, weight="bold", on=S["paper"]))
+        # 编号放在卡片顶边之上 num_gap 处，用**实测**编号行高定位，
+        # 不用写死偏移 —— 写死会让编号压住卡片上沿（实测 p05：01 底边
+        # 221 与卡片顶边 222 只差 1px，渲染图里编号像被卡片切了一刀）。
+        kids.append(_t(x, y - num_gap - num_h, 100, f"{i + 1:02d}",
+                       num_size, S["accent"], decor=True, weight="bold",
+                       on=S["paper"]))
         dark_card = fills[i] == S["accent"]
         blocks = []
         if pt["head"]:
-            blocks.append(_blk(pt["head"], 30 if dark_card else 23,
+            blocks.append(_blk(pt["head"], _head_size(i, pt),
                                S["paper"] if dark_card else S["ink"],
                                "bold"))
         if pt["body"]:
@@ -564,14 +670,12 @@ def a_stair_list(p, S, c):
     x0 = 92
     n_gap = 8                         # 台阶之间的细缝，让层级更清楚
 
-    # 第一级高度必须按「最矮那一级的内容量」算出来，不能拍一个 156。
-    # 实测翻车：第 1 级正文写 4 行，156px 只放得下 3 行，末尾「演。」直接
-    # 掉到色块外面——成品审计的 overflows 判据当场拦下。台阶高度是版面
-    # 骨架，但骨架也得分得出「这一级有几行字」。
-    num_h = 20 * 1.333 * 1.28 + 30     # 编号行 + 下间距
-    head_h = 20 * 1.333 * 1.28 + 36    # 标题行 + 下间距
-    body_lines = max(len(pts[i]["body"]) for i in range(n)) if n else 0
-
+    # 每一级的高度都必须由**这一级自己的内容**决定。
+    # 原来只按最窄的第一级算一次 short_h，然后每级 +74 —— 于是内容少的级
+    # 底部会空出一大片（实测 p07：三个色块底部约 50% 是空的，而色块高度差
+    # 又是写死的 74，跟内容完全无关，看着像随便拉高了几个方块）。
+    # 台阶仍要抬升（语义上「往上走」），但抬升量从「内容差」里取：
+    # 内容多的级自然更高，抬升就自然发生，不需要再外挂一个固定增量。
     def _wrap_lines(text, width, size):
         """粗略折行数：按字宽加权，和审计用的同一套口径。"""
         import unicodedata
@@ -589,16 +693,49 @@ def a_stair_list(p, S, c):
                 units += 0.52
         return max(1, -(-int(round(units * 100)) // int(round(cap * 100))))
 
-    # 最窄的一级（第一级，宽 span-8）决定正文能折几行
-    first_w = ((page_r - x0) // n) - n_gap
-    body_line_max = max(
-        (_wrap_lines(pts[i]["body"], first_w - 36, 16)
-         for i in range(n) if pts[i]["body"]), default=2)
-    body_h = body_line_max * 16 * 1.333 * 1.28
-    short_h = int(num_h + head_h + body_h + 44)   # 44 = 上下内边距之和
-    short_h = max(short_h, 140)
     span = (page_r - x0) // n         # 每级占的宽度
     xs = [x0 + i * span for i in range(n)]
+
+    def _w_of(i):
+        return (page_r - xs[i]) if i == n - 1 else (span - n_gap)
+
+    def _need_of(i):
+        """这一级装下编号 + 标题 + 正文需要多高（含上下内边距）。"""
+        inner = _w_of(i) - 36
+        h = 14 + (20 * 1.333 * 1.32)          # 顶内边距 + 编号行
+        head = pts[i]["head"]
+        if head:
+            h += 8 + _wrap_lines(head, inner, 20) * 20 * 1.333 * 1.32
+        body = pts[i]["body"]
+        if body:
+            h += 10 + _wrap_lines(body, inner, 16) * 16 * 1.333 * 1.32
+        return h + 16                          # 底内边距
+
+    needs = [_need_of(i) for i in range(n)]
+    # 台阶感来自「高度递增」。内容本身已递增时直接用内容高度；
+    # 内容差不多高时补一个最小抬升，保证仍然看得出是台阶。
+    min_rise = 22
+    heights = [needs[0]]
+    for i in range(1, n):
+        heights.append(max(needs[i], heights[-1] + min_rise))
+    # 顶部不能顶到标题：最高一级的顶边要落在标题底边之下。
+    # 基线不写死 610 —— 内容少时写死会让整组沉到页面下半部，
+    # 上面留一大片空白（实测 p07：三块内容约 200 高，却从 y≈310 才开始）。
+    # 先按基线 610 试，装得下就用；装不下再把基线上移，让整组居中在
+    # 「标题底边 ~ 页脚上沿」这段可用区域里。
+    head_bottom = 58 + (76 if _head(p) else 0)     # 标题最大占位
+    top_limit = head_bottom + 26
+    foot_top = 664                                  # 页脚行上沿
+    tallest = max(heights)
+    if base_y - tallest < top_limit:
+        base_y = top_limit + tallest
+    else:
+        # 竖向居中，别把台阶贴着页脚堆
+        avail_top, avail_bot = top_limit, foot_top - 8
+        slack = (avail_bot - avail_top) - tallest
+        if slack > 40:
+            base_y = avail_top + int(slack / 2) + tallest
+
     fills = [S["deep"], S["accent"], S["accent2"], S["soft"]][:n]
     if len(fills) < n:
         fills += [S["soft"]] * (n - len(fills))
@@ -618,10 +755,9 @@ def a_stair_list(p, S, c):
     fgs = [_fg_on(f) for f in fills]
 
     for i in range(n):
-        h = short_h + i * step_rise
+        h = heights[i]
         x = xs[i]
-        # 只占自己那一段，最后一级铺到右边界
-        w = (page_r - x) if i == n - 1 else (span - n_gap)
+        w = _w_of(i)
         y = base_y - h
         kids.append(_b(x, y, w, h, fills[i]))
         kids.append(_t(x + 18, y + 14, 52, f"{i + 1:02d}", 20,

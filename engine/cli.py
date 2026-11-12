@@ -203,9 +203,25 @@ def cmd_compose(args):
     elif isinstance(notes.get("design_briefs"), dict):
         design_briefs = notes["design_briefs"]
 
+    # --cover 的路径必须在这里解析成绝对路径再交给 compose。
+    # compose() 里凡是非绝对路径都会按「notes 所在目录」拼接，而用户在命令行
+    # 上给的相对路径是相对**当前工作目录**的 —— 直接传进去会拼成
+    # examples/examples/assets/xxx.png，然后 os.path.exists 判假，
+    # 封面图**静默消失**（实测：《人情与面子》封面左侧只剩一块空的深色块，
+    # 没有任何报错）。路径能解析就解析，解析不到就明确告警，别让封面无声无息地丢。
+    cover_arg = getattr(args, "cover", None)
+    if cover_arg:
+        if not os.path.isabs(cover_arg) and os.path.exists(cover_arg):
+            cover_arg = os.path.abspath(cover_arg)
+        resolved = (cover_arg if os.path.isabs(cover_arg)
+                    else os.path.join(os.path.dirname(notes_path), cover_arg))
+        if not os.path.exists(resolved):
+            print(f"WARNING: --cover not found ({args.cover}); "
+                  "composing without a cover image", file=sys.stderr)
+
     try:
         deck, ledger = art_direction.compose(
-            notes, os.path.dirname(notes_path), args.cover, args.base, args.seed,
+            notes, os.path.dirname(notes_path), cover_arg, args.base, args.seed,
             card_system=getattr(args, "card_system", False),
             scoring=getattr(args, "scoring", False),
             design_briefs=design_briefs)

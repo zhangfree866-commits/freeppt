@@ -146,6 +146,7 @@ def _text_boxes(slide):
         # 数字被判「出界」。判据把正常产物判死，就等于没有判据。
         total_h = 0.0
         max_w = 0.0
+        max_size = 0.0                 # 块内最大字号，供「咬进多深算压住」换算行高
         for p in sh.text_frame.paragraphs:
             psize = None
             for r in p.runs:
@@ -154,6 +155,7 @@ def _text_boxes(slide):
                     break
             if psize is None:
                 psize = 14.25          # 未显式设字号时用正文默认值
+            max_size = max(max_size, psize)
             em = psize * 1.333
             cap = max(w / em, 1.0)     # 该段每行容得下多少 em
             ptext = p.text if p.text.strip() else ""
@@ -167,7 +169,16 @@ def _text_boxes(slide):
                 # 不能用框宽：标题框常比标题字宽出一倍，按框宽判会凭空造出
                 # 「标题压住右上角页码」这类假碰撞。
                 seg_w = max(seg_w, min(units * em, w))
-            total_h += max(lines, 0) * em * 1.28
+            # 行距必须读**这份文件自己的** line_spacing，不能用固定系数。
+            # 实测（20261113，《人情与面子》p03）：主题 magazine 渲染时写的是
+            # 1.32，而这里原写死 1.28。两行 13.5pt 正文估算 46.07px，实际
+            # 47.51px —— 差 1.4px，正好让一块压住下一行的批注块以「oy = +0.1」
+            # 逃过压字判据，渲染图里那行字被吃掉一半。
+            # 判据和渲染器用两套行高口径，就等于判据在自说自话。
+            ls = p.line_spacing
+            if not isinstance(ls, (int, float)):
+                ls = 1.28              # 文件没写行距时的保守默认（偏大不偏小）
+            total_h += max(lines, 0) * em * float(ls)
             max_w = max(max_w, seg_w)
 
         out.append({
@@ -175,6 +186,7 @@ def _text_boxes(slide):
             "x": _px(sh.left), "y": _px(sh.top),
             "w": max_w or w, "box_w": w,
             "h": total_h or 14.25 * 1.333 * 1.28,
+            "size": max_size or 14.25,
         })
     return out
 
@@ -226,7 +238,11 @@ def _text_overflow(slide, pad=8.0):
             for seg in (para.text if para.text.strip() else "").split("\n"):
                 units = sum(_unit(c) for c in seg)
                 lines += max(1, -(-int(round(units * 100)) // int(round(cap * 100))))
-            total += max(lines, 0) * em * 1.28
+            # 与 _text_boxes 同口径：读文件真实行距，别用固定系数。
+            ls = para.line_spacing
+            if not isinstance(ls, (int, float)):
+                ls = 1.28
+            total += max(lines, 0) * em * float(ls)
         return total
 
     # 容器：无色可当卡片的实心形状
@@ -235,7 +251,10 @@ def _text_overflow(slide, pad=8.0):
         if getattr(sh, "has_text_frame", False) and sh.text.strip():
             continue
         w, h = _px(sh.width), _px(sh.height)
-        if w < 120 or h < 90:
+        # 门槛只要「够托住文字」就行，不能高到把真正的容器筛掉。
+        # 实测（20261113）：批注块 558×72 被 h>=90 排除，而它恰好是溢出的那一块。
+        # 72px 高完全托得住三行 16pt 文字，是标准容器尺寸，不是装饰。
+        if w < 120 or h < 48:
             continue
         try:
             if sh.fill.type is None:
@@ -499,7 +518,14 @@ def audit_design(pptx_path, min_shapes=MIN_SHAPES_PER_PAGE,
                 covered = (ox * oy) / area
                 if covered >= 0.85:
                     continue                 # 这块文字基本都在色块内 = 正常
-                if ox > 6 and oy > 6:
+                # 重叠面积小，不代表没压住。实测（20261113，《人情与面子》
+                # p03）：正文最后一行底边 559.5，批注块顶边 558 —— 只咬进
+                # 1.5px、占该块文字面积 3.2%，渲染出来正是**最后一行的下沿
+                # 被切掉**，那行字看着像被划了一道。
+                # 面积判据天生看不见「切一条边」，得补一条**按行高**的口径：
+                # 咬进去的深度够到字身的一部分（0.25 行高）就算压住。
+                bite = oy / max(1.0, _line_h(tbx["size"]))
+                if (ox > 6 and oy > 6) or (ox > 6 and bite >= 0.25):
                     collisions.append({
                         "page": i,
                         "a": f"色块[{round(bx)},{round(by)},{round(bw)},{round(bh)}]",
