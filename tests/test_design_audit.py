@@ -129,7 +129,13 @@ class TestDesignedDeckPasses(unittest.TestCase):
 
 
 class TestBareDeckCaught(unittest.TestCase):
-    """裸排布必须被判不通过——这是 91 页那本的真实形态。"""
+    """裸排布必须被判不通过——这是 91 页那本的真实形态。
+
+    注意判据分层后的语义：`thin_pages` / `bare_pages` 是**风格提示**
+    （密度低于参照的密集编辑风），不能用来判死；真正判死的是
+    `thin_floor_pages` / `bare_floor_pages`（连版面框架都没有）。
+    密度是风格，缺陷是缺陷，两者不能混。
+    """
 
     def test_bare_pages_rejected(self):
         with tempfile.TemporaryDirectory() as d:
@@ -137,8 +143,12 @@ class TestBareDeckCaught(unittest.TestCase):
                       [_bare_page(i) for i in range(1, 9)])
             r = design_audit.audit_design(p)
         self.assertFalse(r["ok"])
-        self.assertEqual(len(r["thin_pages"]), 8)
-        self.assertEqual(len(r["bare_pages"]), 8)
+        # 起决定作用的是「结构件 = 0」——裸排布的本质就是没有任何版面结构，
+        # 不是单纯形状数少。形状数只是散布性兜底，不该越权当主判据。
+        self.assertEqual(len(r["bare_floor_pages"]), 8)
+        # 提示那条也该满 8 页（只是不判死）
+        self.assertEqual(len(r["advisory"]["thin_pages"]), 8)
+        self.assertEqual(len(r["advisory"]["bare_pages"]), 8)
 
     def test_no_dividers_is_a_defect(self):
         """全篇零分隔线要单独判——参照是 45 条、100% 覆盖。"""
@@ -256,6 +266,116 @@ class TestReferenceSampleBuilds(unittest.TestCase):
             design_audit.build_reference_sample().save(p)
             r = design_audit.audit_design(p)
         self.assertEqual(r["skeleton_groups"], [], "5 页应当各不相同")
+
+
+class TestDensityIsAdvisoryNotFatal(unittest.TestCase):
+    """密度分层回归（2026-11-13）。
+
+    来历：用户报「生成的 PPT 又完全没按 skill 做」。查根因时发现，把 build 接上
+    成品审计后，**官方示例 deck_business_demo 被自己的判据判死**——8 页原生图表
+    业务报告，视觉上完全成立，却因为「形状数只有 9」被判死。判据把正常产物判死，
+    比没有判据更糟：没人会再用它。
+
+    分层原则：
+      - 缺陷（硬拦）：文字堆叠无结构、压字、出界、同骨架复用、零分隔线
+      - 风格（提示）：密度低于参照那种密集编辑风 —— 不拦
+    仪式页（封面/封底，巨型标题 + ≤5 文字块）豁免密度判据。
+    """
+
+    def test_low_density_chart_deck_passes(self):
+        """一张原生图表撑满页面的业务报告成立，不该因「形状少」被判死。
+
+        造的是真实形态：背景块 + 标题 + 原生柱状图 + 分隔线 + 来源行，
+        每页只有 5–6 个形状，密度远低于参照的 38.7，但视觉上完全成立。
+        图表横向位置逐页不同——这是真实业务 deck 的形态（左图右文 / 右图左文 /
+        通栏图交替），也让骨架指纹自然分化，避免造出「6 页同构」这种本就该拦的样本。
+        """
+        from pptx.chart.data import CategoryChartData
+        from pptx.enum.chart import XL_CHART_TYPE
+        from pptx.enum.shapes import MSO_SHAPE
+        from pptx.util import Emu
+        from pptx import Presentation
+
+        prs = Presentation()
+        prs.slide_width, prs.slide_height = Emu(12192000), Emu(6858000)
+        blank = prs.slide_layouts[6]
+        # 图表横坐标按页轮转，制造真实的版面差异
+        slots = [(80, 800), (420, 760), (120, 1080), (620, 560)]
+        for i in range(1, 7):
+            s = prs.slides.add_slide(blank)
+            cx, cw = slots[i % len(slots)]
+            bar = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Emu(int(60 * PS)),
+                                     Emu(int(150 * PS)), Emu(int(1160 * PS)),
+                                     Emu(int(500 * PS)))
+            bar.line.fill.background()
+            box = s.shapes.add_textbox(Emu(int(60 * PS)), Emu(int(80 * PS)),
+                                       Emu(int(900 * PS)), Emu(int(44 * PS)))
+            box.text_frame.text = f"第 {i} 页：图表撑满版面的业务页"
+            # 原生图表：这才是这类页面的版面主体（不是形状数量）
+            data = CategoryChartData()
+            data.categories = ["Q1", "Q2", "Q3", "Q4"]
+            data.add_series("收入", (1.0 + i, 2.0 + i, 3.0 + i, 4.0 + i))
+            s.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED,
+                               Emu(int(cx * PS)), Emu(int(170 * PS)),
+                               Emu(int(cw * PS)), Emu(int(440 * PS)), data)
+            ln = s.shapes.add_connector(1, Emu(int(60 * PS)), Emu(int(140 * PS)),
+                                        Emu(int(1220 * PS)), Emu(int(140 * PS)))
+            ln.line.width = 9525
+            src = s.shapes.add_textbox(Emu(int(60 * PS)), Emu(int(660 * PS)),
+                                       Emu(int(700 * PS)), Emu(int(22 * PS)))
+            src.text_frame.text = "来源：公司财务系统"
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "chartdeck.pptx")
+            prs.save(p)
+            r = design_audit.audit_design(p)
+        self.assertTrue(r["ok"], r["verdict"])
+        self.assertTrue(r["advisory"]["thin_pages"],
+                        "低密度应当被如实提示，只是不判死")
+
+    def test_bare_text_page_still_rejected(self):
+        """分层不能把「纯文字堆叠」也放过——那是缺陷，不是风格。"""
+        with tempfile.TemporaryDirectory() as d:
+            p = _deck(os.path.join(d, "bare.pptx"),
+                      [_bare_page(i) for i in range(1, 9)])
+            r = design_audit.audit_design(p)
+        self.assertFalse(r["ok"])
+        self.assertEqual(len(r["bare_floor_pages"]), 8)
+
+    def test_ceremonial_page_needs_big_title(self):
+        """封面豁免的识别条件是「巨型标题」，不是「字少」。
+
+        否则一份 4 个文字块的裸排布正文页也会被当封面放过，豁免就变成后门。
+        """
+        from pptx import Presentation
+        from pptx.util import Emu, Pt
+
+        prs = Presentation()
+        prs.slide_width, prs.slide_height = Emu(12192000), Emu(6858000)
+        blank = prs.slide_layouts[6]
+
+        # 封面：40pt 主标题 + 副标题 + 署名 = 3 块
+        cov = prs.slides.add_slide(blank)
+        for j, (t, sz) in enumerate([("年度报告", 40), ("副标题", 15), ("署名", 13)]):
+            b = cov.shapes.add_textbox(Emu(int(60 * PS)), Emu(int((100 + j * 120) * PS)),
+                                       Emu(int(900 * PS)), Emu(int(90 * PS)))
+            r = b.text_frame.paragraphs[0].add_run()
+            r.text, r.font.size = t, Pt(sz)
+
+        # 裸正文页：同样 3 块文字，但只有 16pt —— 这不是封面
+        body = prs.slides.add_slide(blank)
+        for j in range(3):
+            b = body.shapes.add_textbox(Emu(int(60 * PS)), Emu(int((120 + j * 120) * PS)),
+                                        Emu(int(900 * PS)), Emu(int(80 * PS)))
+            r = b.text_frame.paragraphs[0].add_run()
+            r.text, r.font.size = f"正文第 {j + 1} 段", Pt(16)
+
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "cer.pptx")
+            prs.save(p)
+            r = design_audit.audit_design(p)
+        per = {x["page"]: x for x in r["per_page"]}
+        self.assertTrue(per[1]["ceremonial"], "40pt 封面应当被认出")
+        self.assertFalse(per[2]["ceremonial"], "16pt 的裸正文页不能当封面豁免")
 
 
 if __name__ == "__main__":

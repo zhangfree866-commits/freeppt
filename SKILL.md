@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, a native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261112.10"
+version: "20261112.11"
 author: "张三峯"
 ---
 
@@ -61,6 +61,17 @@ author: "张三峯"
 ```
 
 三环任何一环失败都**不产出成品**。第三环尤其重要：前两环只看 DSL，手写 python-pptx 能完全绕过去——所以必须有一环读成品文件。
+
+**第三环现在是强制关卡，不是可选命令。** `build` 写完文件会立刻对**成品**跑 `audit_design()`，不成立就以退出码 1 结束并明确写「这份文件不能当交付物」。2026-11-13 之前的漏洞是：`audit-design` 只能手动跑、零自动触发点，于是模型手写 pptx 一路无人拦——12 页同构翻车就是这么发生的。判据挂在交付路径之外，等于没有判据。
+
+**密度判据分两层，别搞混**：
+
+| 层 | 判什么 | 性质 |
+|---|---|---|
+| 硬拦 | 文字堆叠无结构（结构件 <2）、形状 <4、文字压字、文字出界、同骨架 >4 页、全篇零分隔线 | **缺陷**，必须修 |
+| 提示 | 形状数 <20 或结构件 <7（低于参照那种密集编辑风） | **风格**，可忽略 |
+
+分层理由：一份原生图表撑满一页的业务报告只有 9 个形状，视觉上完全成立。把密度当硬拦，等于逼所有 deck 都长成同一副密集编辑样——那恰好是「逐页当设计师」要反对的。**判据把成立的设计判死，比漏判更糟。** 仪式页（封面/封底）另有豁免：识别条件是「巨型标题 ≥28pt 且文字块 ≤5」，不是「字少」——只看字少会把裸排布正文页也当封面放过。
 
 ### 怎么写（最小可用示例）
 

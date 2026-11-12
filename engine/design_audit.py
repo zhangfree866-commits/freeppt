@@ -27,10 +27,18 @@
 import collections
 
 # 结构件密度门槛。参照实测每页 38.7 个形状、其中结构件中位 17 个（最少 7 个：
-# P6 那页用一条 22px 进度条表达「760/1160」，极简但成立）。所以下限取 26 个
-# 形状、7 个结构件——刚好让那种极简页通过，同时把我方每页 8 个形状的裸排布拦下。
-MIN_SHAPES_PER_PAGE = 20
-MIN_STRUCTURE_PER_PAGE = 7
+# P6 那页用一条 22px 进度条表达「760/1160」，极简但成立）。
+#
+# 注意这两条的**性质**：密度是风格选择，不是缺陷。一份原生图表撑满一页的业务
+# 报告只有 9 个形状，可它视觉上完全成立（图表本身就是版面结构）。而参照那种
+# 密集编辑风是另一种成立的风格。把「密度」当硬拦条件，等于逼所有 deck 长成
+# 同一副样子——那恰好是「逐页当设计师」要反对的。
+# 所以密度降级为提示（advisory），只保留一条**极低的绝对下限**：连 3 个结构件
+# 都不到、整页只有文字框在堆，那是真没做版面，仍然硬拦。
+MIN_SHAPES_PER_PAGE = 20          # 提示用（不是硬拦）
+MIN_STRUCTURE_PER_PAGE = 7        # 提示用（不是硬拦）
+FLOOR_STRUCTURE_PER_PAGE = 2      # 硬拦下限：低于此值 = 纯文字堆叠
+FLOOR_SHAPES_PER_PAGE = 4         # 硬拦下限：散布性兜底，防「一两个形状 + 大段文字」
 
 # 同骨架允许的最大页数。参照 10 页里最大重复是 2–3（两三页用同一种论证是正常的，
 # 比如「左图右栏编号条目」），我方 91 页最大重复 16。一本书里同一种论证复用
@@ -47,6 +55,14 @@ FOOTER_BAND = 640
 # 没有用几何手段建立层级。
 MIN_DIVIDER_PAGES_RATIO = 0.5
 
+# 仪式页（封面/封底/章节扉页）豁免密度判据。
+# 依据：这类页的存在意义就是「少」——封面只有标题、署名、日期，密排结构反而是
+# 设计错误。但识别不能只看「字少」：一份 4 个文字块的裸排布正文页字也少，
+# 若一并豁免，密度判据就形同虚设。仪式页的真正特征是**巨型标题**——
+# 最大字号 ≥28pt（封面主标题 40pt 起），且文字块不超过 5 个。
+CEREMONIAL_MIN_FONT = 28.0
+CEREMONIAL_MAX_BLOCKS = 5
+
 
 def _px(v):
     return (v or 0) / 9525.0
@@ -58,7 +74,13 @@ def _slides_of(pptx_path):
 
 
 def _shape_kind(sh):
-    """按 pptx 形状类型分三类：structure（可视结构件）/ text / 其它。"""
+    """按 pptx 形状类型分三类：structure（可视结构件）/ text / 其它。
+
+    原生图表与表格算 structure，不算「数据」以外的旁支：一张撑满版面的图表
+    **就是**这页的版面结构。之前把它们排除在外，导致「标题 + 大图表 + 来源行」
+    这种干净的业务页被算成「结构件=0」，判成没做设计——判据把成立的设计判死，
+    是比漏判更严重的错误。
+    """
     t = str(getattr(sh, "shape_type", ""))
     if "TEXT_BOX" in t:
         return "text"
@@ -108,25 +130,43 @@ def _text_boxes(slide):
         if not (sh.has_text_frame and sh.text.strip()):
             continue
         txt = sh.text.strip()
-        size = 14.25
+        w = _px(sh.width)
+
+        # 高度必须**逐段按该段自己的字号**累加，不能拿首段字号算整块。
+        # 反例（实测）：封面大数字「+23%\n收入同比增速」，首段 60pt、次段 13.5pt，
+        # 按 60pt 算整块得 205px，实际只有 98px——于是这个明明落在页面内的
+        # 数字被判「出界」。判据把正常产物判死，就等于没有判据。
+        total_h = 0.0
+        max_w = 0.0
         for p in sh.text_frame.paragraphs:
+            psize = None
             for r in p.runs:
                 if r.font.size:
-                    size = r.font.size.pt
+                    psize = r.font.size.pt
                     break
-            break
-        w = _px(sh.width)
-        em = size * 1.333
-        cap = max(w / em, 1.0)           # 每行容得下多少 em
-        # 手动换行符要分段累计行数；段内再按字宽总和是否超出行宽决定折行。
-        lines = 0
-        for seg in txt.split("\n"):
-            units = sum(_char_unit(c) for c in seg)
-            lines += max(1, -(-int(round(units * 100)) // int(round(cap * 100))))
+            if psize is None:
+                psize = 14.25          # 未显式设字号时用正文默认值
+            em = psize * 1.333
+            cap = max(w / em, 1.0)     # 该段每行容得下多少 em
+            ptext = p.text if p.text.strip() else ""
+            lines = 0
+            seg_w = 0.0
+            for seg in ptext.split("\n"):
+                units = sum(_char_unit(c) for c in seg)
+                lines += max(1, -(-int(round(units * 100))
+                                  // int(round(cap * 100))))
+                # 这一段**实际**占了多宽（不超框宽）。碰撞检测必须用实际宽度，
+                # 不能用框宽：标题框常比标题字宽出一倍，按框宽判会凭空造出
+                # 「标题压住右上角页码」这类假碰撞。
+                seg_w = max(seg_w, min(units * em, w))
+            total_h += max(lines, 0) * em * 1.28
+            max_w = max(max_w, seg_w)
+
         out.append({
             "text": txt,
             "x": _px(sh.left), "y": _px(sh.top),
-            "w": w, "h": lines * em * 1.28,
+            "w": max_w or w, "box_w": w,
+            "h": total_h or 14.25 * 1.333 * 1.28,
         })
     return out
 
@@ -162,6 +202,11 @@ def _page_stats(slide):
                 dividers += 1
         elif kind == "picture":
             pics += 1
+        elif kind == "data":
+            # 原生图表/表格**占着版面**，是这页的视觉主体。它不提供分隔线，
+            # 但必须计入结构件——否则「一页一张大图」的干净业务页会被判成
+            # 「只有文字、没做版面」。
+            structure += 1
 
         if top < HEADER_BAND:
             header = True
@@ -217,12 +262,27 @@ def audit_design(pptx_path, min_shapes=MIN_SHAPES_PER_PAGE,
 
     for i, s in enumerate(slides, 1):
         st = _page_stats(s)
+        # 仪式页识别：巨型标题 + 极少文字块。只看「字少」不够——裸排布正文页
+        # 字也少，那类是必须拦的缺陷，不能被豁免掉。
+        blocks = 0
+        max_font = 0.0
+        for sh in s.shapes:
+            if not (sh.has_text_frame and sh.text.strip()):
+                continue
+            blocks += 1
+            for p in sh.text_frame.paragraphs:
+                for r in p.runs:
+                    if r.font.size:
+                        max_font = max(max_font, r.font.size.pt)
+        st["ceremonial"] = (max_font >= CEREMONIAL_MIN_FONT
+                            and blocks <= CEREMONIAL_MAX_BLOCKS)
         per_page.append({
             "page": i,
             "shapes": st["shapes"],
             "structure": st["structure"],
             "dividers": st["dividers"],
             "pictures": st["pictures"],
+            "ceremonial": st["ceremonial"],
         })
         skel[st["skeleton"]].append(i)
         if st["header"]:
@@ -250,8 +310,17 @@ def audit_design(pptx_path, min_shapes=MIN_SHAPES_PER_PAGE,
                     "right": round(bx["x"] + bx["w"], 1),
                 })
 
-    thin = [p["page"] for p in per_page if p["shapes"] < min_shapes]
-    bare = [p["page"] for p in per_page if p["structure"] < min_structure]
+    # 硬拦：整页只有文字框在堆，连版面框架都没有。这是客观缺陷。
+    # 仪式页（封面/封底/扉页）豁免——它们本来就该「空」。
+    body_pages = [p for p in per_page if not p.get("ceremonial")]
+    bare_floor = [p["page"] for p in body_pages
+                  if p["structure"] < FLOOR_STRUCTURE_PER_PAGE]
+    thin_floor = [p["page"] for p in body_pages
+                  if p["shapes"] < FLOOR_SHAPES_PER_PAGE]
+
+    # 提示：密度低于参照风格的水准。风格选择，不拦，只说。
+    thin = [p["page"] for p in body_pages if p["shapes"] < min_shapes]
+    bare = [p["page"] for p in body_pages if p["structure"] < min_structure]
 
     groups = [{"count": len(v), "pages": v}
               for k, v in skel.items() if len(v) > 1]
@@ -263,17 +332,22 @@ def audit_design(pptx_path, min_shapes=MIN_SHAPES_PER_PAGE,
     divider_ratio = with_dividers / total
     dividers_thin = divider_ratio < MIN_DIVIDER_PAGES_RATIO
 
-    ok = not thin and not bare and not over and not dividers_thin and not collisions and not clipped
+    ok = (not bare_floor and not thin_floor and not over
+          and not dividers_thin and not collisions and not clipped)
 
     # 人话结论：说清差在哪，不只给分数
     if ok:
         verdict = "版面成立：结构件密度够、有框架、视觉论证有变化、没有文字压字"
+        if thin or bare:
+            verdict += f"（提示：{len(bare)} 页密度低于参照风格，属风格选择可忽略）"
     else:
         bits = []
-        if thin:
-            bits.append(f"{len(thin)} 页形状过少（<{min_shapes}）")
-        if bare:
-            bits.append(f"{len(bare)} 页只有文字没有版面结构（<{min_structure} 个结构件）")
+        if bare_floor:
+            bits.append(f"{len(bare_floor)} 页只有文字堆叠、没有任何版面结构"
+                        + f"（结构件 <{FLOOR_STRUCTURE_PER_PAGE}）")
+        if thin_floor:
+            bits.append(f"{len(thin_floor)} 页形状少到连框架都没有"
+                        + f"（<{FLOOR_SHAPES_PER_PAGE}）")
         if over:
             worst = over[0]
             bits.append(f"{worst['count']} 页共用同一副骨架（上限 {max_same}）")
@@ -296,6 +370,13 @@ def audit_design(pptx_path, min_shapes=MIN_SHAPES_PER_PAGE,
         "per_page": per_page,
         "thin_pages": thin,
         "bare_pages": bare,
+        "bare_floor_pages": bare_floor,
+        "thin_floor_pages": thin_floor,
+        "advisory": {
+            "thin_pages": thin,
+            "bare_pages": bare,
+            "note": "密度低于参照密集编辑风的水准；属风格选择，不作硬拦。",
+        },
         "dividers_total": total_dividers,
         "divider_pages": with_dividers,
         "divider_ratio": round(divider_ratio, 4),
@@ -307,6 +388,8 @@ def audit_design(pptx_path, min_shapes=MIN_SHAPES_PER_PAGE,
         "limits": {
             "min_shapes": min_shapes,
             "min_structure": min_structure,
+            "floor_shapes": FLOOR_SHAPES_PER_PAGE,
+            "floor_structure": FLOOR_STRUCTURE_PER_PAGE,
             "max_same_skeleton": max_same,
             "min_divider_ratio": MIN_DIVIDER_PAGES_RATIO,
         },

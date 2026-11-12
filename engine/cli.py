@@ -138,6 +138,27 @@ def cmd_build(args):
         return 1
     out = build_pptx(deck, args.out, force=bool(args.force))
     print(f"built: {out} ({len(deck['slides'])} slides)")
+
+    # ---- 成品侧强制审计（交付前最后一关）----
+    # 为什么必须在这里再查一遍：lint_deck 只读 DSL。模型完全可以自己写
+    # python-pptx 拼出 pptx，一声不响地交付——12 页同构翻车就是这么发生的。
+    # 判据存在但不挂在交付路径上，等于没有。所以 build 出片后立刻读成品文件，
+    # 设计不成立就明确报失败（退出码 1），不让「已交付」这个假象成立。
+    from engine.design_audit import audit_design
+    design = audit_design(out)
+    if not design["ok"]:
+        print(f"\n[成品审计未通过] {design['verdict']}", file=sys.stderr)
+        for key in ("thin_pages", "bare_pages", "collisions", "clipped"):
+            val = design.get(key)
+            if val:
+                print(f"  {key}: {val}", file=sys.stderr)
+        if design.get("skeleton_groups"):
+            print(f"  骨架重复组: {design['skeleton_groups']}", file=sys.stderr)
+        print("成品已写出但不达标：这份文件不能当交付物。"
+              "修 DS/版面后重跑 build。", file=sys.stderr)
+        return 1
+
+    print(f"audit-design: OK  {design['verdict']}")
     if args.force:
         print("WARNING: built with --force; marker written into the pptx",
               file=sys.stderr)

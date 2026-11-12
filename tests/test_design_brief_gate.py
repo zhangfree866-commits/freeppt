@@ -266,5 +266,66 @@ class TestRealWorldTemplateDeckRejected(unittest.TestCase):
         self.assertIn("LAYOUT_SKELETON_REPEAT", codes)
 
 
+class TestBuildIsOnTheDeliveryPath(unittest.TestCase):
+    """回归锚点：成品审计必须挂在 build 上，不能只是可选手动命令。
+
+    来历（2026-11-13，用户报「生成的 PPT 又完全没按 skill 做」）：查根因时发现
+    `audit_design` 全仓只有命令行入口一个调用点，`build` 出片后**不审计**。
+    于是模型手写 python-pptx、或跑一个自己写的构建脚本，就能一声不响地交付
+    「12 页同构」的产物——判据存在但不在交付路径上，等于没有判据。
+
+    这两个测试直接调 cmd_build，断言退出码：劣质必 1，成立必 0。
+    """
+
+    def _write(self, tmpdir, deck, name):
+        import json
+        import os
+        p = os.path.join(tmpdir, name)
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(deck, f, ensure_ascii=False)
+        return p
+
+    def test_homogeneous_deck_fails_build(self):
+        """12 页里 10 页用同一个模板 → build 必须以退出码 1 结束。"""
+        import argparse
+        import os
+        import tempfile
+        from engine.cli import cmd_build
+
+        slides = [{"template": "cover",
+                   "data": {"title": "季度经营报告", "subtitle": "示例"}}]
+        for i in range(1, 11):
+            slides.append({"template": "three_cards", "data": {
+                "title": f"第 {i} 个主题",
+                "cards": [{"title": "要点一", "body": "说明文字"},
+                          {"title": "要点二", "body": "说明文字"},
+                          {"title": "要点三", "body": "说明文字"}]}})
+        slides.append({"template": "closing", "data": {"title": "谢谢"}})
+
+        with tempfile.TemporaryDirectory() as d:
+            src = self._write(d, {"theme": "business", "slides": slides},
+                              "bad.json")
+            out = os.path.join(d, "bad.pptx")
+            args = argparse.Namespace(deck=src, out=out, force=False)
+            rc = cmd_build(args)
+        self.assertEqual(rc, 1, "同构 deck 不能让 build 报成功")
+
+    def test_healthy_deck_passes_build(self):
+        """正常产物不能被这道强制关卡误伤——否则没人会再跑 build。"""
+        import argparse
+        import os
+        import tempfile
+        from engine.cli import cmd_build
+
+        with tempfile.TemporaryDirectory() as d:
+            src = os.path.join(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__))), "examples",
+                "deck_business_demo.json")
+            out = os.path.join(d, "ok.pptx")
+            args = argparse.Namespace(deck=src, out=out, force=False)
+            rc = cmd_build(args)
+        self.assertEqual(rc, 0, "官方业务示例必须通过成品审计")
+
+
 if __name__ == "__main__":
     unittest.main()

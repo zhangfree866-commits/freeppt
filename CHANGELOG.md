@@ -3,6 +3,55 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261112.11] - 2026-11-13
+
+Put the finished-file audit **on the delivery path**, and fix two false
+positives that would have made it worthless.
+
+Two independent root causes were found behind "the generated deck still ignores
+the skill":
+
+1. **Three stale `FreePPT` copies shadowed the new one.** `~/.workbuddy/skills/`
+   held `freeppt` (`.10`) plus `freeppt.bak-20261112_140539` (`.7`),
+   `…_144521` (`.8`) and `…_232805` (`.9`). All four declared
+   `display_name: "FreePPT"`, so `@skill:FreePPT` was an ambiguous match and
+   could load a copy that **has no `design_spec.py` at all** — i.e. no six-
+   dimension gate, no matter what the current version says. The three stale
+   copies are gone (moved to the system trash, recoverable).
+2. **`audit-design` had zero automatic trigger points.** `lint_deck()` reads
+   the DSL only; a model that hand-writes `python-pptx` or drives a build
+   script ships a deck that nobody ever audited. A judge with no call site is
+   documentation, not a constraint.
+
+- **`build` now runs `audit_design()` on the file it just wrote** and exits 1
+  when the deck does not hold up, printing the concrete defects. Verified end
+  to end: a 12-slide deck reusing one template 10 times is rejected with
+  `10 页共用同一副骨架（上限 4）`; the official business example passes.
+- **Density split into defect vs. style.** The old thresholds killed
+  `examples/deck_business_demo.json` — an 8-page native-chart report that is
+  visually sound — because a page built around one large chart has only 9
+  shapes. Verdict: *a judge that fails good work is worse than no judge.* So:
+  - **hard (block)**: `bare_floor_pages` — fewer than 2 structural elements
+    (plain text stacking); `thin_floor_pages` — fewer than 4 shapes; plus text
+    collisions, out-of-bounds text, skeleton reuse, and zero dividers.
+  - **advisory (report only)**: `thin_pages` / `bare_pages` — density below the
+    reference's dense-editorial style. That is a style choice, not a defect.
+- **Native charts and tables now count as structural elements.** A chart that
+  fills the page *is* the layout; excluding it made "title + big chart + source
+  line" read as "structure = 0, no design done".
+- **Ceremonial pages (cover / closing) are exempt from density**, identified by
+  a **giant title** (`≥28pt` + ≤5 text blocks) — not by "few characters". Using
+  character count alone let a bare 4-block body page through, turning the
+  exemption into a backdoor.
+- **`_text_boxes()` estimates height per paragraph, by that paragraph's own
+  font size.** The old code took the first run's size for the whole block, so a
+  cover figure `+23%\n收入同比增速` (60pt + 13.5pt) was measured as 60pt ×
+  both lines = 205px instead of 98px and reported as out of bounds. Real height
+  was inside the page; the judge was wrong.
+- Tests: 362 → 365. New `TestDensityIsAdvisoryNotFatal` (chart deck passes,
+  bare text still rejected, ceremonial needs a big title). `selfcheck` stays
+  16/16.
+
 ## [20261112.10] - 2026-11-12
 
 Turn "the model is the page designer" from prose into an **enforced gate**. The
