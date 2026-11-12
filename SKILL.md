@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, a native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261112.9"
+version: "20261112.10"
 author: "张三峯"
 ---
 
@@ -27,6 +27,83 @@ author: "张三峯"
 任何技术选择，只要有助于追赶豆包效果 → 就做；只要与这条目标冲突 → 就放弃。
 
 「纯离线」「确定性」「引擎自动生成」「架构洁癖」「可复现」这些**都只是手段，不是约束**，永远不得拿来当限制条件，也不得升级成需要用户拍板的命题。别拿手段的纯洁性去换成品效果——这条比下面任何一条都高。
+
+## 首要执行规则：逐页设计、逐页交付、逐页校验
+
+> **优先级声明**：本节是「创作第一性原理」的执行体，**优先级高于本文档其余一切通用建议**。与任何通用建议冲突时（模板更快、套原型更省 token、响应式在 PPT 里没意义、先出草稿再补设计…），一律以本节为准。本节不提供 `--force` 旁路。
+
+**规则**：在每一页的设计环节，模型必须以**设计师身份逐页独立产出完整方案**，而不是给整本定一个版式再套。方案必须覆盖六个维度，缺一维即编译失败。
+
+### 六维规格（`engine/design_spec.py`）
+
+| 维度 | 字段 | 判定口径 | 缺了会怎样 |
+|---|---|---|---|
+| 布局结构 | `structure` | ≥2 字，非占位话术；同一标签全书 ≤3 页 | 骨架没逐页判断，退回套版 |
+| 视觉层级 | `hierarchy` | ≥8 字，且须含层级词（主/次/辅/第一/焦点…） | 说不出谁第一眼 = 所有元素一样重 |
+| 组件拆分 | `components` | list ≥2 项，每项须有 `name` + `role` | 组件没角色 = 在堆形状 |
+| 交互状态 | `states` | 非空；须覆盖 default / emphasis / disabled 类判断 | 成品无法承载强调与高亮 |
+| 响应式适配 | `responsive` | ≥6 字，且须含断点/折叠/堆叠/缩放等具体策略 | 换尺寸就塌，是排版不是设计 |
+| 可访问性 | `a11y` | dict，`contrast` / `text_size` / `alt` 至少命中 2 项 | 对比度与字号无据，投影不可读 |
+| 设计一致性 | `consistency` | 引用 deck 令牌键名，且键必须在 `design_system` 里真实存在 | 各页自造一套，整本不像一本书 |
+| 自证理由 | `rationale` | ≥12 字 | 说不出「为什么这样最有效」 |
+
+**统一设计语言由 deck 级令牌锁定**：`design_system` 必须在 notes 顶层声明一次，含 `palette` / `type_scale` / `spacing` / `font_pair` 四项。每页 `consistency` 只能**引用**这些键，不能各写一套——这就是「各页面之间保持统一设计语言」的可检查形态。
+
+### 三环闭环：设计 → 交付 → 校验
+
+```
+① 逐页设计  模型写 design_briefs（六维）
+              ↓
+② 逐页交付  compose() 编译；入口调 design_spec.require_deck()，缺项即 ValueError
+              ↓
+③ 逐页校验  lint 再跑一遍六维（防手写 DSL 绕过）；
+             verify_spec_compiled() 拿成品 pptx 回验「写了几块就有几块」
+```
+
+三环任何一环失败都**不产出成品**。第三环尤其重要：前两环只看 DSL，手写 python-pptx 能完全绕过去——所以必须有一环读成品文件。
+
+### 怎么写（最小可用示例）
+
+```python
+# notes 顶层：全书统一设计令牌，只声明一次
+notes = {
+    "design_system": {
+        "palette":    {"ink": "#1C1917", "accent": "#9A3412", "paper": "#FAF7F2"},
+        "type_scale": {"h1": 33, "h2": 24, "body": 13.5},
+        "spacing":    {"base": 8, "gutter": 76},
+        "font_pair":  {"title": "Georgia", "body": "Arial"},
+    },
+    "pages": [...],
+}
+
+# 每一页：六维完整方案，不许复用上一页的答案
+design_briefs = {
+    0: {
+        "structure":   "否定墙：左列六个灰块，右侧一块亮起",
+        "hierarchy":   "第一眼右侧亮块，第二眼左侧灰块，辅助是底部来源行",
+        "components":  [{"name": "灰块阵", "role": "列举被否定的做法"},
+                        {"name": "亮块",   "role": "唯一保留的答案"}],
+        "states":      {"default": "全灰+右亮", "emphasis": "描边加粗",
+                        "disabled": "降到 40% 不透明度"},
+        "responsive":  "窄屏 960px 以下两列改堆叠，投影 16:9 保持两列",
+        "a11y":        {"contrast": "正文 8.2:1", "text_size": "最小 13.5pt",
+                        "alt": "灰块阵给一句整体说明，不逐块配"},
+        "consistency": ["palette", "type_scale", "font_pair"],
+        "rationale":   "六个假的对照一个真的，需要并列否定；编号行会丢掉对照关系",
+    },
+    # 1: {...}, 2: {...}   ← 每页都要重新判断，不许 copy 改字
+}
+```
+
+```bash
+python3 engine/cli.py compose notes.json --briefs briefs.json --out deck.json
+```
+
+### 为什么没有旁路
+
+`engine/design_brief.py` 的旧版只有 5 个字段，而且 `check_deck()` **全仓无人调用**——判据写了却没人调，等于文档。这次改名为 `design_spec.py` 并真接进 `compose()` 与 `lint`，就是为了让原则从「建议」变成「约束」。
+
+实测证据：接入当天，`tests/test_design_brief_gate.py` 立刻有 4 个用例变红——它们用的是旧 5 维数据。**按本规则，该改的是测试数据，不是放宽闸门**，已一并升级为六维。
 
 ## 创作第一性原理（最高准则）
 

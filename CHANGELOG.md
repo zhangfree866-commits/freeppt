@@ -3,6 +3,51 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261112.10] - 2026-11-12
+
+Turn "the model is the page designer" from prose into an **enforced gate**. The
+trigger was an audit finding: `engine/design_brief.py` existed with five
+fields, but `check_deck()` had **zero call sites in the entire repo** — a judge
+nobody calls is documentation, not a constraint.
+
+- **`engine/design_spec.py` (new, replaces `design_brief.py`)** — the per-page
+  design plan is now **six dimensions**, each with a quality floor, not just a
+  presence check:
+
+  | dimension | field | floor |
+  |---|---|---|
+  | layout structure | `structure` | non-placeholder, ≤3 pages may share a tag |
+  | visual hierarchy | `hierarchy` | ≥8 chars **and** must name levels |
+  | component breakdown | `components` | ≥2 items, each with `name`+`role` |
+  | interaction states | `states` | non-empty |
+  | responsive | `responsive` | ≥6 chars **and** must state a real strategy |
+  | accessibility | `a11y` | ≥2 of contrast / text_size / alt |
+  | consistency | `consistency` | must reference tokens that exist in `design_system` |
+
+  Plus `rationale` (≥12 chars) as the self-justification.
+
+- **Deck-level token lock** — `design_system` must be declared once at the top
+  of the notes with `palette` / `type_scale` / `spacing` / `font_pair`. Pages
+  may only *reference* those keys. This is the machine-checkable form of
+  "every page shares one design language".
+- **Three-ring closure** — design (`design_briefs`) → deliver (`compose()`
+  calls `require_deck()`, missing any dimension raises `ValueError`) → verify
+  (`lint` re-checks six dimensions so hand-written DSL cannot bypass;
+  `verify_spec_compiled()` reads the finished pptx and checks that the
+  component count declared is actually present on the page). No `--force`.
+- **Wired for real** — `art_direction.compose()` and `lint.lint_deck()` both
+  import `design_spec` now. `DESIGN_BRIEF_MISSING` becomes
+  `DESIGN_SPEC_MISSING`; `without_brief` becomes `without_spec`.
+- **Mutation-proven** — `tests/test_design_spec.py` drops each of the eight
+  fields one at a time and asserts the gate goes red, so no dimension can be
+  decorative. 23 new tests; **362 tests + 24 subtests pass**.
+- **Honest note** — hooking the stricter gate immediately turned four tests in
+  `test_design_brief_gate.py` red because they used the old five-field shape.
+  Per this very rule, the fix was to upgrade the fixtures, not loosen the gate.
+- **`SKILL.md`** — new first section "首要执行规则：逐页设计、逐页交付、
+  逐页校验", explicitly declaring priority over all other general advice and
+  giving the minimal working example.
+
 ## [20261112.9] - 2026-11-12
 
 The reference grammar only existed as a 5-page selfcheck sample. This release

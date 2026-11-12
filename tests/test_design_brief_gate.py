@@ -26,17 +26,41 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from engine import art_direction as ad          # noqa: E402
-from engine import design_brief as db          # noqa: E402
+from engine import design_spec as db           # noqa: E402
 from engine import layout_fingerprint as lf    # noqa: E402
 from engine.cli import prepare                 # noqa: E402
 from engine.lint import lint_deck              # noqa: E402
 
 
+# deck 级设计令牌：六维里的 consistency 只能引用这些键。
+DESIGN_SYSTEM = {
+    "palette": {"ink": "#1C1917", "accent": "#9A3412", "paper": "#FAF7F2"},
+    "type_scale": {"h1": 33, "h2": 24, "body": 13.5},
+    "spacing": {"base": 8, "gutter": 76},
+    "font_pair": {"title": "Georgia", "body": "Arial"},
+}
+
+# 一页完整设计方案：六维齐全。这是「设计师想过」的最小证据。
 GOOD_BRIEF = {
-    "carrier": "原生 SVG",
-    "structure": "否定墙",
-    "visual_anchor": "六个灰掉的方块对照一个亮起的主图",
-    "image_decision": "svg",
+    "structure": "否定墙：左列六个灰块，右侧一块亮起",
+    "hierarchy": "第一眼是右侧亮块，第二眼是左侧六个灰块，辅助信息是底部来源",
+    "components": [
+        {"name": "左侧灰块阵", "role": "列举被否定的做法"},
+        {"name": "右侧亮块", "role": "唯一被保留的答案，视觉焦点"},
+        {"name": "底部来源行", "role": "依据，弱化处理"},
+    ],
+    "states": {
+        "default": "六块全灰、右块高亮",
+        "emphasis": "讲某一条时该块描边加粗",
+        "disabled": "已排除的块降到 40% 不透明度",
+    },
+    "responsive": "窄屏 960px 以下两列改堆叠，灰块阵折成 2×3；投影 16:9 保持两列",
+    "a11y": {
+        "contrast": "正文对纸色 8.2:1，灰块文字 4.6:1",
+        "text_size": "最小字号 13.5pt，高于投影可读下限",
+        "alt": "灰块阵提供一句整体说明，不逐块配 alt",
+    },
+    "consistency": ["palette", "type_scale", "font_pair"],
     "rationale": "这页是「六个假的对照一个真的」，需要并列否定，"
                  "用编号行会丢掉对照关系，所以做成左右两列墙",
 }
@@ -44,6 +68,7 @@ GOOD_BRIEF = {
 
 def notes(pages, **extra):
     doc = {"book": {"title": "闸门测试", "author": "测试"},
+           "design_system": DESIGN_SYSTEM,
            "pages": pages}
     doc.update(extra)
     return doc
@@ -107,7 +132,7 @@ class TestBriefGate(unittest.TestCase):
         deck["slides"][1].pop("design_brief")
         res = lint_deck(prepare(copy.deepcopy(deck)))
         self.assertFalse(res["ok"])
-        self.assertIn("DESIGN_BRIEF_MISSING",
+        self.assertIn("DESIGN_SPEC_MISSING",
                       {e["code"] for e in res["errors"]})
 
     def test_placeholder_brief_blocks(self):
@@ -126,19 +151,22 @@ class TestBriefGate(unittest.TestCase):
     def test_complete_brief_passes(self):
         self.assertEqual(db.check_brief({"design_brief": GOOD_BRIEF}, 1), [])
 
-    def test_invalid_image_decision_blocks(self):
+    def test_invalid_hierarchy_blocks(self):
+        """hierarchy 没有层级词 = 所有元素一样重，必须拦。"""
         b = dict(GOOD_BRIEF)
-        b["image_decision"] = "随便配一张"
+        b["hierarchy"] = "把标题放上面，下面是正文和几个卡片，整体排得比较整齐"
         probs = db.check_brief({"design_brief": b}, 2)
-        self.assertTrue(any("image_decision" in p for p in probs))
+        self.assertTrue(any("hierarchy" in p for p in probs),
+                        f"无层级词应被拦，实际返回 {probs}")
 
     def test_structure_reused_across_pages_blocks(self):
-        deck, _ = ad.compose(
-            notes([page("封面甲", "cover")] + [page(f"正文{i}") for i in range(5)]),
-            design_briefs=briefs(6, structures=["编号行"]))
-        res = lint_deck(prepare(copy.deepcopy(deck)))
-        codes = {e["code"] for e in res["errors"]}
-        self.assertIn("STRUCTURE_REUSED", codes)
+        """6 页同一结构标签：在 compose 入口就被拒（比 lint 更早）。"""
+        with self.assertRaises(ValueError) as ctx:
+            ad.compose(
+                notes([page("封面甲", "cover")]
+                      + [page(f"正文{i}") for i in range(5)]),
+                design_briefs=briefs(6, structures=["编号行"]))
+        self.assertIn("STRUCTURE_REUSED", str(ctx.exception))
 
     def test_distinct_structures_pass(self):
         deck, _ = ad.compose(
@@ -147,8 +175,6 @@ class TestBriefGate(unittest.TestCase):
         res = lint_deck(prepare(copy.deepcopy(deck)))
         codes = {e["code"] for e in res["errors"]}
         self.assertNotIn("STRUCTURE_REUSED", codes)
-
-
 class TestSkeletonGate(unittest.TestCase):
     """兜底判据：几何骨架重复。核心是它不听自报标签。"""
 
@@ -224,7 +250,7 @@ class TestRealWorldTemplateDeckRejected(unittest.TestCase):
         res = lint_deck(prepare(self._template_deck(40)))
         self.assertFalse(res["ok"], "122 页同构 deck 那种产物必须编译不过")
         codes = {e["code"] for e in res["errors"]}
-        self.assertIn("DESIGN_BRIEF_MISSING", codes)
+        self.assertIn("DESIGN_SPEC_MISSING", codes)
         self.assertIn("LAYOUT_SKELETON_REPEAT", codes)
 
     def test_same_deck_with_briefs_still_caught_by_skeleton(self):

@@ -957,24 +957,27 @@ def lint_deck(deck):
         # 判据三（兜底）几何骨架重复：只听坐标、不听自报标签，抓
         #   「简报写得花哨但版面还是抄上一页」。
         try:
-            from . import design_brief as _db
+            from . import design_spec as _db
             from . import layout_fingerprint as _lf
         except ImportError:                       # running as a plain script
-            import design_brief as _db            # type: ignore
+            import design_spec as _db             # type: ignore
             import layout_fingerprint as _lf      # type: ignore
 
         _bp = deck.get("brief_pool")
         pool_fallback = (_bp is True) or (
             str(_bp or "").strip().lower() in ("prototype", "pool", "fallback"))
-        brief_blockers, brief_stats = _db.check_deck(slides)
+        # 六维规格：布局结构 / 视觉层级 / 组件拆分与状态 / 响应式 /
+        # 可访问性 / 设计一致性。任一页缺项即 blocker，与 compose 入口同源。
+        brief_blockers, brief_stats = _db.check_deck(
+            slides, design_system=deck.get("design_system"))
         if not pool_fallback:
             for code, msg in brief_blockers:
                 derr(code, msg)
-        elif brief_stats["without_brief"]:
+        elif brief_stats["without_spec"]:
             # 显式声明走兜底：不拦，但要在报告里看得见，不能静默。
             dwarn("BRIEF_POOL_FALLBACK",
                   f"本 deck 显式声明走原型兜底（brief_pool），"
-                  f"{len(brief_stats['without_brief'])} 页没有逐页设计简报。"
+                  f"{len(brief_stats['without_spec'])} 页没有逐页设计简报。"
                   f"固定报告类可以接受；创作类 deck 建议逐页写简报")
 
         # 兜底判据无条件运行：它是唯一能抓住「绕过简报直接手写模板」的判据，

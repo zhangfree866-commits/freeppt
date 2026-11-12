@@ -171,11 +171,22 @@ def cmd_compose(args):
     from engine import art_direction
     notes_path = os.path.abspath(args.notes)
     notes = load(notes_path)
+
+    # 六维设计规格：优先 --briefs；否则读 notes 里的 design_briefs。
+    # 两处都没有时交给 compose() 报错（它会区分「没传」和「声明走原型兜底」）。
+    design_briefs = None
+    briefs_path = getattr(args, "briefs", None)
+    if briefs_path:
+        design_briefs = load(os.path.abspath(briefs_path))
+    elif isinstance(notes.get("design_briefs"), dict):
+        design_briefs = notes["design_briefs"]
+
     try:
         deck, ledger = art_direction.compose(
             notes, os.path.dirname(notes_path), args.cover, args.base, args.seed,
             card_system=getattr(args, "card_system", False),
-            scoring=getattr(args, "scoring", False))
+            scoring=getattr(args, "scoring", False),
+            design_briefs=design_briefs)
     except ValueError as exc:
         print(f"COMPOSE BLOCKED: {exc}", file=sys.stderr)
         return 1
@@ -582,9 +593,43 @@ def cmd_selfcheck(args):
     任何人（包括不信这套说法的人）都可以跑这条命令自己看结果，
     不需要相信任何人的汇报。
     """
-    from engine import design_brief, layout_fingerprint
+    from engine import design_spec, layout_fingerprint
 
     checks = []
+
+    # --- 样本零：六维设计规格闸门本身 ---
+    # 造一份六维齐全的规格 → 必须过；再逐维删一个 → 必须被拦。
+    # 这是「模型逐页当设计师」这条最高原则的执行体，它失效等于原则失效。
+    _ds = {"palette": {}, "type_scale": {}, "spacing": {}, "font_pair": {}}
+    _full = {
+        "structure": "否定墙：左六灰块，右一亮块",
+        "hierarchy": "第一眼亮块，第二眼灰块阵，辅助是来源行",
+        "components": [{"name": "灰块阵", "role": "列举被否定做法"},
+                       {"name": "亮块", "role": "唯一保留答案"}],
+        "states": {"default": "全灰+右亮", "emphasis": "描边加粗"},
+        "responsive": "窄屏 960px 以下两列改堆叠",
+        "a11y": {"contrast": "8.2:1", "text_size": "最小 13.5pt"},
+        "consistency": ["palette", "type_scale"],
+        "rationale": "六个假的对照一个真的，需并列否定而非编号行",
+    }
+    _ok_brief = not design_spec.check_brief(
+        {"design_brief": _full}, 1, design_system=_ds)
+    checks.append((
+        "六维规格齐全 → 放行", _ok_brief, "无问题项" if _ok_brief else "被误伤"))
+
+    _dropped = []
+    for _dim in ("structure", "hierarchy", "components", "states",
+                 "responsive", "a11y", "consistency", "rationale"):
+        _b = dict(_full)
+        _b.pop(_dim)
+        if design_spec.check_brief({"design_brief": _b}, 1, design_system=_ds):
+            _dropped.append(_dim)
+    checks.append((
+        "八维任一维缺失 → 必被拦",
+        len(_dropped) == 8,
+        f"{len(_dropped)}/8 维能拦住" + ("" if len(_dropped) == 8
+                                        else f"，漏了 {_dropped}"),
+    ))
 
     # --- 样本一：122 页手写模板（复刻真实翻车形态）---
     bad = {"composed": True, "theme": "consulting", "slides": []}
@@ -615,8 +660,8 @@ def cmd_selfcheck(args):
         f"codes={sorted(codes)}",
     ))
     checks.append((
-        "必须报出「缺设计简报」",
-        "DESIGN_BRIEF_MISSING" in codes, "DESIGN_BRIEF_MISSING",
+        "必须报出「缺六维设计规格」",
+        "DESIGN_SPEC_MISSING" in codes, "DESIGN_SPEC_MISSING",
     ))
     checks.append((
         "必须报出「几何骨架重复」（不听自报版式名）",
@@ -638,14 +683,12 @@ def cmd_selfcheck(args):
 
     # --- 样本三：占位话术算不算没填 ---
     junk_rejected = all(
-        design_brief.check_brief(
-            {"design_brief": {"carrier": "svg", "structure": junk,
-                              "visual_anchor": "一个主视觉图形",
-                              "image_decision": "svg",
-                              "rationale": "这页要并列对照，所以用左右两列"}}, 1)
+        design_spec.check_brief(
+            {"design_brief": dict(_full, structure=junk)}, 1,
+            design_system=_ds)
         for junk in ("无", "TBD", "同上", "  ")
     )
-    checks.append(("简报里写「无 / TBD / 同上」算没填", junk_rejected,
+    checks.append(("规格里写「无 / TBD / 同上」算没填", junk_rejected,
                    "占位话术被拒"))
 
     # --- 样本四：正常产物不能被误伤 ---
@@ -872,6 +915,9 @@ def main():
     p_cp = sub.add_parser("compose", help="creative page-by-page composition")
     p_cp.add_argument("notes", help="notes JSON (book + pages)")
     p_cp.add_argument("--cover", help="reference cover image (overrides notes)")
+    p_cp.add_argument("--briefs",
+                      help="per-page design specs JSON (six dimensions). "
+                           "Required unless notes declares brief_pool=prototype")
     p_cp.add_argument("--base", default="magazine")
     p_cp.add_argument("--seed", help="override the deterministic seed")
     p_cp.add_argument("--card-system", action="store_true",

@@ -1351,6 +1351,23 @@ def compose(notes, notes_dir="", cover_path=None, base="magazine", seed=None,
     ledger["chapters"] = len(boundaries) + (1 if pages else 0)
     ledger["long_deck_forced"] = forced and len(pages) > CHAPTER_PAGE_CAP
     ledger["scoring"] = bool(scoring)
+
+    # ---- 六维设计规格闸门（最高原则的执行体） ----
+    # 前面只保证了「有 design_briefs」，但一个 brief 可能只有 5 个字。这里用
+    # 六维规格逐页校验：布局结构 / 视觉层级 / 组件拆分与状态 / 响应式 /
+    # 可访问性 / 设计一致性。缺任一项直接失败，不提供 --force。
+    # 例外：显式声明 brief_pool="prototype" 的标准原型 deck 不走六维闸门——
+    # 但该声明会进 ledger 留痕，且 audit-design/audit-pptx 仍会拦套版。
+    if briefs_by_idx and not pool_declared:
+        from engine import design_spec
+        spec_stats = design_spec.require_deck(
+            slides, design_system=deck.get("design_system"))
+        ledger["design_spec"] = {
+            "pages_with_spec": spec_stats["with_spec"],
+            "structure_counts": {k: len(v) for k, v
+                                 in spec_stats["structure_counts"].items()},
+        }
+
     return deck, ledger
 
 
