@@ -45,3 +45,19 @@ def test_every_page_has_structure(deck_path):
     for p in r["per_page"]:
         assert p["shapes"] >= 10, f"第 {p['page']} 页形状过少"
         assert p["dividers"] >= 1, f"第 {p['page']} 页缺分隔线"
+
+
+def test_declares_its_own_boundary(deck_path):
+    """钉住这个构建器的**性质**：它是判据基准，不是交付路径。
+
+    它直接用 python-pptx 画坐标，**没有**逐页六维简报，也不经 `compose()`。
+    所以它 `audit_design` 不过 `ok=True` 只能说明「判据所描述的水平真能做到」，
+    不能说明「逐页当设计师」这条规则被满足了。把它当交付样例引用就是错的。
+    """
+    import inspect
+    from engine import seven_habits_deck as mod
+
+    src = inspect.getsource(mod)
+    # 明确不 import 六维闸门 —— 一旦有人把它接进交付路径，这条会提醒他补简报
+    assert "design_spec" not in src
+    assert "require_deck" not in src

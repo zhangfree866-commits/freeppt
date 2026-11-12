@@ -348,6 +348,208 @@ def check_deck(slides, design_system=None):
     return blockers, stats
 
 
+# --------------------------------------------------------------------------- #
+# 「规格有没有真的驱动版面」——把「填字段」和「当设计师」分开
+# --------------------------------------------------------------------------- #
+# 来历（2026-11-13，用户第二次报「生成的 PPT 又没按 skill 做」）：
+# 六维规格接上闸门之后，一个更隐蔽的问题浮出来——规格**填了，但没生效**。
+# compose() 里唯一读进几何的 brief 字段只有 `archetype`；`structure` 里写的
+# 「左列六个灰块、右侧一块亮起」被原样抄进 slide["design_brief"] 存档，
+# 却对画面零影响。引擎照样按原型渲染出一个三条编号列表。
+#
+# 所以「模型逐页当设计师」的可检查形态不能只是「字段非空」，还得是
+# **规格里的几何声明在成品里找得到**。这条判据就是那个断点。
+
+# 几何语汇：规格里出现这些词，就应当能在成品里看到对应的形状特征。
+GEOMETRY_VOCAB = {
+    "grid": ("网格", "矩阵", "格", "grid", "matrix"),
+    "circle": ("圆", "环", "同心", "circle", "ring", "radial"),
+    "bar": ("柱", "条带", "横条", "bar", "band"),
+    # 注意：「递进」不在词表里。它是逻辑递进，不是物理台阶——写「三段递进」
+    # 的错位三联会被误判成声明了台阶。几何词只收几何词。
+    "stair": ("阶梯", "台阶", "stair", "step"),
+    "column": ("左列", "右列", "两列", "分栏", "column"),
+    "quadrant": ("象限", "四格", "十字", "quadrant", "2×2"),
+}
+
+
+#: 否定语境词。判据只看「有没有说这个词」，但「不使用任何栏格」不属于声明。
+#: 实测算过：quote-bleed 那页因为写了「不使用任何栏格」，被判成声明了 grid，
+#: 于是「规格说网格、成品是整幅引言」——凭空造出一个脱钩。
+_NEGATION_MARKERS = ("不", "无", "非", "没", "勿", "去掉", "取消", "避免",
+                     "不用", "不做", "不设", "禁止", "排除")
+
+#: 否定词生效的观察窗口（命中词往前看多少个字）。
+_NEGATION_WINDOW = 8
+
+
+def _in_negation(text, pos):
+    """命中位置 pos 是否处在否定语境里。"""
+    head = text[max(0, pos - _NEGATION_WINDOW):pos]
+    return any(m in head for m in _NEGATION_MARKERS)
+
+
+def _geometry_claims(text):
+    """规格文本里声明了哪些几何语汇。
+
+    带否定判定：「不使用任何栏格」「不做网格」不属于声明。早先只做子串
+    匹配，于是「我决定不用网格」被读成「我要网格」，判据跟着造出假脱钩。
+    """
+    t = _text(text).lower()
+    found = set()
+    for key, words in GEOMETRY_VOCAB.items():
+        for w in words:
+            wl = w.lower()
+            start = 0
+            hit = False
+            while True:
+                pos = t.find(wl, start)
+                if pos < 0:
+                    break
+                if not _in_negation(t, pos):
+                    hit = True
+                    break
+                start = pos + len(wl)
+            if hit:
+                found.add(key)
+                break
+    return found
+
+
+def _slide_geometry(slide):
+    """一页成品**实际**呈现了哪些几何语汇。只看几何，不看任何自报名字。
+
+    为什么不能用 archetype 名：`stair-list` 这个名字里有 "stair"，可它的实现
+    只是每行缩进 34px 的编号列表——四行累计 100px，视觉上就是普通列表。用名字
+    判断，判据会跟着一起被骗；这一版改成从坐标反推，名字说谎就会当场暴露。
+
+    「算不算这种几何」用几何关系本身定义，而不是用阈值拍脑袋：
+      stair    左缘与上缘同向严格递增，且累计偏移够大（≥80px）才有台阶感
+      grid     横向和纵向都出现多个不同位置（2×2 起）
+      bar      纵向位置少（1–2 行）、横向排开多个
+      column   横向位置少、纵向堆叠多个
+      circle   真有圆形/椭圆形状
+      quadrant 有十字交叉线（横线 + 竖线都有）
+    """
+    found = set()
+    rects = []
+    shape_rects = []          # 只有「形状」的矩形，不含文字框
+    kinds = []
+    for c in (slide.get("children") or []):
+        kind = f"{c.get('t', '')} {c.get('kind', '')}".lower()
+        kinds.append(kind)
+        r = c.get("rect") or c.get("box")
+        if isinstance(r, (list, tuple)) and len(r) >= 4:
+            try:
+                t = tuple(float(v) for v in r[:4])
+            except (TypeError, ValueError):
+                t = None
+            if t:
+                rects.append(t)
+                # 文字框的 rect 只是「排版留位」，不是视觉几何。把标题框
+                # （y=58 一条横跨 1080px）算进内容块，会直接打乱台阶的
+                # 「顶边单调」判断——实测就是它让真台阶被判成了网格。
+                if "text" not in kind:
+                    shape_rects.append(t)
+        if any(k in kind for k in ("circle", "ellipse", "oval")):
+            found.add("circle")
+
+    if not rects:
+        return found
+
+    # 只拿「形状」说话：太细的线、太窄的装饰、页眉的小色条都不算结构。
+    # 阈值取 60×48：台阶最矮的一级也有 156px 高，绝不会被误过滤。
+    blocks = [r for r in shape_rects if r[2] >= 60 and r[3] >= 48]
+
+    # 长横线 = 条带/时间轴的骨架。它太细，会被上面的 blocks 过滤掉，
+    # 但「一条贯穿页面的横线」恰恰就是 bar/timeline 这类版式的几何证据。
+    long_h = [r for r in rects if r[2] >= 400 and r[3] <= 8]
+    if long_h:
+        found.add("bar")
+
+    # 长竖线 = 分栏线。这是最容易漏的一条：editorial-spread、cover-editorial
+    # 都是「一条 2px 竖线把版面劈成左右两半」，但它们的内容块只是文字框，
+    # 全被 shape_rects 排除了，于是 blocks 为空、actual 为空集，一个正常的
+    # 左右分栏被判成「什么几何都没有」。实测就是这条让两页正路被误拦。
+    long_v = [r for r in rects if r[3] >= 400 and r[2] <= 8]
+    if long_v:
+        found.add("column")
+
+    if len(blocks) < 2:
+        return found
+
+    xs = sorted({round(r[0], 1) for r in blocks})
+    ys = sorted({round(r[1], 1) for r in blocks})
+
+    if len(xs) >= 2 and len(ys) >= 2:
+        # 台阶的本质：按左缘排序后，顶边必须单调移动，且累计横移够大
+        # （≥80px 才有台阶感，轻微缩进不算）。
+        #
+        # 方向要对：「向右上抬升」的台阶，左缘递增时顶边应当**递减**
+        # （y 变小 = 更高）。所以这里判的是「严格单调」，不是「一起变大」。
+        # 早先写成 top 与 left 同向递增，把真正的上升阶梯判成了普通网格。
+        by_x = sorted(((r[0], r[1]) for r in blocks))
+        left_up = all(by_x[i][0] <= by_x[i + 1][0]
+                      for i in range(len(by_x) - 1))
+        offset = abs(by_x[-1][0] - by_x[0][0]) if by_x else 0
+        tops = [t for _, t in by_x]
+        monotone_top = (all(tops[i] >= tops[i + 1] for i in range(len(tops) - 1))
+                        or all(tops[i] <= tops[i + 1]
+                               for i in range(len(tops) - 1)))
+        if left_up and monotone_top and offset >= 80:
+            found.add("stair")
+        # 网格：横纵都要有**多个**位置（2×2 起）。早先这里是无条件
+        # found.add("grid")，只要两个块位置不同就算网格——于是错位三联
+        # 被判成网格，判据自己把「grid」变成了万能垃圾桶。
+        if len(xs) >= 2 and len(ys) >= 2 and "stair" not in found:
+            # 错落但不构成台阶、也不是单行单列 → 才是网格
+            found.add("grid")
+    if len(ys) <= 2 and len(xs) >= 3:
+        found.add("bar")
+    if len(xs) <= 2 and len(ys) >= 3:
+        found.add("column")
+
+    has_h = any("line" in k or "divider" in k for k in kinds)
+    return found
+
+
+def check_spec_drives_layout(slides):
+    """规格声明的几何，必须在成品几何里找得到。返回 blockers。
+
+    为什么这条比「六维非空」更要紧：六维非空只能证明模型**填了字段**，
+    这条才证明模型**真的按自己说的那样排版**。前者可以被三分钟糊弄过去，
+    后者不能——你要么改了版面，要么没改。
+    """
+    blockers = []
+    for i, s in enumerate(slides, 1):
+        if not isinstance(s, dict):
+            continue
+        brief = s.get("design_brief") or s.get("design_spec")
+        if not isinstance(brief, dict):
+            continue
+        claims = _geometry_claims(
+            " ".join(_text(brief.get(k)) for k in
+                     ("structure", "components", "hierarchy")))
+        if not claims:
+            continue                      # 没声明几何语汇，不做此校验
+        actual = _slide_geometry(s)
+        children = s.get("children") or []
+        # 只有「真正没有画任何东西」的页才免检（宿主手绘占位页）。
+        # 早先写成 `if not actual: continue`——但那会把「规格说四象限、
+        # 实际只有一个色块」这种最典型的脱钩也放过（一个块算不出任何几何，
+        # actual 就是空集）。有形状却没有对应几何，恰恰是要拦的情况。
+        if not children:
+            continue
+        # 至少要兑现声明里的一项；一项都不兑现 = 规格和版面脱钩
+        if not (claims & actual):
+            blockers.append((
+                "SPEC_NOT_COMPILED",
+                f"第 {i} 页的规格声明了 {'/'.join(sorted(claims))} 这类几何，"
+                f"成品里却是 {'/'.join(sorted(actual)) or '其它'}——"
+                f"规格没驱动版面，等于只填了字段没做设计"))
+    return blockers
+
+
 def require_deck(slides, design_system=None):
     """硬闸门：不通过就抛异常。compose() 用它。
 
@@ -355,6 +557,10 @@ def require_deck(slides, design_system=None):
     变成「约束」的关键——没有旁路，没有 --force。
     """
     blockers, stats = check_deck(slides, design_system=design_system)
+    # 「规格有没有真的驱动版面」——这条把「填了字段」和「当了设计师」分开。
+    # 放在 require_deck 而不是 check_deck，是因为它读的是几何，属于交付时
+    # 才成立的判断；lint 侧仍只看 DSL 语义。
+    blockers = list(blockers) + check_spec_drives_layout(slides)
     if not blockers:
         return stats
     lines = [f"逐页设计规格未通过（{len(blockers)} 项），拒绝编译："]

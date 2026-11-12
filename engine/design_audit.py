@@ -55,6 +55,14 @@ FOOTER_BAND = 640
 # 没有用几何手段建立层级。
 MIN_DIVIDER_PAGES_RATIO = 0.5
 
+# 但「每页都要有分隔线」是**参照那一种风格**的组织手段，不是普适规则：
+# 一刀 table-board、一页 split-contrast（靠色块对撞分栏）、一页
+# numbered-cards（靠卡片本身分开），都不需要横线。用 50% 去判它们，
+# 等于逼所有版式都长成密集编辑风。
+# 所以：**零分隔线**才是硬缺陷（说明完全没用几何手段建立层级）；
+# 覆盖率偏低只作为提示。
+FLOOR_DIVIDER_PAGES = 1
+
 # 仪式页（封面/封底/章节扉页）豁免密度判据。
 # 依据：这类页的存在意义就是「少」——封面只有标题、署名、日期，密排结构反而是
 # 设计错误。但识别不能只看「字少」：一份 4 个文字块的裸排布正文页字也少，
@@ -171,6 +179,104 @@ def _text_boxes(slide):
     return out
 
 
+def _text_overflow(slide, pad=8.0):
+    """色块内所有文字的实际总占高超出色块可用高度 → 文字溢出容器。
+
+    为什么这条必须单独立判据：PowerPoint 不裁切溢出文字。它会让最后一行
+    悄悄落到色块外面，或者盖住下面那块的标题。三种实测缺陷同一个根因：
+      * 阶梯第 1 级正文 4 行，色块只放得下 3 行 —— 末尾「演。」掉出色块
+      * 批注块文字多出一行 —— 最后一个词落在外框之外
+      * 1987 的说明标签压在数字下沿
+
+    ## 为什么不能「逐块文字找它所在的色块」
+
+    第一版那么写，返回空列表。原因是文字框和色块并不嵌套：色块 [64,163,344,340]，
+    文字框 [86,207,300,140] —— 文字框只是落在色块**附近**，中心点恰好命中时
+    才判。而且一个色块里常有多块文字（编号/标题/正文），逐块判永远判不出
+    「加起来放不下」。
+
+    ## 现在的判法
+
+    对每个大色块，把几何上落在它内部的文字**全部聚合**，按各自字号算总占高，
+    再和「色块高 - 2×内边距」比。这才是排版的实际约束。
+    """
+    import unicodedata
+
+    def _unit(ch):
+        if ch == " ":
+            return 0.30
+        if unicodedata.east_asian_width(ch) in ("W", "F"):
+            return 1.0
+        return 0.56 if ch.isalnum() else 0.52
+
+    def _need_h(sh):
+        w = _px(sh.width)
+        total = 0.0
+        for para in sh.text_frame.paragraphs:
+            size = None
+            for r in para.runs:
+                if r.font.size:
+                    size = r.font.size.pt
+                    break
+            if size is None:
+                size = 14.25
+            em = size * 1.333
+            cap = max(w / em, 1.0)
+            lines = 0
+            for seg in (para.text if para.text.strip() else "").split("\n"):
+                units = sum(_unit(c) for c in seg)
+                lines += max(1, -(-int(round(units * 100)) // int(round(cap * 100))))
+            total += max(lines, 0) * em * 1.28
+        return total
+
+    # 容器：无色可当卡片的实心形状
+    containers = []
+    for sh in slide.shapes:
+        if getattr(sh, "has_text_frame", False) and sh.text.strip():
+            continue
+        w, h = _px(sh.width), _px(sh.height)
+        if w < 120 or h < 90:
+            continue
+        try:
+            if sh.fill.type is None:
+                continue
+        except (AttributeError, TypeError):
+            continue
+        containers.append((_px(sh.left), _px(sh.top), w, h))
+
+    problems = []
+    for (bx, by, bw, bh) in containers:
+        inside = []
+        for sh in slide.shapes:
+            if not (getattr(sh, "has_text_frame", False) and sh.text.strip()):
+                continue
+            tx, ty = _px(sh.left), _px(sh.top)
+            tw = _px(sh.width)
+            # 文字框中心落在色块内即视为该色块的文字
+            if not (bx - 8 <= tx + tw / 2 <= bx + bw + 8
+                    and by - 8 <= ty <= by + bh - 8):
+                continue
+            inside.append((sh, tx, ty, tw))
+        if not inside:
+            continue
+        inside.sort(key=lambda t: t[2])          # 按纵向顺序
+        top = min(t[2] for t in inside)
+        bottom = max(t[2] + _need_h(t[0]) for t in inside)
+        used = bottom - top
+        avail = bh - 2 * pad
+        # 容差 6px：估算折行用的是「按字宽加权」的平均口径，标点、避头尾、
+        # 字体实际字宽都会让真实行数差一行。判据的职责是抓「明显放不下」，
+        # 不是替代排版引擎做像素级验收——把正常产物判死比漏判更糟。
+        if used > avail + 6.0:
+            problems.append({
+                "text": inside[0][0].text.strip()[:28],
+                "used": round(used, 1),
+                "avail": round(avail, 1),
+                "over_by": round(used - avail, 1),
+            })
+    return problems
+
+
 def _overlaps(a, b, pad=2.0):
     """两块文字的实际占位是否相交（各边内缩 pad，避免贴边误报）。"""
     ax1, ay1 = a["x"] + pad, a["y"] + pad
@@ -231,6 +337,61 @@ def _page_stats(slide):
     }
 
 
+def _fonts_used(pptx_path):
+    """成品里声明了哪些字体，以及「东亚字形」由哪个字体承担。
+
+    返回 (ea_fonts, latin_fonts)。只读 XML，不依赖本机装了什么字体。
+
+    为什么必须在交付前查这件事：中文 deck 的 `a:ea` 如果指向一个没有中文字形
+    的西文字体，PowerPoint 打开会显示成豆腐块（□□□），而所有现有判据都查不出
+    ——形状数、结构件、分隔线、压字全部正常，视觉上就是一堆方框。实测把参照
+    deck 的 Georgia/Arial 令牌直接搬到中文内容上就复现了。
+    """
+    import re
+    import zipfile
+
+    ea, latin = set(), set()
+    try:
+        with zipfile.ZipFile(pptx_path) as z:
+            for name in z.namelist():
+                if not re.match(r"ppt/slides/slide\d+\.xml$", name):
+                    continue
+                xml = z.read(name).decode("utf-8", "ignore")
+                ea.update(re.findall(r'<a:ea typeface="([^"]*)"', xml))
+                latin.update(re.findall(r'<a:latin typeface="([^"]*)"', xml))
+    except (zipfile.BadZipFile, OSError):
+        return set(), set()
+    return {f for f in ea if f}, {f for f in latin if f}
+
+
+#: 已知没有中文字形的字体族。命中即拦——这些名字出现在 a:ea 上一定是错的。
+_NO_CJK_FONTS = (
+    "arial", "helvetica", "georgia", "times new roman", "times",
+    "courier", "courier new", "verdana", "tahoma", "trebuchet",
+    "liberation sans", "liberation serif", "dejavu sans", "dejavu serif",
+    "linux libertine", "calibri", "cambria", "segoe ui", "roboto",
+    "inter", "helvetica neue", "frank ruhl", "frankruehl",
+)
+
+
+def _cjk_font_problems(pptx_path):
+    """a:ea 指向无中文字形的西文字体 → 中文全部变豆腐块。返回问题页描述。
+
+    只拦「确定没有中文字形」的字族。未知字体放行——判据不该因为我不认识
+    某个字体名就判死一份正常的 deck。
+    """
+    ea, _ = _fonts_used(pptx_path)
+    bad = []
+    for f in sorted(ea):
+        low = f.strip().lower()
+        if any(low == n or low.startswith(n + " ") for n in _NO_CJK_FONTS):
+            bad.append(f)
+    if not bad:
+        return []
+    return [{"fonts": bad,
+             "why": "这些字体没有中文字形，中文会全部渲染成方框"}]
+
+
 def audit_design(pptx_path, min_shapes=MIN_SHAPES_PER_PAGE,
                  min_structure=MIN_STRUCTURE_PER_PAGE,
                  max_same=MAX_SAME_SKELETON):
@@ -259,9 +420,13 @@ def audit_design(pptx_path, min_shapes=MIN_SHAPES_PER_PAGE,
     total_dividers = 0
     collisions = []
     clipped = []
+    overflows = []
 
     for i, s in enumerate(slides, 1):
         st = _page_stats(s)
+        for ov in _text_overflow(s):
+            ov["page"] = i
+            overflows.append(ov)
         # 仪式页识别：巨型标题 + 极少文字块。只看「字少」不够——裸排布正文页
         # 字也少，那类是必须拦的缺陷，不能被豁免掉。
         blocks = 0
@@ -301,6 +466,46 @@ def audit_design(pptx_path, min_shapes=MIN_SHAPES_PER_PAGE,
                         "a": boxes[a]["text"][:18],
                         "b": boxes[b]["text"][:18],
                     })
+        # 色块压字：实心色块盖住别人的文字，比文字压文字更隐蔽——
+        # 文字还"在"，只是被盖住看不见了。实测：批注块底边 636 压住 648
+        # 处的页码，渲染图里「03 / 09」被浅色块吃掉一半，而纯文字碰撞
+        # 判据完全查不出（页码文字自己没和谁重叠）。
+        for sh in s.shapes:
+            if getattr(sh, "has_text_frame", False) and sh.text.strip():
+                continue
+            bw, bh = _px(sh.width), _px(sh.height)
+            if bw < 120 or bh < 60:      # 细线、小装饰不算
+                continue
+            try:
+                if sh.fill.type is None:
+                    continue
+            except (AttributeError, TypeError):
+                continue
+            bx, by = _px(sh.left), _px(sh.top)
+            for tbx in boxes:
+                # 判「这块文字不属于本块，却被本块压住」——用**重合比例**，
+                # 不用「中心在不在块内」，也不用「是否完全包含」：
+                #   * 完全包含 → 太严：文字框常刻意比色块多出 2px 贴视觉边距，
+                #     实测 78 vs 80 就被判死，正常产物被误伤。
+                #   * 只看中心 → 太松：页码文字整体被色块吞掉时，中心正好在
+                #     块内，于是「压住页码」被当成正常设计放过。
+                # 重合比例两头都对：属于本块的文字通常 ≥85% 在块内；
+                # 被压住的页码只有约一半在里面。
+                ox = min(bx + bw, tbx["x"] + tbx["w"]) - max(bx, tbx["x"])
+                oy = min(by + bh, tbx["y"] + tbx["h"]) - max(by, tbx["y"])
+                if ox <= 0 or oy <= 0:
+                    continue
+                area = max(tbx["w"] * tbx["h"], 1.0)
+                covered = (ox * oy) / area
+                if covered >= 0.85:
+                    continue                 # 这块文字基本都在色块内 = 正常
+                if ox > 6 and oy > 6:
+                    collisions.append({
+                        "page": i,
+                        "a": f"色块[{round(bx)},{round(by)},{round(bw)},{round(bh)}]",
+                        "b": tbx["text"][:18],
+                    })
+
         # 出界：文字框超出画布安全区（右下页码区与左下来源行都在这条线上）
         for bx in boxes:
             if bx["y"] + bx["h"] > 719 or bx["x"] + bx["w"] > 1276:
@@ -330,16 +535,29 @@ def audit_design(pptx_path, min_shapes=MIN_SHAPES_PER_PAGE,
 
     with_dividers = sum(1 for p in per_page if p["dividers"] > 0)
     divider_ratio = with_dividers / total
-    dividers_thin = divider_ratio < MIN_DIVIDER_PAGES_RATIO
+    # 硬拦：全篇一条分隔线都没有（说明完全没用几何手段组织信息）。
+    # 覆盖率高不高只作提示——不同版式本来就用不同的分隔手段。
+    dividers_thin = with_dividers < FLOOR_DIVIDER_PAGES
+    dividers_sparse = divider_ratio < MIN_DIVIDER_PAGES_RATIO
+
+    # 字体可读性：a:ea 指向无中文字形的西文字体时，整本中文都是空方框。
+    # 这不是「风格」问题，是成品直接不可读，一律硬拦。
+    font_problems = _cjk_font_problems(pptx_path)
 
     ok = (not bare_floor and not thin_floor and not over
-          and not dividers_thin and not collisions and not clipped)
+          and not dividers_thin and not collisions and not clipped
+          and not overflows and not font_problems)
 
     # 人话结论：说清差在哪，不只给分数
     if ok:
         verdict = "版面成立：结构件密度够、有框架、视觉论证有变化、没有文字压字"
+        notes_out = []
         if thin or bare:
-            verdict += f"（提示：{len(bare)} 页密度低于参照风格，属风格选择可忽略）"
+            notes_out.append(f"{len(bare)} 页密度低于参照风格")
+        if dividers_sparse:
+            notes_out.append(f"分隔线只在 {divider_ratio:.0%} 的页面上")
+        if notes_out:
+            verdict += "（提示：" + "、".join(notes_out) + "，属风格选择可忽略）"
     else:
         bits = []
         if bare_floor:
@@ -352,8 +570,7 @@ def audit_design(pptx_path, min_shapes=MIN_SHAPES_PER_PAGE,
             worst = over[0]
             bits.append(f"{worst['count']} 页共用同一副骨架（上限 {max_same}）")
         if dividers_thin:
-            bits.append(f"分隔线只出现在 {divider_ratio:.0%} 的页面上"
-                        f"（参照是每页都用，全篇 45 条）")
+            bits.append("全篇一条分隔线都没有——没用手线/竖线/细条建立层级")
         if collisions:
             pages = sorted({c["page"] for c in collisions})
             bits.append(f"{len(collisions)} 处文字压字，涉及第 "
@@ -362,6 +579,13 @@ def audit_design(pptx_path, min_shapes=MIN_SHAPES_PER_PAGE,
             pages = sorted({c["page"] for c in clipped})
             bits.append(f"{len(clipped)} 处文字出界或被裁，涉及第 "
                         + "、".join(str(p) for p in pages[:8]) + " 页")
+        if overflows:
+            pages = sorted({o["page"] for o in overflows})
+            bits.append(f"{len(overflows)} 处文字溢出所在色块，涉及第 "
+                        + "、".join(str(p) for p in pages[:8]) + " 页")
+        if font_problems:
+            names = "、".join(font_problems[0]["fonts"][:4])
+            bits.append(f"中文字体不可用（{names}）——中文会全部显示成方框")
         verdict = "版面不成立：" + "；".join(bits)
 
     return {
@@ -385,6 +609,8 @@ def audit_design(pptx_path, min_shapes=MIN_SHAPES_PER_PAGE,
         "max_repeat": max_repeat,
         "collisions": collisions,
         "clipped": clipped,
+        "font_problems": font_problems,
+        "overflows": overflows,
         "limits": {
             "min_shapes": min_shapes,
             "min_structure": min_structure,

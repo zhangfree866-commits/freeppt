@@ -66,6 +66,16 @@ def _t(x, y, w, text, size, color, max_h=None, min_size=16, **kw):
     return n
 
 
+def _wrap_h(text, w, size):
+    """一段文字在给定宽度下占多高（含 _t 的 +6 余量）。
+
+    用于「先量字、再定容器」——批注块、卡片这类容器的尺寸应当由内容决定，
+    不能写死。写死就是文字溢出容器的来源。
+    """
+    node = {"t": "text", "text": str(text), "size": size, "color": "#000000"}
+    return math.ceil(L.leaf_text_h(node, max(w, 1))) + 6
+
+
 def _b(x, y, w, h, fill=None, **kw):
     n = {"t": "box", "rect": [round(x, 1), round(y, 1), round(w, 1), round(h, 1)],
          "children": []}
@@ -347,9 +357,18 @@ def a_editorial_spread(p, S, c):
             kids.append(n)
             y = n["rect"][1] + n["rect"][3] + 22
     if p.get("note"):
-        kids.append(_b(rx, 590, rw, 58, S["soft"]))
-        kids.append(_t(rx + 16, 602, rw - 32, p["note"], 16, S["ink"],
-                       max_h=44, on=S["soft"]))
+        # 批注块高度必须跟着文字走。原来是写死的 58px + 文字 max_h=44：
+        # 批注一写长，第 3 行就掉到色块外面（实测渲染有「原文逐字引用。」
+        # 落在块外）。先量文字要多高，再倒推色块高度，底边对齐页脚上沿。
+        note_w = rw - 32
+        note_line = _wrap_h(p["note"], note_w, 16)
+        note_h = note_line + 24            # 上下各 12px 内边距
+        # 底边不能低于 630：下面 648 处是页码行，636 会让色块压住页码
+        # （渲染实测「03 / 09」被浅色块盖掉一半）。
+        note_y = min(max(560, 630 - note_h), 630 - note_h)
+        kids.append(_b(rx, note_y, rw, note_h, S["soft"]))
+        kids.append(_t(rx + 16, note_y + 12, note_w, p["note"], 16, S["ink"],
+                       max_h=note_line, on=S["soft"]))
     kids += _source(S, p, 64, 648, 700, on=S["paper"])
     kids += _chrome(S, c, 1060, 648, on=S["paper"], align="right", w=160)
     return kids, S["paper"], "light", "mid"
@@ -360,18 +379,35 @@ def a_offset_triptych(p, S, c):
     pts = _points(p)[:3]
     n = len(pts)
     layouts = {
-        1: ([64], [700], [178], [S["soft"]]),
-        2: ([64, 700], [572, 516], [168, 248], [S["soft"], S["accent"]]),
+        1: ([64], [700], [196], [S["soft"]]),
+        2: ([64, 700], [572, 516], [196, 246], [S["soft"], S["accent"]]),
         3: ([64, 466, 856], [344, 342, 356],
-            [140 + r.randint(0, 40), 214 + r.randint(0, 40), 112 + r.randint(0, 40)],
+            [196, 246, 188],
             [S["soft"], None, S["accent"]]),
     }
     xs, ws, ys, fills = layouts[n]
-    kids = [_t(64, 62, 900, _head(p), 36, S["ink"], max_h=70,
-               min_size=26, weight="bold", on=S["paper"])]
+    title = _t(64, 62, 900, _head(p), 36, S["ink"], max_h=70,
+               min_size=26, weight="bold", on=S["paper"])
+    kids = [title]
     kids += _motif(S, 1050, 68, 0.9, 3)
+
+    # 编号必须落在标题**实际**底边之下。这里不用标题框的 53px，因为 36pt
+    # 一行的真实占高是 36×1.333×1.28 ≈ 61px，框比字矮——原来把编号硬编码在
+    # 卡片上方 46px 处，标题两行时编号就压进标题了（成品审计实测第 5 页
+    # collisions: 标题 ↔「01」）。标题框高是排版留位，不是视觉边界。
+    title_bottom = title["rect"][1] + title["rect"][3]
+    num_h = 30 * 1.333 * 1.28                  # 编号行高
+    num_gap = 46                               # 编号与卡片之间的间距
+    min_card_y = title_bottom + 10 + num_h + num_gap
+
+    # 卡片高度压到 340：原来 380 时第二块（y≈254）底边会到 634，
+    # 直接压住 y=626 的批注行。
+    card_h = 340 if n == 3 else 360
+    floor_y = 600 - card_h                     # 给批注行留出呼吸
+    ys = [min(max(y + r.randint(0, 16), min_card_y), floor_y) for y in ys]
+
     for i, (pt, x, w_, y) in enumerate(zip(pts, xs, ws, ys)):
-        kids.append(_t(x, y - 46, 100, f"{i + 1:02d}", 30, S["accent"],
+        kids.append(_t(x, y - num_gap, 100, f"{i + 1:02d}", 30, S["accent"],
                        decor=True, weight="bold", on=S["paper"]))
         dark_card = fills[i] == S["accent"]
         blocks = []
@@ -382,7 +418,7 @@ def a_offset_triptych(p, S, c):
         if pt["body"]:
             blocks.append(_blk(pt["body"], 18,
                                S["paper"] if dark_card else S["body"], space=12))
-        kids.append(_rc(x, y, w_, 380 if n == 3 else 420, blocks,
+        kids.append(_rc(x, y, w_, card_h, blocks,
                         fill=fills[i], border=None if dark_card else S["line"],
                         pad=22, on=S["accent"] if dark_card else None))
     if p.get("note"):
@@ -400,16 +436,23 @@ def a_quote_bleed(p, S, c):
     sub = S["soft"] if dark else S["body"]
     kids = [_b(0, 0, W, H, surface)]
     kids += _motif(S, 940, 80, 2.2 if not dark else 1.6, 2)
-    kids.append(_t(64, 66, 200, "“", 130, S["accent"], decor=True, on=surface))
+    kids.append(_t(64, 52, 200, "“", 130, S["accent"], decor=True, on=surface))
     q = _quote(p)
-    n = _t(150, 220, 940, q, 44, fg, max_h=290, min_size=28,
+    n = _t(150, 236, 940, q, 44, fg, max_h=290, min_size=28,
            weight="bold", on=surface)
     kids.append(n)
-    kids.append(_d(150, n["rect"][1] + n["rect"][3] + 34, 260, S["accent"],
-                   thickness=4))
+    # 这条短粗线**不能放在引言下面**。实测两版都被穿过最后一行：
+    # 先按 rect 底边 +34，再按 +26，渲染出来都是「线压文字」——因为
+    # LibreOffice 与 PowerPoint 的 44pt 行盒都比几何估算高，任何「贴着
+    # 文字底边」的装饰线都会碰到最后一行。
+    #
+    # 换一个设计判断：这条线的作用是「引言的起手式」，不是「下划线」。
+    # 放在引言**上方**——既不会碰字，又保住了「一句话前面有一道重笔」的
+    # 视觉重量。同一条线，位置一改，从缺陷变成设计。
+    kids.append(_d(150, 186, 260, S["accent"], thickness=4))
     att = p.get("attribution") or c["book"].get("author", "")
     if att:
-        kids.append(_t(150, n["rect"][1] + n["rect"][3] + 56, 800,
+        kids.append(_t(150, n["rect"][1] + n["rect"][3] + 44, 800,
                        "— " + att, 19, sub, on=surface))
     kids += _chrome(S, c, 64, 650, on=surface)
     return kids, surface, "dark" if dark else "light", "airy"
@@ -493,26 +536,106 @@ def a_margin_notes(p, S, c):
 
 
 def a_stair_list(p, S, c):
-    r = c["rng"]
-    kids = [_t(64, 60, 1080, _head(p), 34, S["ink"], max_h=80,
-               min_size=24, weight="bold", on=S["paper"])]
-    kids += _motif(S, 1080, 66, 0.9, 0)
-    pts = _points(p)[:5]
-    y = 158
-    for i, pt in enumerate(pts):
-        x = 90 + i * 34
-        w_ = 1040 - i * 34
-        kids.append(_d(x, y, w_, S["line"], thickness=1))
-        kids.append(_t(x, y + 12, 60, f"{i + 1:02d}", 24, S["accent"],
-                       decor=True, weight="bold", on=S["paper"]))
-        if pt["head"]:
-            kids.append(_t(x + 66, y + 12, w_ - 80, pt["head"], 22,
-                           S["ink"], weight="bold", on=S["paper"]))
-        if pt["body"]:
-            kids.append(_t(x + 66, y + 46, w_ - 90, pt["body"], 17,
-                           S["body"], max_h=52, on=S["paper"]))
-        y += 96 + r.randint(0, 12)
-    kids += _chrome(S, c, 1060, 668, on=S["paper"], align="right", w=160)
+    """阶梯：每级台阶是实体色块，向右上抬升，级数=要点数。
+
+    为什么要改（2026-11-13）：原来只是每行缩进 34px 的编号列表——四行累计
+    偏移 100px，外加一条细线。名字叫 stair，画面上却没有台阶，用户一眼就看
+    出「没按说好的做」。现在真的画台阶：实体色块逐级加宽、逐级抬升，左缘与
+    上缘同步移动（累计偏移远超 80px 的台阶识别阈值），第一级最深、末级最亮。
+    """
+    kids = [_t(64, 58, 1080, _head(p), 33, S["ink"], max_h=76,
+               min_size=23, weight="bold", on=S["paper"])]
+    kids += _motif(S, 1080, 62, 0.9, 0)
+
+    pts = _points(p)[:4]
+    n = max(1, len(pts))
+
+    # 台阶几何：底部对齐同一条基线，**高度逐级递增**、左缘逐级右移。
+    # 于是左上角连成一条向上抬升的楼梯线——「从依赖到互赖」是往上的，
+    # 视觉方向必须跟着内容方向走，反了就变成「越走越低」。
+    #
+    # 关键约束（踩过三次）：
+    #   1) 高度必须递增，不能递减（递减画出来是往下走，语义相反）；
+    #   2) 每一级只占自己的水平区间，不能都铺到右缘（否则后级盖住前级文字）；
+    #   3) 底部对齐才有「台阶」感，顶部对齐会变成柱状图。
+    base_y = 610                      # 基线（各级底边都落在这里）
+    step_rise = 74                    # 每级高 74px
+    page_r = 1216
+    x0 = 92
+    n_gap = 8                         # 台阶之间的细缝，让层级更清楚
+
+    # 第一级高度必须按「最矮那一级的内容量」算出来，不能拍一个 156。
+    # 实测翻车：第 1 级正文写 4 行，156px 只放得下 3 行，末尾「演。」直接
+    # 掉到色块外面——成品审计的 overflows 判据当场拦下。台阶高度是版面
+    # 骨架，但骨架也得分得出「这一级有几行字」。
+    num_h = 20 * 1.333 * 1.28 + 30     # 编号行 + 下间距
+    head_h = 20 * 1.333 * 1.28 + 36    # 标题行 + 下间距
+    body_lines = max(len(pts[i]["body"]) for i in range(n)) if n else 0
+
+    def _wrap_lines(text, width, size):
+        """粗略折行数：按字宽加权，和审计用的同一套口径。"""
+        import unicodedata
+        em = size * 1.333
+        cap = max(width / em, 1.0)
+        units = 0.0
+        for ch in text:
+            if ch == " ":
+                units += 0.30
+            elif unicodedata.east_asian_width(ch) in ("W", "F"):
+                units += 1.0
+            elif ch.isalnum():
+                units += 0.56
+            else:
+                units += 0.52
+        return max(1, -(-int(round(units * 100)) // int(round(cap * 100))))
+
+    # 最窄的一级（第一级，宽 span-8）决定正文能折几行
+    first_w = ((page_r - x0) // n) - n_gap
+    body_line_max = max(
+        (_wrap_lines(pts[i]["body"], first_w - 36, 16)
+         for i in range(n) if pts[i]["body"]), default=2)
+    body_h = body_line_max * 16 * 1.333 * 1.28
+    short_h = int(num_h + head_h + body_h + 44)   # 44 = 上下内边距之和
+    short_h = max(short_h, 140)
+    span = (page_r - x0) // n         # 每级占的宽度
+    xs = [x0 + i * span for i in range(n)]
+    fills = [S["deep"], S["accent"], S["accent2"], S["soft"]][:n]
+    if len(fills) < n:
+        fills += [S["soft"]] * (n - len(fills))
+
+    def _fg_on(bg):
+        """按底色亮度选前景色。
+
+        不能写死：deep/accent/accent2 都是深色（用纸色字），soft 是浅色
+        （得用墨色字）。写死成 ink 会出现 #1C1917 on #1E3A5F 对比度 1.52
+        这种「几乎看不见」的组合——lint 的 CONTRAST 会当场拦下。
+        """
+        h = bg.lstrip("#")
+        r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+        lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
+        return S["ink"] if lum > 0.6 else S["paper"]
+
+    fgs = [_fg_on(f) for f in fills]
+
+    for i in range(n):
+        h = short_h + i * step_rise
+        x = xs[i]
+        # 只占自己那一段，最后一级铺到右边界
+        w = (page_r - x) if i == n - 1 else (span - n_gap)
+        y = base_y - h
+        kids.append(_b(x, y, w, h, fills[i]))
+        kids.append(_t(x + 18, y + 14, 52, f"{i + 1:02d}", 20,
+                       fgs[i], decor=True, weight="bold", on=fills[i]))
+        head = pts[i]["head"]
+        if head:
+            kids.append(_t(x + 18, y + 44, w - 36, head, 20, fgs[i],
+                           max_h=32, weight="bold", on=fills[i]))
+        body = pts[i]["body"]
+        if body:
+            kids.append(_t(x + 18, y + 80, w - 36, body, 16, fgs[i],
+                           max_h=72, on=fills[i]))
+
+    kids += _chrome(S, c, 1060, 664, on=S["paper"], align="right", w=160)
     return kids, S["paper"], "light", "dense"
 
 
@@ -523,10 +646,16 @@ def a_data_focus(p, S, c):
                min_size=24, weight="bold", on=S["paper"])]
     kids.append(_b(64, 200, 640, 360, S["soft"]))
     kids += _motif(S, 92, 226, 1.2, 2)
-    kids.append(_t(92, 286, 580, value, 150, S["accent"], max_h=190,
-                   min_size=60, weight="bold", on=S["soft"], decor=True))
+    num = _t(92, 286, 580, value, 150, S["accent"], max_h=190,
+             min_size=60, weight="bold", on=S["soft"], decor=True)
+    kids.append(num)
     if label:
-        kids.append(_t(92, 480, 560, label, 21, S["ink"],
+        # 说明标签的位置必须由数字**实际**底边推出来。原来写死 y=480：
+        # 150pt 数字加 _t 的 +6 余量，底边实际到 482，说明标签就压在数字下沿
+        # （渲染图里「黄光国提出…的年份」和 1987 粘在一起）。
+        label_y = num["rect"][1] + num["rect"][3] + 18
+        label_y = min(label_y, 200 + 360 - 62)      # 别超出浅色块
+        kids.append(_t(92, label_y, 560, label, 21, S["ink"],
                        max_h=62, on=S["soft"]))
     y = 210
     for pt in _points(p)[:3]:
@@ -687,11 +816,17 @@ def a_table_board(p, S, c):
     kids = [_t(64, 56, 1100, _head(p), 34, S["ink"], max_h=80,
                min_size=24, weight="bold", on=S["paper"])]
     kids += _motif(S, 1100, 62, 0.7, 3)
+    # 表格数据允许两种写法：嵌套在 p["table"] 里，或直接写在页面顶层。
+    # 只认前一种会把「模型已经很直白地给了 headers/rows」判成空表——
+    # 实测就踩过：页面写了 headers/rows，lint 报 TABLE_SHAPE 缺表格数据，
+    # 而产物里那个 table 节点的 headers/rows 都是空数组。
     spec = p.get("table") or {}
+    headers = spec.get("headers") or p.get("headers") or []
+    rows = spec.get("rows") or p.get("rows") or []
     kids.append({
         "t": "table", "rect": [64, 140, 1152, 400],
-        "headers": spec.get("headers", []),
-        "rows": spec.get("rows", []),
+        "headers": headers,
+        "rows": rows,
         "header_fill": S["deep"], "header_color": S["paper"],
         "body_color": S["ink"], "zebra": S["soft"],
         "border": S["line"], "_name": "table1",

@@ -9,7 +9,7 @@ python3 -m unittest discover -s tests -q
 echo "== 2/4 lint every example deck =="
 for f in examples/*.json; do
   case "$(basename "$f")" in
-    web_manifest.json|notes_*.json|style_*.json|structure_*.json|edits_*.json) continue ;;
+    web_manifest.json|notes_*.json|briefs_*.json|style_*.json|structure_*.json|edits_*.json) continue ;;
   esac
   printf "  %-40s" "$(basename "$f")"
   python3 engine/cli.py lint "$f" > /dev/null
@@ -17,7 +17,10 @@ for f in examples/*.json; do
 done
 
 echo "== 3/4 compose -> lint -> build smoke =="
+# 必须带 --briefs：六维规格是编译前提，不传会被 design_spec 闸门拦死（rc=1）。
+# 这份示例同时充当「逐页设计」的参照写法，别改成兜底原型池跑通就算了。
 python3 engine/cli.py compose examples/notes_renqing_mianzi.json \
+  --briefs examples/briefs_renqing_mianzi.json \
   --out /tmp/freeppt_check_deck.json --ledger /tmp/freeppt_check_style.json
 python3 engine/cli.py lint /tmp/freeppt_check_deck.json > /dev/null
 python3 engine/cli.py build /tmp/freeppt_check_deck.json /tmp/freeppt_check.pptx

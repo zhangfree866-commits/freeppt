@@ -3,6 +3,103 @@
 All notable changes to FreePPT are documented here. Dates use YYYY-MM-DD.
 Version strings follow the project's date-based scheme (`YYYYMMDD[.n]`).
 
+## [20261113.1] - 2026-11-13
+
+三条**可读性**判据：成品打开之后能不能读，不只是「版面像不像设计过」。
+
+全部来自一次真实的端到端验收（《人情与面子》9 页中文 deck 走完
+compose → build → 渲染 → 逐页看图），每一条都对应一张渲染图里的具体缺陷。
+
+### 1. 文字溢出所在色块（`overflows`，硬拦）
+
+PowerPoint 不裁切溢出文字，它会让字悄悄溢出色块、盖住别的东西。实测三处
+症状不同、根因相同：
+
+- 阶梯第 1 级正文 4 行，色块只放得下 3 行 → 末尾「演。」掉在色块外
+- 批注块写死 58px、文字 max_h=44 → 第 3 行「原文逐字引用。」落在块外
+- 1987 的说明标签写死 y=480，数字实际底边 482 → 说明压在数字下沿
+
+判法：对每个大色块，把落在它内部的文字**聚合**后按各自字号算总占高，
+与「色块高 − 2×8px」比。不能逐块文字找容器——一个色块里常有编号/标题/
+正文三块文字，逐块判永远判不出「加起来放不下」。
+
+### 2. 中文字体可用（`font_problems`，硬拦）
+
+把参照 deck 的 `Georgia` / `Arial` 令牌直接搬到中文内容上，`a:ea` 指向没有
+中文字形的西文字体 → 整本中文渲染成空方框。形状数、结构件、分隔线、压字
+**全部正常**，所有原判据都查不出。这条只能主动读 XML 查字体名。
+
+口径：只拦「确定没有中文字形」的字族；不认识的名字一律放行——判据不该因为
+「我没见过这个字体」判死一份正常的 deck。
+
+### 3. 实心色块压住文字（并入 `collisions`，硬拦）
+
+比「文字压文字」更隐蔽：文字还在文件里，只是被盖住看不见。实测批注块底边
+636 压住 648 处的页码，渲染图里「03 / 09」被吃掉一半。
+
+判法用**重合比例**（<85% 才算压住）。两头都试过：完全包含太严（文字框常
+刻意比色块多 2px 贴视觉边距，正常产物被误伤）；只看中心太松（页码整体被
+吞掉时中心正好在块内，漏判）。
+
+### 顺带修掉的引擎缺陷
+
+- `offset-triptych`：编号硬编码在卡片上方 46px 处，标题两行时编号压进标题；
+  卡片固定 380px 高，第二块底边到 634 会压住 626 的批注行。改为按标题实际
+  底边推导编号位置、卡片压到 340。**lint 的 `GEOMETRY_OVERLAP` 是对的，
+  引擎是错的。**
+- `stair-list`：第一级高度写死 156px。改为按「最窄那一级正文能折几行」算。
+- `editorial-spread`：批注块写死 58px。改为按文字实际高度撑开，底边封顶 630
+  （再低就压住 648 的页码）。
+- `quote-bleed`：引言下划线两版都穿过最后一行（rect 底边 ±34/+26 都试过，
+  LibreOffice 与 PowerPoint 的 44pt 行盒都比几何估算高）。改成放在引言
+  **上方**——同一条线，位置一改，从缺陷变成「引言的起手式」。
+- `data-focus`：说明标签位置由数字**实际**底边推出，不再写死 480。
+
+### 验收
+
+- 382 → 384 测试，`selfcheck` 全过
+- 《人情与面子》9 页 9 种版式，compose → build → audit-design 三环全过
+- 变异自证：`a:ea=Arial` 被拦；色块压页码被拦；文字塞不下的最小样本被拦
+- 渲染侧：LibreOffice 缺中文字形会导致**看起来像**豆腐块，但 pptx 本身是对的
+  （PDF 文字可正常抽取）。已在 `~/Library/Application Support/LibreOffice/4/user/fonts/`
+  放思源黑体解决本地预览
+
+### 补上「逐页设计」缺的可对照实例
+
+修判据的时候发现一个更基础的问题：**仓库里原来一份 `design_briefs` 都没有。**
+`compose` 缺简报会报错，但没人能看见「合格的一份长什么样」，于是首要规则只能
+靠读文字理解。补：
+
+- **`examples/briefs_renqing_mianzi.json`（新）** — 《人情与面子》9 页 9 份六维
+  简报，每页 `structure` / `rationale` 都不一样，可直接对照。
+- **`examples/notes_renqing_mianzi.json`** — 补上 `design_system` 令牌（来自参照
+  deck 实测：`9A3412/1E3A5F/1C1917/FAF7F2/E7D8C9/C8A27C`、字号 33/24/16/13.5）。
+- **`examples/deck_notes_composed.json`** — 用新链路重新生成，从 9 条
+  `DESIGN_SPEC_MISSING` 恢复到 0 blocker。旧文件是 `design_brief` 机制出现前的
+  快照，lint 已判死，但 SKILL.md / references/dsl.md 还拿它当示例，属于文档在教
+  一条走不通的路。
+
+**踩到的坑，已写测试钉住**：`--briefs` 把整个 JSON 当映射交给 `_resolve_brief`，
+只认 `"0"` / `0` / page id。我第一版写成 `{"design_briefs": {...}}` 包一层，
+结果 **compose 成功、页数正确、九页设计全部静默回退到原型池**。`test_design_spec.py
+::TestBriefsFileShape` 三条测试钉住：扁平能解析、包一层返回 None（不抛错，所以危险）、
+仓库里那份示例必须扁平且九页齐全。
+
+### 修掉 `tools/check_all.sh`
+
+第 3 步 `compose` 不带 `--briefs`，被自己的闸门拦死，本地全量检查长期 `rc=1`。
+不是引擎的 bug，是脚本没跟上闸门。同时把 `briefs_*.json` 加进第 2 步的跳过列表
+（它不是 deck，lint 会 `KeyError: 'slides'`）。
+
+### 明确 `seven_habits_deck.py` 的边界
+
+610 行、184 处硬编码坐标、零 `design_spec` 调用。它是**判据基准**（证明参照语法
+那种密度真能判过），**不是交付路径的样例**。已在 SKILL.md 写明「学逐页设计看
+`briefs_renqing_mianzi.json`，看判据水平看 `seven_habits_deck.py`」，并加测试
+钉住这个性质。
+
+384 → 387 测试。
+
 ## [20261112.11] - 2026-11-13
 
 Put the finished-file audit **on the delivery path**, and fix two false

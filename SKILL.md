@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。输入主题/大纲/数据、�
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, a native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261112.11"
+version: "20261113.1"
 author: "张三峯"
 ---
 
@@ -68,10 +68,12 @@ author: "张三峯"
 
 | 层 | 判什么 | 性质 |
 |---|---|---|
-| 硬拦 | 文字堆叠无结构（结构件 <2）、形状 <4、文字压字、文字出界、同骨架 >4 页、全篇零分隔线 | **缺陷**，必须修 |
+| 硬拦 | 文字堆叠无结构（结构件 <2）、形状 <4、文字压字、文字出界、**文字溢出色块**、**色块压住文字**、**中文字体无中文字形**、同骨架 >4 页、全篇零分隔线 | **缺陷**，必须修 |
 | 提示 | 形状数 <20 或结构件 <7（低于参照那种密集编辑风） | **风格**，可忽略 |
 
 分层理由：一份原生图表撑满一页的业务报告只有 9 个形状，视觉上完全成立。把密度当硬拦，等于逼所有 deck 都长成同一副密集编辑样——那恰好是「逐页当设计师」要反对的。**判据把成立的设计判死，比漏判更糟。** 仪式页（封面/封底）另有豁免：识别条件是「巨型标题 ≥28pt 且文字块 ≤5」，不是「字少」——只看字少会把裸排布正文页也当封面放过。
+
+**「能不能读」归硬拦，「够不够密」归提示。** 分界线是：读者拿不到信息 = 缺陷；读者拿得到、只是不如参照那么讲究 = 风格。中文变方框、字溢出色块、页码被吃掉，都属于前者。
 
 ### 怎么写（最小可用示例）
 
@@ -115,6 +117,16 @@ python3 engine/cli.py compose notes.json --briefs briefs.json --out deck.json
 `engine/design_brief.py` 的旧版只有 5 个字段，而且 `check_deck()` **全仓无人调用**——判据写了却没人调，等于文档。这次改名为 `design_spec.py` 并真接进 `compose()` 与 `lint`，就是为了让原则从「建议」变成「约束」。
 
 实测证据：接入当天，`tests/test_design_brief_gate.py` 立刻有 4 个用例变红——它们用的是旧 5 维数据。**按本规则，该改的是测试数据，不是放宽闸门**，已一并升级为六维。
+
+### 已知的一处例外（必须知道，别当范例）
+
+`engine/seven_habits_deck.py` 是 610 行、184 处硬编码坐标的**判据基准**：它证明「参照语法那种密度与版面，判据真的判得过」。但它**不是**交付路径的样例——
+
+- 它直接用 python-pptx 画坐标，不 import `design_spec`、不过 `compose()`；
+- 它没有逐页六维简报，因为它的页面是按参照 deck 的实测坐标**复刻**的，不是当页设计的；
+- 它 `audit_design` 过 `ok=True`，但那只能说明「这个水位做得到」，不能说明「逐页当设计师」被满足了。
+
+所以：**要学怎么写逐页设计，看 `examples/briefs_renqing_mianzi.json`；要看判据水平，看 `seven_habits_deck.py`。两者别混。** `tests/test_seven_habits_deck.py` 里有一条测试专门钉住这个边界。
 
 ## 创作第一性原理（最高准则）
 
@@ -175,6 +187,9 @@ python3 engine/cli.py compose notes.json --briefs briefs.json --out deck.json
 | L5 | 一个组件反复用 | 编号徽章 34×34、标签条 118×30、正文块 498×84 这类**尺寸固定**的件，每页复用 4–6 次。这是「可复用的基本组件」，不是「模板」——组件相同、组合不同 |
 | L6 | 克制 | 全篇 ≤7 色、≤5 级字号、≤2 种字体。密而不乱靠的是重复与对齐，不是花样 |
 | L7 | **不许字压字、不许出界** | 任何两块文字的真实占位不得相交；任何文字不得掉出 1280×720 画布 |
+| L8 | **文字不许溢出色块** | 色块内所有文字**聚合**后按各自字号算总占高 ≤ 色块高 − 2×8px。逐块判永远判不出「加起来放不下」 |
+| L9 | **中文字体必须有中文字形** | `a:ea` 指向的字族不能是纯西文字体（Arial / Georgia / Helvetica…）；容器高度由内容算，不写死 |
+| L10 | **实心色块不许压住文字** | 色块与任一文字框的重合面积 / 文字框面积 ≥85% 视为「在块内正常」，否则算压住。文字还在文件里、只是被盖住，比字压字更隐蔽 |
 
 **L7 的来历（2026-11-12，血的教训）**：这套参照语法第一版做完，L1–L6 全部达标
 （结构件 26–37、分隔线 34 条、5 页 5 种骨架），但截图一看是**烂的**：
@@ -194,6 +209,29 @@ python3 engine/cli.py compose notes.json --briefs briefs.json --out deck.json
    导致黄金参照被判 3 碰撞 + 5 出界。修正办法是按 Unicode 东亚字宽加权
    （全宽字 1.0em、字母数字 ≈0.56、空格 0.30），手动换行符 `\n` 单独折行。
 
+**L8–L10 的来历（2026-11-13，《人情与面子》9 页全流程验收）**：
+走完 compose → lint → build → 渲染 → **逐页看 PNG**，发现三个 L1–L7 一条都查不出的问题：
+
+- 阶梯第 1 级正文 4 行、色块只放得下 3 行，末尾「演。」掉在块外；
+  批注块写死 58px、文字 `max_h=44`，第 3 行落在块外；
+  1987 的说明标签写死 `y=480`、数字实际底边 482，说明压在数字下沿。
+  **三类症状、同一个根因：容器高度写死，而 PowerPoint 不裁字。**
+- 封面批注块底边 636 压住 648 处的页码，「03 / 09」在渲染图里被吃掉一半。
+  文字没丢、形状没少、没有碰撞——**色块压字比文字压文字更隐蔽**。
+- 整本中文渲染成 `□□□`。查 XML 发现 `a:ea` 指向 `Georgia`/`Arial`（照搬了
+  参照 deck 的字体令牌，而那是英文内容）。形状数、结构件、分隔线、压字
+  全部正常，只能主动读 XML 查字体名。
+
+这三条确立了一条方法论：**判据的来源必须是渲染图的肉眼验收，不是想象。**
+每写一条新判据，都要能指回「哪一页、哪个字、哪张图」。
+
+**校准纪律（新判据必须先自证两条）**：
+
+- 能拦住缺陷：构造最小样本，确认判据真的报警（不只看 `ok=True`）。
+- 不误杀正常产物：拿已经肉眼确认过的 deck 跑一遍，`ok` 必须为 `True`。
+  2026-11-13 的溢出判据第一版就把《七个习惯》10 页全判死，渲染图逐页看
+  完全正常——判据错，不是成品错。**判据把成立的设计判死，比漏判更糟。**
+
 **排版实现纪律**（否则一定压字，我自己踩了 10 次）：
 
 - 两块文字上下叠放，位置一律用 `_line_h(size)` 算，不写死偏移。
@@ -202,9 +240,20 @@ python3 engine/cli.py compose notes.json --briefs briefs.json --out deck.json
 - 不用 `↑ →` 这类箭头字符（Arial 常缺字形，渲染成空白），用轴线或「横轴：紧急度」这种说明文字。
 - 不用旋转文本框做竖排轴标（PowerPoint 以中心为锚点旋转，容易溢到隔壁栏）。
 - 画布只有 720 高，页码区必须整体落在 720 内，别写在 `690 + 18`。
+- **容器高度由内容算，不写死**：`_wrap_h(text, w, size)` 复用
+  `layout.leaf_text_h()`，返回实测行高 +6。写死 58px / 156px / 380px
+  就是溢出的来源。
+- **别把装饰线贴在文字底边**：LibreOffice 与 PowerPoint 的 44pt 行盒都比
+  几何估算高，`rect 底边 +34` 和 `+26` 两版都会被穿。改设计位置（移到引言
+  上方），别继续调数值。
 
 自检命令：`python3 engine/cli.py audit-design 成品.pptx`（只读成品文件，退出码 0/1）
 肉眼看：`python3 engine/cli.py preview 成品.pptx ./预览图`
+
+`audit-design` 失败时会按 `thin_pages` / `bare_pages` / `collisions` /
+`clipped` / `overflows` / `font_problems` 逐项列明细，**别只看退出码**：
+`overflows` 告诉你是哪个色块放不下，`collisions` 里 `a`/`b` 会写出双方坐标
+（如 `色块[900,560,400,100]` vs `03 / 09`），照着改那一处就能过。
 
 **内容厚度**（数字来自 12 份豆包样本实测）
 
@@ -550,12 +599,17 @@ python3 engine/cli.py selfcheck
 
 ```bash
 python3 engine/cli.py compose examples/notes_renqing_mianzi.json \
+  --briefs examples/briefs_renqing_mianzi.json \
   --cover examples/assets/book_cover_demo.png \
   --out examples/deck_notes_composed.json --ledger examples/style_notes_derived.json
 python3 engine/cli.py lint  examples/deck_notes_composed.json
 python3 engine/cli.py build examples/deck_notes_composed.json out.pptx
 python3 engine/debug_render.py examples/deck_notes_composed.json /tmp/preview
 ```
+
+`--briefs` 不是可选项。`examples/briefs_renqing_mianzi.json` 是一份**可直接对照的
+逐页设计写法**：9 页 9 份答案，每页的 `structure`/`rationale` 都不一样。要看
+「模型当设计师」长什么样，读这个文件比读任何说明都快。
 
 也可单独派生主题：`python3 engine/cli.py style cover.jpg --book "书名" --out style.json`。
 

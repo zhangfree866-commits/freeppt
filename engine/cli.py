@@ -148,7 +148,8 @@ def cmd_build(args):
     design = audit_design(out)
     if not design["ok"]:
         print(f"\n[成品审计未通过] {design['verdict']}", file=sys.stderr)
-        for key in ("thin_pages", "bare_pages", "collisions", "clipped"):
+        for key in ("thin_pages", "bare_pages", "collisions", "clipped",
+                    "font_problems"):
             val = design.get(key)
             if val:
                 print(f"  {key}: {val}", file=sys.stderr)

@@ -1,33 +1,44 @@
 {
   "composed": true,
   "composition": "freeform",
+  "brief_pool": false,
   "theme": "magazine",
-  "assets_base": "examples/assets",
+  "assets_base": "",
   "slides": [
     {
       "type": "content",
       "tone": "light",
-      "surface": "#F8F4ED",
+      "surface": "#FAF7F2",
       "composition": "freeform",
       "archetype": "cover-editorial",
       "density": "airy",
       "role": "cover",
       "children": [
         {
-          "t": "image",
-          "src": "book_cover_demo.png",
-          "fit": "cover",
+          "t": "box",
           "rect": [
             0,
             0,
             548,
             720
           ],
-          "credit": "封面为示意重绘，可替换为图书原封面"
+          "children": [],
+          "fill": "#1C1917"
+        },
+        {
+          "t": "box",
+          "rect": [
+            90,
+            180,
+            456.0,
+            24.0
+          ],
+          "children": [],
+          "fill": "#9A3412"
         },
         {
           "t": "divider",
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
             596,
             88,
@@ -41,7 +52,7 @@
           "t": "text",
           "text": "人情与面子",
           "size": 64,
-          "color": "#2C0F0C",
+          "color": "#1C1917",
           "rect": [
             640,
             168,
@@ -49,49 +60,48 @@
             90
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "中国人的权力游戏",
           "size": 26,
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
             642,
             390,
             560,
             40
           ],
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "黄光国 著",
           "size": 20,
-          "color": "#654F4B",
+          "color": "#3F3A35",
           "rect": [
             642,
             452,
             560,
             32
           ],
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
-          "t": "divider",
-          "color": "#AA4C44",
+          "t": "box",
           "rect": [
             642,
             120,
-            3,
-            165.0
+            209.0,
+            11.0
           ],
-          "vertical": true,
-          "thickness": 3
+          "children": [],
+          "fill": "#9A3412"
         },
         {
           "t": "divider",
-          "color": "#D7CFC9",
+          "color": "#E3DCD2",
           "rect": [
             642,
             600,
@@ -104,7 +114,7 @@
           "t": "text",
           "text": "01 / 09",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             642,
             616,
@@ -113,13 +123,13 @@
           ],
           "align": "left",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "读书笔记 · 人情与面子",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             642,
             638,
@@ -128,14 +138,52 @@
           ],
           "align": "left",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         }
-      ]
+      ],
+      "design_brief": {
+        "archetype": "cover-editorial",
+        "structure": "书籍封面式竖排主轴：左三分之一放书名与副标题，右侧整幅留白托住书封图，底部一条细线收边。不用分栏网格，靠大留白把注意力压到书名上",
+        "hierarchy": "第一眼是书名大字，第二眼是副标题，第三眼才落到作者与书封，辅助信息是底部来源行",
+        "components": [
+          {
+            "name": "书名主轴",
+            "role": "左列纵向承载标题与副标题，是唯一的高对比区域"
+          },
+          {
+            "name": "书封托底",
+            "role": "右侧图像区，用浅色衬底让封面浮起来"
+          },
+          {
+            "name": "收边细线",
+            "role": "底部 1px 横线，划定版心边界"
+          }
+        ],
+        "states": {
+          "default": "静置",
+          "hover": "书名描边加粗",
+          "disabled": "封面图降至 40% 不透明度"
+        },
+        "responsive": "窄屏 960px 以下书名换行并上移，投影 16:9 保持左右分栏不变",
+        "a11y": {
+          "contrast": "书名 12.4:1，副标题 7.8:1",
+          "text_size": "最小 16pt",
+          "alt": "书封图给一句「书名+作者」替代说明"
+        },
+        "consistency": {
+          "palette": "ink",
+          "type_scale": "h1",
+          "font_pair": "title"
+        },
+        "rationale": "封面是一本书的第一句话，必须让读者在两秒内只记住书名，所以宁可空出三分之二版面也不加装饰"
+      },
+      "notes": "各位好，今天分享的是《人情与面子》。这本书围绕「中国人的权力游戏」展开。下面我们正式进入内容。",
+      "source": "封面为示意重绘，可替换为图书原封面"
     },
     {
       "type": "content",
       "tone": "dark",
-      "surface": "#3C1410",
+      "surface": "#1C1917",
       "composition": "freeform",
       "archetype": "chapter-opener",
       "density": "airy",
@@ -150,13 +198,13 @@
             720
           ],
           "children": [],
-          "fill": "#3C1410"
+          "fill": "#1C1917"
         },
         {
           "t": "text",
           "text": "01",
           "size": 230,
-          "color": "#5C3A36",
+          "color": "#423F3C",
           "rect": [
             70,
             70,
@@ -164,24 +212,23 @@
             305
           ],
           "decor": true,
-          "on": "#3C1410",
+          "on": "#1C1917",
           "weight": "bold"
         },
         {
-          "t": "divider",
-          "color": "#AA4C44",
+          "t": "box",
           "rect": [
             900,
             120,
-            3,
-            390.0
+            494.0,
+            26.0
           ],
-          "vertical": true,
-          "thickness": 3
+          "children": [],
+          "fill": "#9A3412"
         },
         {
           "t": "divider",
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
             70,
             430,
@@ -194,7 +241,7 @@
           "t": "text",
           "text": "概念地图：先分清四个词",
           "size": 52,
-          "color": "#F8F4ED",
+          "color": "#FAF7F2",
           "rect": [
             70,
             462,
@@ -202,26 +249,26 @@
             74
           ],
           "weight": "bold",
-          "on": "#3C1410"
+          "on": "#1C1917"
         },
         {
           "t": "text",
           "text": "FOUR NATIVE CONCEPTS / ONE FRAMEWORK",
           "size": 18,
-          "color": "#E8D2CB",
+          "color": "#E7D8C9",
           "rect": [
             72,
             588,
             800,
             30
           ],
-          "on": "#3C1410"
+          "on": "#1C1917"
         },
         {
           "t": "text",
           "text": "02 / 09",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             1060,
             640,
@@ -230,13 +277,13 @@
           ],
           "align": "right",
           "decor": true,
-          "on": "#3C1410"
+          "on": "#1C1917"
         },
         {
           "t": "text",
           "text": "读书笔记 · 人情与面子",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             1060,
             662,
@@ -245,14 +292,51 @@
           ],
           "align": "right",
           "decor": true,
-          "on": "#3C1410"
+          "on": "#1C1917"
         }
-      ]
+      ],
+      "design_brief": {
+        "archetype": "chapter-opener",
+        "structure": "章节开篇的巨型编号兜底：左侧一个超大两位数编号占据半版，右侧竖排章节标题与英文注脚，没有任何内容块",
+        "hierarchy": "第一眼是 01 这个巨号，第二眼是章节标题，第三眼是英文注脚，辅助无",
+        "components": [
+          {
+            "name": "巨型编号",
+            "role": "唯一的大面积视觉锚点，标记篇章起点"
+          },
+          {
+            "name": "章节标题块",
+            "role": "右列承载中文标题与英文副题"
+          },
+          {
+            "name": "分隔竖线",
+            "role": "在编号与标题之间画一条细竖线，断开两块"
+          }
+        ],
+        "states": {
+          "default": "静置",
+          "emphasis": "编号描边",
+          "disabled": "英文注脚降至 40%"
+        },
+        "responsive": "窄屏 960px 以下编号缩到半宽、标题移到编号下方堆叠，投影保持左右并置",
+        "a11y": {
+          "contrast": "标题 11.2:1，英文注脚 4.9:1",
+          "text_size": "最小 13.5pt",
+          "alt": "编号为装饰，朗读时跳过"
+        },
+        "consistency": {
+          "palette": "accent",
+          "type_scale": "h1",
+          "spacing": "margin"
+        },
+        "rationale": "读者在翻页时需要一个明确的「换章了」信号，巨型编号是最省字也最强的信号"
+      },
+      "notes": "接下来进入第 01 部分：概念地图：先分清四个词。这一章对应的英文主题是 FOUR NATIVE CONCEPTS / ONE FRAMEWORK。我们先建立整体认识，再逐个展开关键概念。"
     },
     {
       "type": "content",
       "tone": "light",
-      "surface": "#F8F4ED",
+      "surface": "#FAF7F2",
       "composition": "freeform",
       "archetype": "editorial-spread",
       "density": "mid",
@@ -262,33 +346,32 @@
           "t": "text",
           "text": "面子问题本质上是社会资源的分配问题",
           "size": 50,
-          "color": "#2C0F0C",
+          "color": "#1C1917",
           "rect": [
             64,
             96,
-            506,
+            508,
             136
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
-          "t": "divider",
-          "color": "#AA4C44",
+          "t": "box",
           "rect": [
             64,
             366,
-            3,
-            210.0
+            266.0,
+            14.0
           ],
-          "vertical": true,
-          "thickness": 3
+          "children": [],
+          "fill": "#9A3412"
         },
         {
           "t": "divider",
-          "color": "#D7CFC9",
+          "color": "#E3DCD2",
           "rect": [
-            610,
+            612,
             90,
             2,
             540
@@ -300,125 +383,125 @@
           "t": "text",
           "text": "当资源有限、分配又带着裁量权，关系远近就会变成分配标准。这是全书最基础的一步推理。",
           "size": 23,
-          "color": "#654F4B",
+          "color": "#3F3A35",
           "rect": [
-            648,
-            115,
-            560,
+            650,
+            118,
+            558,
             66
           ],
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "命题怎么展开",
           "size": 24,
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
-            648,
-            215,
-            560,
+            650,
+            218,
+            558,
             38
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "有资源、有分配者、有请求者，三者凑齐才谈得上「面子」；缺一项，人情就无处附着。",
           "size": 18,
-          "color": "#654F4B",
+          "color": "#3F3A35",
           "rect": [
-            648,
-            263,
-            540,
+            650,
+            266,
+            538,
             53
           ],
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "为什么与资源绑在一起",
           "size": 24,
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
-            648,
-            338,
-            560,
+            650,
+            341,
+            558,
             38
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "帮忙意味着拿出自己的一份资源，并承担一份风险；给谁、给多少、什么时候给，都由关系来定。",
           "size": 18,
-          "color": "#654F4B",
+          "color": "#3F3A35",
           "rect": [
-            648,
-            386,
-            540,
+            650,
+            389,
+            538,
             53
           ],
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "与厚黑学的区别",
           "size": 24,
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
-            648,
-            461,
-            560,
+            650,
+            464,
+            558,
             38
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "作者并不把它写成权术，而是写成一套被社会规范承认、可预期、可反复使用的互动秩序。",
           "size": 18,
-          "color": "#654F4B",
+          "color": "#3F3A35",
           "rect": [
-            648,
-            509,
-            540,
+            650,
+            512,
+            538,
             53
           ],
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "box",
           "rect": [
-            648,
-            590,
-            560,
-            58
+            650,
+            558,
+            558,
+            72
           ],
           "children": [],
-          "fill": "#E8D2CB"
+          "fill": "#E7D8C9"
         },
         {
           "t": "text",
           "text": "批注：第一句是笔记归纳的共同前提，后三段是对论证链条的整理，不是原文逐字引用。",
           "size": 16,
-          "color": "#2C0F0C",
+          "color": "#1C1917",
           "rect": [
-            664,
-            602,
-            528,
+            666,
+            570,
+            526,
             48
           ],
-          "on": "#E8D2CB"
+          "on": "#E7D8C9"
         },
         {
           "t": "text",
           "text": "来源：黄光国（1987）Face and Favor；读书笔记整理",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             64,
             648,
@@ -427,13 +510,13 @@
           ],
           "align": "left",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "03 / 09",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             1060,
             648,
@@ -442,13 +525,13 @@
           ],
           "align": "right",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "读书笔记 · 人情与面子",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             1060,
             670,
@@ -457,14 +540,56 @@
           ],
           "align": "right",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         }
-      ]
+      ],
+      "design_brief": {
+        "archetype": "editorial-spread",
+        "structure": "杂志式主辅分栏：左侧 58% 放导语与三组命题，右侧 42% 用浅色块承载批注，两列之间有细横线作节奏分割，不做等宽三卡",
+        "hierarchy": "第一眼是标题与导语，第二眼是左列三组命题的小标题，第三眼是批注块，辅助信息是底部来源行",
+        "components": [
+          {
+            "name": "导语区",
+            "role": "标题下一段，交代这一页的推理起点"
+          },
+          {
+            "name": "命题列表",
+            "role": "左列三组「小标题+正文」，承载论证链条"
+          },
+          {
+            "name": "批注侧栏",
+            "role": "右列浅色块，放笔记者的元评论，视觉上降一级"
+          },
+          {
+            "name": "来源行",
+            "role": "页脚细字，标明文献出处"
+          }
+        ],
+        "states": {
+          "default": "静置",
+          "hover": "命题小标题加下划线",
+          "disabled": "批注块降到 55% 不透明度"
+        },
+        "responsive": "窄屏 960px 以下批注侧栏折叠到正文下方，投影 16:9 保持 58/42 分栏",
+        "a11y": {
+          "contrast": "正文 13.1:1，批注 6.2:1",
+          "text_size": "最小 16pt",
+          "alt": "无图像，全部为文本"
+        },
+        "consistency": {
+          "palette": "paper",
+          "type_scale": "body",
+          "spacing": "gutter"
+        },
+        "rationale": "这一页要让人跟着推理走三步，所以用纵向列表而不是并排卡片——并排会暗示三者是并列的，实际是递进的"
+      },
+      "notes": "这一页的主题是「面子问题本质上是社会资源的分配问题」。当资源有限、分配又带着裁量权，关系远近就会变成分配标准。这是全书最基础的一步推理。首先是命题怎么展开，有资源、有分配者、有请求者，三者凑齐才谈得上「面子」；缺一项，人情就无处附着。其次是为什么与资源绑在一起，帮忙意味着拿出自己的一份资源，并承担一份风险；给谁、给多少、什么时候给，都由关系来定。再次是与厚黑学的区别，作者并不把它写成权术，而是写成一套被社会规范承认、可预期、可反复使用的互动秩序。讲解时可以结合实际案例，帮助大家理解。",
+      "source": "来源：黄光国（1987）Face and Favor；读书笔记整理"
     },
     {
       "type": "content",
-      "tone": "dark",
-      "surface": "#3C1410",
+      "tone": "light",
+      "surface": "#FAF7F2",
       "composition": "freeform",
       "archetype": "quote-bleed",
       "density": "airy",
@@ -479,54 +604,53 @@
             720
           ],
           "children": [],
-          "fill": "#3C1410"
+          "fill": "#FAF7F2"
         },
         {
-          "t": "divider",
-          "color": "#AA4C44",
+          "t": "box",
           "rect": [
             940,
             80,
-            3,
-            240.0
+            418.0,
+            22.0
           ],
-          "vertical": true,
-          "thickness": 3
+          "children": [],
+          "fill": "#9A3412"
         },
         {
           "t": "text",
           "text": "“",
           "size": 130,
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
             64,
-            66,
+            52,
             200,
             175
           ],
           "decor": true,
-          "on": "#3C1410"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "关系远近一旦能决定资源怎么分，人情就不再只是礼貌，而是一套可以计算、可以积累、也可以透支的账。",
           "size": 44,
-          "color": "#F8F4ED",
+          "color": "#1C1917",
           "rect": [
             150,
-            220,
+            236,
             940,
             178
           ],
           "weight": "bold",
-          "on": "#3C1410"
+          "on": "#FAF7F2"
         },
         {
           "t": "divider",
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
             150,
-            432,
+            186,
             260,
             1.5
           ],
@@ -536,20 +660,20 @@
           "t": "text",
           "text": "— 读书笔记 · 整理（非原文引用）",
           "size": 19,
-          "color": "#E8D2CB",
+          "color": "#3F3A35",
           "rect": [
             150,
-            454,
+            458,
             800,
             31
           ],
-          "on": "#3C1410"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "04 / 09",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             64,
             650,
@@ -558,13 +682,13 @@
           ],
           "align": "left",
           "decor": true,
-          "on": "#3C1410"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "读书笔记 · 人情与面子",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             64,
             672,
@@ -573,14 +697,52 @@
           ],
           "align": "left",
           "decor": true,
-          "on": "#3C1410"
+          "on": "#FAF7F2"
         }
-      ]
+      ],
+      "design_brief": {
+        "archetype": "quote-bleed",
+        "structure": "整幅引言出血：一句金句以 40pt 占据页面中部，上下各留大片空白，左下角落款、右下角放语境说明，不使用任何栏格",
+        "hierarchy": "第一眼是引言大字，第二眼是落款，第三眼是右下角语境说明，辅助是底部来源行",
+        "components": [
+          {
+            "name": "引言主体",
+            "role": "居中偏上的大字块，是整页唯一主角"
+          },
+          {
+            "name": "落款",
+            "role": "左下角小字，交代这句话是谁说的"
+          },
+          {
+            "name": "语境注",
+            "role": "右下角细字，说明这句话在全书里的位置"
+          }
+        ],
+        "states": {
+          "default": "静置",
+          "hover": "引言加引号装饰",
+          "disabled": "语境注降到 40%"
+        },
+        "responsive": "窄屏 960px 以下引言字号降到 28pt、落款移到引言正下方，投影保持居中出血",
+        "a11y": {
+          "contrast": "引言 14.0:1，语境注 4.6:1",
+          "text_size": "最小 13.5pt",
+          "alt": "纯文字页，无替代文本需求"
+        },
+        "consistency": {
+          "palette": "ink",
+          "type_scale": "h1",
+          "font_pair": "title"
+        },
+        "rationale": "金句页的功能是让人停下来，任何图形和分栏都会削弱这句话的重量，所以只留文字和空白"
+      },
+      "notes": "这一页想传达的核心观点是：关系远近一旦能决定资源怎么分，人情就不再只是礼貌，而是一套可以计算、可以积累、也可以透支的账。。这句话出自读书笔记 · 整理（非原文引用），值得结合自身处境体会。",
+      "source": "来源：读书笔记整理，非书中原句"
     },
     {
       "type": "content",
       "tone": "light",
-      "surface": "#F8F4ED",
+      "surface": "#FAF7F2",
       "composition": "freeform",
       "archetype": "offset-triptych",
       "density": "dense",
@@ -590,7 +752,7 @@
           "t": "text",
           "text": "四个本土概念被整合进同一个解释框架",
           "size": 36,
-          "color": "#2C0F0C",
+          "color": "#1C1917",
           "rect": [
             64,
             62,
@@ -598,34 +760,33 @@
             53
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
-          "t": "divider",
-          "color": "#AA4C44",
+          "t": "box",
           "rect": [
             1050,
             68,
-            3,
-            135.0
+            171.0,
+            9.0
           ],
-          "vertical": true,
-          "thickness": 3
+          "children": [],
+          "fill": "#9A3412"
         },
         {
           "t": "text",
           "text": "01",
           "size": 30,
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
             64,
-            96,
+            176.2,
             100,
             45
           ],
           "decor": true,
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "richcard",
@@ -633,40 +794,40 @@
             {
               "text": "人情 renqing",
               "size": 23,
-              "color": "#2C0F0C",
+              "color": "#1C1917",
               "weight": "bold"
             },
             {
               "text": "人与人交往中的情感与规范，也指可以送、可以欠、可以还的资源；三种用法在日常里常常叠在一起。",
               "size": 18,
-              "color": "#654F4B",
+              "color": "#3F3A35",
               "space_before": 12
             }
           ],
           "padding": 22,
-          "fill": "#E8D2CB",
-          "border": "#D7CFC9",
+          "fill": "#E7D8C9",
+          "border": "#E3DCD2",
           "rect": [
             64,
-            142,
+            222.2,
             344,
-            380
+            340
           ]
         },
         {
           "t": "text",
           "text": "02",
           "size": 30,
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
             466,
-            175,
+            213,
             100,
             45
           ],
           "decor": true,
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "richcard",
@@ -674,39 +835,39 @@
             {
               "text": "面子 mianzi",
               "size": 23,
-              "color": "#2C0F0C",
+              "color": "#1C1917",
               "weight": "bold"
             },
             {
               "text": "是他人给的公开评价，不是自己说了算；它依赖场合、观众与身份，因而极容易被量化地比较。",
               "size": 18,
-              "color": "#654F4B",
+              "color": "#3F3A35",
               "space_before": 12
             }
           ],
           "padding": 22,
-          "border": "#D7CFC9",
+          "border": "#E3DCD2",
           "rect": [
             466,
-            221,
+            259,
             342,
-            380
+            340
           ]
         },
         {
           "t": "text",
           "text": "03",
           "size": 30,
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
             856,
-            84,
+            176.2,
             100,
             45
           ],
           "decor": true,
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "richcard",
@@ -714,44 +875,44 @@
             {
               "text": "关系 guanxi 与 报 bao",
               "size": 30,
-              "color": "#F8F4ED",
+              "color": "#FAF7F2",
               "weight": "bold"
             },
             {
               "text": "关系提供长期通道，报提供时间维度上的平衡。两者合起来，解释了为什么人情可以跨时间储存。",
               "size": 18,
-              "color": "#F8F4ED",
+              "color": "#FAF7F2",
               "space_before": 12
             }
           ],
           "padding": 22,
-          "fill": "#AA4C44",
+          "fill": "#9A3412",
           "rect": [
             856,
-            130,
+            222.2,
             356,
-            380
+            340
           ],
-          "on": "#AA4C44"
+          "on": "#9A3412"
         },
         {
           "t": "text",
           "text": "批注：把四个概念的定义分开写，是为了后面不再混用；笔记做了合并转述。",
           "size": 16,
-          "color": "#654F4B",
+          "color": "#3F3A35",
           "rect": [
             64,
             626,
             1100,
             27
           ],
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "05 / 09",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             1060,
             664,
@@ -760,13 +921,13 @@
           ],
           "align": "right",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "读书笔记 · 人情与面子",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             1060,
             686,
@@ -775,14 +936,52 @@
           ],
           "align": "right",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         }
-      ]
+      ],
+      "design_brief": {
+        "archetype": "offset-triptych",
+        "structure": "错位三联：三组概念左缘逐级缩进、纵向错落排列，每块自带编号与标题，形成向下递进的阅读重力，不是等宽三卡",
+        "hierarchy": "第一眼是最上面那一组的大标题，第二眼是逐级下沉的后两组，第三眼是每组正文，辅助是批注与来源",
+        "components": [
+          {
+            "name": "概念块×3",
+            "role": "每块含编号、中文名、英文名与定义，三块错位排列"
+          },
+          {
+            "name": "错位缩进",
+            "role": "用左缘递增制造层级，替代卡片边框"
+          },
+          {
+            "name": "批注行",
+            "role": "底部说明为什么把四个概念合并成三块"
+          }
+        ],
+        "states": {
+          "default": "静置",
+          "emphasis": "当前块左侧加竖色条",
+          "disabled": "非当前块降到 60%"
+        },
+        "responsive": "窄屏 960px 以下三块改为纵向全宽堆叠、取消缩进，投影保持错位三联",
+        "a11y": {
+          "contrast": "标题 12.4:1，正文 9.8:1，批注 6.2:1",
+          "text_size": "最小 16pt",
+          "alt": "无图像"
+        },
+        "consistency": {
+          "palette": "navy",
+          "type_scale": "h2",
+          "spacing": "base"
+        },
+        "rationale": "四个概念里有三个要并列、一个要合并说明，错位三联正好用位置差异表达「这俩是一类、那个是另一类」"
+      },
+      "notes": "这一页的主题是「四个本土概念被整合进同一个解释框架」。首先是人情 renqing，人与人交往中的情感与规范，也指可以送、可以欠、可以还的资源；三种用法在日常里常常叠在一起。其次是面子 mianzi，是他人给的公开评价，不是自己说了算；它依赖场合、观众与身份，因而极容易被量化地比较。再次是关系 guanxi 与 报 bao，关系提供长期通道，报提供时间维度上的平衡。两者合起来，解释了为什么人情可以跨时间储存。讲解时可以结合实际案例，帮助大家理解。",
+      "source": "来源：黄光国（1987）；胡先缙（1944）相关概念辨析；读书笔记整理"
     },
     {
       "type": "content",
       "tone": "light",
-      "surface": "#F8F4ED",
+      "surface": "#FAF7F2",
       "composition": "freeform",
       "archetype": "split-contrast",
       "density": "mid",
@@ -797,7 +996,7 @@
             720
           ],
           "children": [],
-          "fill": "#3C1410"
+          "fill": "#1C1917"
         },
         {
           "t": "box",
@@ -808,7 +1007,7 @@
             720
           ],
           "children": [],
-          "fill": "#F8F4ED"
+          "fill": "#FAF7F2"
         },
         {
           "t": "box",
@@ -819,13 +1018,13 @@
             720
           ],
           "children": [],
-          "fill": "#AA4C44"
+          "fill": "#9A3412"
         },
         {
           "t": "text",
           "text": "把「关系」和「厚黑学」分开看",
           "size": 32,
-          "color": "#F8F4ED",
+          "color": "#FAF7F2",
           "rect": [
             64,
             92,
@@ -833,79 +1032,78 @@
             48
           ],
           "weight": "bold",
-          "on": "#3C1410"
+          "on": "#1C1917"
         },
         {
           "t": "text",
           "text": "作为秩序的关系",
           "size": 30,
-          "color": "#F8F4ED",
+          "color": "#FAF7F2",
           "rect": [
             64,
             240,
             480,
             45
           ],
-          "on": "#3C1410",
+          "on": "#1C1917",
           "weight": "bold"
         },
         {
           "t": "text",
           "text": "有公认的规矩：谁该帮、帮到什么程度、什么时候要还。行为可以预期，旁观者也能评判，所以它能长期维持。",
           "size": 19,
-          "color": "#E8D2CB",
+          "color": "#E7D8C9",
           "rect": [
             64,
             309,
             480,
             81
           ],
-          "on": "#3C1410"
+          "on": "#1C1917"
         },
         {
           "t": "text",
           "text": "作为权术的关系",
           "size": 30,
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
             676,
             200,
             540,
             45
           ],
-          "on": "#F8F4ED",
+          "on": "#FAF7F2",
           "weight": "bold"
         },
         {
           "t": "text",
           "text": "只讲结果、不看规范，一旦被识破就失去复用价值。作者恰恰要说明：中国式人情不是这种一次性的算计。",
           "size": 19,
-          "color": "#654F4B",
+          "color": "#3F3A35",
           "rect": [
             676,
             269,
             540,
             56
           ],
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
-          "t": "divider",
-          "color": "#AA4C44",
+          "t": "box",
           "rect": [
             676,
             560,
-            3,
-            150.0
+            190.0,
+            10.0
           ],
-          "vertical": true,
-          "thickness": 3
+          "children": [],
+          "fill": "#9A3412"
         },
         {
           "t": "text",
           "text": "06 / 09",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             676,
             650,
@@ -914,13 +1112,13 @@
           ],
           "align": "left",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "读书笔记 · 人情与面子",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             676,
             672,
@@ -929,14 +1127,52 @@
           ],
           "align": "left",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         }
-      ]
+      ],
+      "design_brief": {
+        "archetype": "split-contrast",
+        "structure": "左右对峙：左半用深色块写「作为秩序的关系」，右半用纸色写「作为权术的关系」，中间一条明确分界线，两半面积相等形成对抗感",
+        "hierarchy": "第一眼是左深色块，第二眼是右浅色块，第三眼是两块的标题，辅助是底部批注与来源",
+        "components": [
+          {
+            "name": "深色左块",
+            "role": "承载正面定义，用深底白字压住左半版"
+          },
+          {
+            "name": "浅色右块",
+            "role": "承载反面定义，用纸底黑字"
+          },
+          {
+            "name": "中央分界",
+            "role": "一条竖线，强化「分成两半」的对峙语义"
+          }
+        ],
+        "states": {
+          "default": "静置",
+          "hover": "单侧提亮",
+          "disabled": "对侧降到 45%"
+        },
+        "responsive": "窄屏 960px 以下改为上下堆叠、深块在上，投影保持左右对峙",
+        "a11y": {
+          "contrast": "深块白字 13.6:1，浅块黑字 14.0:1",
+          "text_size": "最小 16pt",
+          "alt": "无图像"
+        },
+        "consistency": {
+          "palette": "navy",
+          "type_scale": "h2",
+          "spacing": "gutter"
+        },
+        "rationale": "对照页的说服力来自「两边一样重」，所以刻意做成等宽对峙，而不是左边主右边次的普通分栏"
+      },
+      "notes": "这一页的主题是「把「关系」和「厚黑学」分开看」。首先是作为秩序的关系，有公认的规矩：谁该帮、帮到什么程度、什么时候要还。行为可以预期，旁观者也能评判，所以它能长期维持。其次是作为权术的关系，只讲结果、不看规范，一旦被识破就失去复用价值。作者恰恰要说明：中国式人情不是这种一次性的算计。讲解时可以结合实际案例，帮助大家理解。",
+      "source": "来源：读书笔记整理"
     },
     {
       "type": "content",
       "tone": "light",
-      "surface": "#F8F4ED",
+      "surface": "#FAF7F2",
       "composition": "freeform",
       "archetype": "stair-list",
       "density": "dense",
@@ -945,193 +1181,192 @@
         {
           "t": "text",
           "text": "「人情」同时是情感、规范与可存储的资源",
-          "size": 34,
-          "color": "#2C0F0C",
+          "size": 33,
+          "color": "#1C1917",
           "rect": [
             64,
-            60,
+            58,
             1080,
-            51
+            49
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
-          "t": "divider",
-          "color": "#AA4C44",
+          "t": "box",
           "rect": [
             1080,
-            66,
-            3,
-            135.0
+            62,
+            171.0,
+            9.0
           ],
-          "vertical": true,
-          "thickness": 3
+          "children": [],
+          "fill": "#9A3412"
         },
         {
-          "t": "divider",
-          "color": "#D7CFC9",
+          "t": "box",
           "rect": [
-            90,
-            158,
-            1040,
-            1.5
+            92,
+            350,
+            366,
+            260
           ],
-          "thickness": 1
+          "children": [],
+          "fill": "#1C1917"
         },
         {
           "t": "text",
           "text": "01",
-          "size": 24,
-          "color": "#AA4C44",
+          "size": 20,
+          "color": "#FAF7F2",
           "rect": [
-            90,
-            170,
-            60,
-            38
+            110,
+            364,
+            52,
+            32
           ],
           "decor": true,
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#1C1917"
         },
         {
           "t": "text",
           "text": "情感层",
-          "size": 22,
-          "color": "#2C0F0C",
+          "size": 20,
+          "color": "#FAF7F2",
           "rect": [
-            156,
-            170,
-            960,
-            35
+            110,
+            394,
+            330,
+            32
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#1C1917"
         },
         {
           "t": "text",
           "text": "人情首先是人与人交往中真实产生的感情，包括体谅、亏欠感与不好意思；它不是纯粹的表演。",
-          "size": 17,
-          "color": "#654F4B",
+          "size": 16,
+          "color": "#FAF7F2",
           "rect": [
-            156,
-            204,
-            950,
-            29
+            110,
+            430,
+            330,
+            69
           ],
-          "on": "#F8F4ED"
+          "on": "#1C1917"
         },
         {
-          "t": "divider",
-          "color": "#D7CFC9",
+          "t": "box",
           "rect": [
-            124,
-            254,
-            1006,
-            1.5
+            466,
+            276,
+            366,
+            334
           ],
-          "thickness": 1
+          "children": [],
+          "fill": "#9A3412"
         },
         {
           "t": "text",
           "text": "02",
-          "size": 24,
-          "color": "#AA4C44",
+          "size": 20,
+          "color": "#FAF7F2",
           "rect": [
-            124,
-            266,
-            60,
-            38
+            484,
+            290,
+            52,
+            32
           ],
           "decor": true,
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#9A3412"
         },
         {
           "t": "text",
           "text": "规范层",
-          "size": 22,
-          "color": "#2C0F0C",
+          "size": 20,
+          "color": "#FAF7F2",
           "rect": [
-            190,
-            266,
-            926,
-            35
+            484,
+            320,
+            330,
+            32
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#9A3412"
         },
         {
           "t": "text",
           "text": "「礼尚往来」把它变成了义务：受了别人的好处就要还，还要还得合体面、合身份、合时机。",
-          "size": 17,
-          "color": "#654F4B",
+          "size": 16,
+          "color": "#FAF7F2",
           "rect": [
-            190,
-            300,
-            916,
-            29
+            484,
+            356,
+            330,
+            69
           ],
-          "on": "#F8F4ED"
+          "on": "#9A3412"
         },
         {
-          "t": "divider",
-          "color": "#D7CFC9",
+          "t": "box",
           "rect": [
-            158,
-            350,
-            972,
-            1.5
+            840,
+            202,
+            376,
+            408
           ],
-          "thickness": 1
+          "children": [],
+          "fill": "#1E3A5F"
         },
         {
           "t": "text",
           "text": "03",
-          "size": 24,
-          "color": "#AA4C44",
+          "size": 20,
+          "color": "#FAF7F2",
           "rect": [
-            158,
-            362,
-            60,
-            38
+            858,
+            216,
+            52,
+            32
           ],
           "decor": true,
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#1E3A5F"
         },
         {
           "t": "text",
           "text": "资源层",
-          "size": 22,
-          "color": "#2C0F0C",
+          "size": 20,
+          "color": "#FAF7F2",
           "rect": [
-            224,
-            362,
-            892,
-            35
+            858,
+            246,
+            340,
+            32
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#1E3A5F"
         },
         {
           "t": "text",
           "text": "人情还是一份可以积攒的账户：帮过谁、欠过谁、什么时候兑现，都被关系网络默默记着。",
-          "size": 17,
-          "color": "#654F4B",
+          "size": 16,
+          "color": "#FAF7F2",
           "rect": [
-            224,
-            396,
-            882,
-            29
+            858,
+            282,
+            340,
+            48
           ],
-          "on": "#F8F4ED"
+          "on": "#1E3A5F"
         },
         {
           "t": "text",
           "text": "07 / 09",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             1060,
             664,
@@ -1140,13 +1375,13 @@
           ],
           "align": "right",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "读书笔记 · 人情与面子",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             1060,
             686,
@@ -1155,14 +1390,52 @@
           ],
           "align": "right",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         }
-      ]
+      ],
+      "design_brief": {
+        "archetype": "stair-list",
+        "structure": "向右上抬升的阶梯：三级台阶从左到右逐级升高，每级一个色块承载一层含义，底边共用一条基线，视觉上是攀登而不是列表",
+        "hierarchy": "第一眼是最右侧最高的第三级，第二眼沿台阶向左回落，第三眼读每级内的文字，辅助是批注与来源",
+        "components": [
+          {
+            "name": "台阶块×3",
+            "role": "每块一个色阶，高度递增，承载情感层/规范层/资源层"
+          },
+          {
+            "name": "级内编号",
+            "role": "左上角两位编号，标明上升顺序"
+          },
+          {
+            "name": "共用基线",
+            "role": "三级底边对齐，制造「同一把尺子量出来的」感觉"
+          }
+        ],
+        "states": {
+          "default": "静置",
+          "emphasis": "所在一级描边加粗",
+          "disabled": "未达层级降到 40%"
+        },
+        "responsive": "窄屏 960px 以下阶梯转为纵向列表、保留编号，投影保持横向抬升",
+        "a11y": {
+          "contrast": "深底白字 12.8:1，浅底黑字 13.9:1",
+          "text_size": "最小 16pt",
+          "alt": "阶梯为语义结构，朗读按 1→2→3 顺序"
+        },
+        "consistency": {
+          "palette": "accent",
+          "type_scale": "h2",
+          "spacing": "base"
+        },
+        "rationale": "三层的重点是「一层比一层更实」，阶梯的物理高度差正好把这句话直接画出来，用并排卡片就丢掉了递进"
+      },
+      "notes": "这一页的主题是「「人情」同时是情感、规范与可存储的资源」。首先是情感层，人情首先是人与人交往中真实产生的感情，包括体谅、亏欠感与不好意思；它不是纯粹的表演。其次是规范层，「礼尚往来」把它变成了义务：受了别人的好处就要还，还要还得合体面、合身份、合时机。再次是资源层，人情还是一份可以积攒的账户：帮过谁、欠过谁、什么时候兑现，都被关系网络默默记着。讲解时可以结合实际案例，帮助大家理解。",
+      "source": "来源：黄光国（1987）；读书笔记整理"
     },
     {
       "type": "content",
       "tone": "light",
-      "surface": "#F8F4ED",
+      "surface": "#FAF7F2",
       "composition": "freeform",
       "archetype": "data-focus",
       "density": "airy",
@@ -1172,7 +1445,7 @@
           "t": "text",
           "text": "一个框架，三层用法",
           "size": 32,
-          "color": "#2C0F0C",
+          "color": "#1C1917",
           "rect": [
             64,
             74,
@@ -1180,7 +1453,7 @@
             48
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "box",
@@ -1191,25 +1464,24 @@
             360
           ],
           "children": [],
-          "fill": "#E8D2CB"
+          "fill": "#E7D8C9"
         },
         {
-          "t": "divider",
-          "color": "#AA4C44",
+          "t": "box",
           "rect": [
             92,
             226,
-            3,
-            180.0
+            228.0,
+            12.0
           ],
-          "vertical": true,
-          "thickness": 3
+          "children": [],
+          "fill": "#9A3412"
         },
         {
           "t": "text",
           "text": "1987",
           "size": 146,
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
             92,
             286,
@@ -1217,27 +1489,27 @@
             196
           ],
           "weight": "bold",
-          "on": "#E8D2CB",
+          "on": "#E7D8C9",
           "decor": true
         },
         {
           "t": "text",
           "text": "黄光国提出「人情与面子」理论模型的年份",
           "size": 21,
-          "color": "#2C0F0C",
+          "color": "#1C1917",
           "rect": [
             92,
-            480,
+            498,
             560,
             34
           ],
-          "on": "#E8D2CB"
+          "on": "#E7D8C9"
         },
         {
           "t": "text",
           "text": "看结构",
           "size": 22,
-          "color": "#2C0F0C",
+          "color": "#1C1917",
           "rect": [
             760,
             210,
@@ -1245,26 +1517,26 @@
             35
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "先问资源在谁手里、分配有多大裁量空间。",
           "size": 17,
-          "color": "#654F4B",
+          "color": "#3F3A35",
           "rect": [
             760,
             251,
             440,
             29
           ],
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "看关系",
           "size": 22,
-          "color": "#2C0F0C",
+          "color": "#1C1917",
           "rect": [
             760,
             306,
@@ -1272,26 +1544,26 @@
             35
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "再判断双方属于情感性、混合性还是工具性关系。",
           "size": 17,
-          "color": "#654F4B",
+          "color": "#3F3A35",
           "rect": [
             760,
             347,
             440,
             29
           ],
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "看往来",
           "size": 22,
-          "color": "#2C0F0C",
+          "color": "#1C1917",
           "rect": [
             760,
             402,
@@ -1299,26 +1571,26 @@
             35
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "最后看「报」如何跨时间把一次帮忙变成长期账目。",
           "size": 17,
-          "color": "#654F4B",
+          "color": "#3F3A35",
           "rect": [
             760,
             443,
             440,
             29
           ],
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "来源：Hwang, K. K. (1987), Face and Favor, American Journal of Sociology 92(4)",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             64,
             650,
@@ -1327,13 +1599,13 @@
           ],
           "align": "left",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "08 / 09",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             1060,
             650,
@@ -1342,13 +1614,13 @@
           ],
           "align": "right",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "读书笔记 · 人情与面子",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             1060,
             672,
@@ -1357,14 +1629,52 @@
           ],
           "align": "right",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         }
-      ]
+      ],
+      "design_brief": {
+        "archetype": "data-focus",
+        "structure": "单数字主宰：左侧一块浅色方区托住 1987 这个年份巨字，右侧竖排三条用法，数字与解释形成主从而非并列",
+        "hierarchy": "第一眼是 1987 这个巨号，第二眼是它下面的说明标签，第三眼是右侧三条用法，辅助是底部来源",
+        "components": [
+          {
+            "name": "数字巨块",
+            "role": "150pt 的年份，占据左半版，是唯一的高饱和区域"
+          },
+          {
+            "name": "说明标签",
+            "role": "数字下方一行，解释这个数字是什么"
+          },
+          {
+            "name": "用法列表",
+            "role": "右列三条「小标题+正文」，从数字过渡到方法"
+          }
+        ],
+        "states": {
+          "default": "静置",
+          "hover": "数字加描边",
+          "disabled": "用法列表降到 50%"
+        },
+        "responsive": "窄屏 960px 以下数字缩到 90pt、用法列表移到数字下方，投影保持左数字右列表",
+        "a11y": {
+          "contrast": "数字 11.7:1，正文 12.1:1",
+          "text_size": "最小 16pt",
+          "alt": "1987 需朗读为「一九八七年」"
+        },
+        "consistency": {
+          "palette": "accent",
+          "type_scale": "h1",
+          "spacing": "gutter"
+        },
+        "rationale": "这一页只有一个事实值得记住，把年份放大到 150pt 比写一段话更能让人记住它属于哪一年"
+      },
+      "notes": "这一页的主题是「一个框架，三层用法」。首先是看结构，先问资源在谁手里、分配有多大裁量空间。其次是看关系，再判断双方属于情感性、混合性还是工具性关系。再次是看往来，最后看「报」如何跨时间把一次帮忙变成长期账目。关键数字是 1987（黄光国提出「人情与面子」理论模型的年份）讲解时可以结合实际案例，帮助大家理解。",
+      "source": "来源：Hwang, K. K. (1987), Face and Favor, American Journal of Sociology 92(4)"
     },
     {
       "type": "content",
       "tone": "light",
-      "surface": "#F8F4ED",
+      "surface": "#FAF7F2",
       "composition": "freeform",
       "archetype": "closing-echo",
       "density": "airy",
@@ -1379,25 +1689,24 @@
             720
           ],
           "children": [],
-          "fill": "#AA4C44"
+          "fill": "#9A3412"
         },
         {
-          "t": "divider",
-          "color": "#AA4C44",
+          "t": "box",
           "rect": [
             958,
             90,
-            3,
-            270.0
+            342.0,
+            18.0
           ],
-          "vertical": true,
-          "thickness": 3
+          "children": [],
+          "fill": "#9A3412"
         },
         {
           "t": "text",
           "text": "读完之后，留一个问题给自己：你所在的关系里，谁在记账？",
           "size": 48,
-          "color": "#2C0F0C",
+          "color": "#1C1917",
           "rect": [
             72,
             220,
@@ -1405,11 +1714,11 @@
             131
           ],
           "weight": "bold",
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "divider",
-          "color": "#AA4C44",
+          "color": "#9A3412",
           "rect": [
             72,
             480,
@@ -1422,20 +1731,20 @@
           "t": "text",
           "text": "《人情与面子》 · 读书笔记",
           "size": 20,
-          "color": "#654F4B",
+          "color": "#3F3A35",
           "rect": [
             72,
             510,
             760,
             32
           ],
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "09 / 09",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             72,
             640,
@@ -1444,13 +1753,13 @@
           ],
           "align": "left",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "读书笔记 · 人情与面子",
           "size": 14,
-          "color": "#756964",
+          "color": "#8A8178",
           "rect": [
             72,
             662,
@@ -1459,13 +1768,13 @@
           ],
           "align": "left",
           "decor": true,
-          "on": "#F8F4ED"
+          "on": "#FAF7F2"
         },
         {
           "t": "text",
           "text": "END",
           "size": 60,
-          "color": "#F8F4ED",
+          "color": "#FAF7F2",
           "rect": [
             958,
             600,
@@ -1473,14 +1782,48 @@
             84
           ],
           "decor": true,
-          "on": "#AA4C44",
+          "on": "#9A3412",
           "weight": "bold"
         }
-      ]
+      ],
+      "design_brief": {
+        "archetype": "closing-echo",
+        "structure": "收束回声：居中一句反问占据中段，下方留白，底部一行「读书笔记 · 完」收口，整体与封面形成首尾呼应",
+        "hierarchy": "第一眼是那句反问，第二眼是底部收口行，辅助无",
+        "components": [
+          {
+            "name": "反问主体",
+            "role": "居中大字，把全书推回读者自己身上"
+          },
+          {
+            "name": "收口行",
+            "role": "底部细字，标记阅读结束"
+          }
+        ],
+        "states": {
+          "default": "静置",
+          "hover": "反问加下划线",
+          "disabled": "不适用"
+        },
+        "responsive": "窄屏 960px 以下反问字号降一档、左右各留 48px 边距，投影保持居中",
+        "a11y": {
+          "contrast": "反问 13.2:1，收口行 4.8:1",
+          "text_size": "最小 13.5pt",
+          "alt": "纯文字"
+        },
+        "consistency": {
+          "palette": "ink",
+          "type_scale": "h1",
+          "font_pair": "title"
+        },
+        "rationale": "读书笔记的结尾不该总结，该把问题交还给读者，所以只放一句问句，不列要点"
+      },
+      "notes": "最后做一个收束。读完之后，留一个问题给自己：你所在的关系里，谁在记账？。建议把今天的要点带回实际工作，挑一条立刻实践。谢谢大家。",
+      "source": "读书笔记 · 完"
     }
   ],
   "art_direction": {
-    "seed": "7a6a93106cf39ff6",
+    "seed": "91c2a41f0a96c9ac",
     "archetypes": [
       "cover-editorial",
       "chapter-opener",
@@ -1494,96 +1837,83 @@
     ],
     "distinct": 9,
     "pages": 9,
-    "motif": "vertical-rule",
-    "cover": "assets/book_cover_demo.png",
-    "engine_version": 2
+    "chapters": 2,
+    "chapter_boundaries": [
+      1
+    ],
+    "long_deck_forced": false,
+    "motif": "band",
+    "cover": null,
+    "card_system": false,
+    "speaker_notes": true,
+    "scoring": false,
+    "brief_pool": false,
+    "design_briefs_applied": 9,
+    "engine_version": 3
   },
   "derived_theme": {
-    "name": "cover-ac41c5d5",
-    "label": "《人情与面子》封面派生",
+    "name": "magazine-creative",
+    "label": "创作编排主题",
     "base": "magazine",
     "semantic": {
-      "surface_light": "#F8F4ED",
-      "surface_dark": "#3C1410",
-      "card_fill": "#FBF9F5",
-      "ink": "#2C0F0C",
-      "ink_on_dark": "#F8F4ED",
-      "body": "#654F4B",
-      "muted": "#756964",
-      "line": "#D7CFC9",
-      "accent": "#AA4C44",
-      "accent_2": "#706B63",
-      "accent_soft": "#E8D2CB",
-      "decor_on_dark": "#5C3A36"
+      "surface_dark": "#1C1917",
+      "surface_light": "#FAF7F2",
+      "card_fill": "#FFFFFF",
+      "ink": "#1C1917",
+      "ink_on_dark": "#FAF7F2",
+      "body": "#3F3A35",
+      "muted": "#8A8178",
+      "line": "#E3DCD2",
+      "accent": "#9A3412",
+      "accent_2": "#1E3A5F",
+      "accent_soft": "#E7D8C9",
+      "decor_on_dark": "#423F3C"
     },
-    "visual": {
-      "latin_heading": "Georgia",
-      "ea_heading": "Songti SC",
-      "latin_body": "Arial",
-      "ea_body": "PingFang SC",
-      "serif_heading": true,
-      "radius": 0,
-      "line_spacing": 1.32,
-      "density": "relaxed",
-      "accent_budget": 0.14
-    },
+    "visual": {},
     "palette_extra": [
-      "#FFFFFF",
       "#000000",
-      "#EEE5D3",
-      "#9E342A",
-      "#882A22",
-      "#EFE6D4",
-      "#BEAEA0",
-      "#8F796E",
-      "#F4EBD9",
-      "#F0E7D5"
+      "#1C1917",
+      "#1E3A5F",
+      "#3F3A35",
+      "#8A8178",
+      "#9A3412",
+      "#C8A27C",
+      "#E3DCD2",
+      "#E7D8C9",
+      "#FAF7F2",
+      "#FFFFFF"
     ],
     "min_body": 16,
     "source": {
-      "cover_file": "book_cover_demo.png",
-      "cover_sha256": "ac41c5d52ca4de1c335e22d16d6d4fa977616968e4ff19ed02b9726ff530a05c",
-      "book": "人情与面子",
-      "swatches": [
-        {
-          "hex": "#EEE5D3",
-          "share": 0.5321
-        },
-        {
-          "hex": "#9E342A",
-          "share": 0.3361
-        },
-        {
-          "hex": "#882A22",
-          "share": 0.0191
-        },
-        {
-          "hex": "#EFE6D4",
-          "share": 0.0186
-        },
-        {
-          "hex": "#BEAEA0",
-          "share": 0.0169
-        },
-        {
-          "hex": "#8F796E",
-          "share": 0.0166
-        },
-        {
-          "hex": "#F4EBD9",
-          "share": 0.0149
-        },
-        {
-          "hex": "#F0E7D5",
-          "share": 0.0104
-        }
-      ],
-      "dominant_position": "bottom-left",
+      "motif": "band",
       "cover_tone": "light",
-      "motif": "vertical-rule",
-      "serif": true,
-      "contrast_ink_on_paper": 16.22,
-      "contrast_paper_on_deep": 14.74
+      "cover_file": null,
+      "note": "无封面图，沿用基础主题令牌"
+    }
+  },
+  "design_system": {
+    "palette": {
+      "ink": "#1C1917",
+      "accent": "#9A3412",
+      "paper": "#FAF7F2",
+      "bronze": "#C8A27C",
+      "sand": "#E7D8C9",
+      "navy": "#1E3A5F"
+    },
+    "type_scale": {
+      "h1": 33,
+      "h2": 24,
+      "body": 16,
+      "meta": 13.5
+    },
+    "spacing": {
+      "base": 8,
+      "gutter": 76,
+      "margin": 64
+    },
+    "font_pair": {
+      "title": "Georgia",
+      "body": "Arial"
     }
   }
 }

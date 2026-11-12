@@ -189,3 +189,113 @@ class TestCompiledVerification:
             assert rep["mismatch"]
         finally:
             os.remove(path)
+
+class TestSpecMustDriveLayout:
+    """规格必须真的驱动版面，不能只是把字段填满。
+
+    来历（2026-11-13，用户第二次报「生成的 PPT 又没按 skill 做」）：
+    六维闸门接上之后，一个更隐蔽的问题浮出来——规格**填了，但没生效**。
+    `compose()` 里唯一读进几何的 brief 字段只有 `archetype`；`structure` 写的
+    「同心圆」被原样抄进 slide["design_brief"] 存档，画面却还是引擎挑的
+    `editorial-spread`。实测 6 页里 5 页的规格和版面完全脱钩。
+
+    这条判据就是那个断点：说了什么几何，成品就得有那个几何。
+    """
+
+    def _slide(self, arch, structure, children=None):
+        return {
+            "archetype": arch,
+            "design_brief": {"structure": structure},
+            "children": children if children is not None else [
+                {"t": "text", "rect": [60, 80, 1000, 44], "text": "标题"},
+                {"t": "box", "rect": [60, 160, 300, 200]},
+            ],
+        }
+
+    def test_spec_matching_layout_passes(self):
+        """说了同心圆、渲染出 circle 类 → 通过。"""
+        s = self._slide("circle-focus", "同心圆：三圈由外向内收敛",
+                        [{"t": "circle", "rect": [100, 200, 240, 240]}])
+        assert ds.check_spec_drives_layout([s]) == []
+
+    def test_spec_without_geometry_word_is_skipped(self):
+        """规格里没用几何语汇 → 不做这项校验，不能凭空判错。"""
+        s = self._slide("stair-list", "先把结论摆出来，再用三条依据撑住")
+        assert ds.check_spec_drives_layout([s]) == []
+
+    def test_spec_claiming_quadrant_but_rendered_as_list_is_blocked(self):
+        """说了四象限（grid/quadrant），渲染成普通列表 → 拦。"""
+        s = self._slide("stair-list", "四象限：按重要与紧急两个维度切开")
+        blockers = ds.check_spec_drives_layout([s])
+        assert len(blockers) == 1
+        assert blockers[0][0] == "SPEC_NOT_COMPILED"
+        assert "quadrant" in blockers[0][1]
+
+    def test_host_rendered_page_is_skipped(self):
+        """宿主手绘页 children 为空，无法反推几何 → 不判错。"""
+        s = self._slide("__host__", "同心圆：宿主自己画")
+        s["children"] = []
+        assert ds.check_spec_drives_layout([s]) == []
+
+    def test_real_compose_blocks_when_engine_overrides_the_spec(self):
+        """端到端：规格说同心圆，引擎却给了别的版式 → compose 必须失败。
+
+        这是本次修复的核心行为，也是「逐页当设计师」与「逐页填字段」的分界。
+        """
+        from engine import art_direction as ad
+        pages = [{"kind": "content", "title": "第 1 页",
+                  "points": ["一", "二", "三"]}]
+        briefs = {0: {
+            "structure": "同心圆：三圈由外向内收敛，最内圈是唯一答案",
+            "hierarchy": "第一眼最内圈，第二眼外环，辅助是环带名",
+            "components": [{"name": "外环", "role": "背景条件"},
+                           {"name": "内圈", "role": "结论"}],
+            "states": {"default": "静置", "emphasis": "描边", "disabled": "淡化"},
+            "responsive": "窄屏 960px 以下改纵向堆叠",
+            "a11y": {"contrast": "8.2:1", "text_size": "13.5pt"},
+            "consistency": {"palette": "accent", "spacing": "gutter"},
+            "rationale": "同心圆能让读者从外到内读出收敛关系，比并列三条更有效",
+        }}
+        notes = {"book": {"title": "t"}, "design_system": DESIGN_SYSTEM,
+                 "pages": pages}
+        with pytest.raises(ValueError) as exc:
+            ad.compose(notes, design_briefs=briefs)
+        assert "SPEC_NOT_COMPILED" in str(exc.value)
+
+
+class TestBriefsFileShape:
+    """简报文件的**形态**必须是扁平映射。
+
+    这个坑很隐蔽：`--briefs` 会把整个 JSON 当映射交给 `_resolve_brief`，
+    它只认 `"0"` / `0` / page id 三种 key。如果文件在外面包了一层
+    `{"design_briefs": {...}}`，`_resolve_brief` 找不到任何一页，于是**静默
+    回退到原型池**——compose 照样成功、页数照样对、只是九页设计全部失效。
+    """
+
+    def test_flat_mapping_resolves(self):
+        from engine import art_direction as ad
+        flat = {"0": {"structure": "A"}, "1": {"structure": "B"}}
+        assert ad._resolve_brief(flat, 0, {"id": "p0"})["structure"] == "A"
+        assert ad._resolve_brief(flat, 1, {"id": "p1"})["structure"] == "B"
+
+    def test_wrapped_mapping_silently_misses(self):
+        from engine import art_direction as ad
+        wrapped = {"design_briefs": {"0": {"structure": "A"}}}
+        # 不是抛错，是返回 None —— 这正是危险之处，所以要有测试钉住。
+        assert ad._resolve_brief(wrapped, 0, {"id": "p0"}) is None
+
+    def test_shipped_example_is_flat_and_complete(self):
+        """仓库里那份示例必须是扁平的，并且页数与书稿对得上。"""
+        import json
+        briefs_path = os.path.join(ROOT, "examples", "briefs_renqing_mianzi.json")
+        notes_path = os.path.join(ROOT, "examples", "notes_renqing_mianzi.json")
+        briefs = json.load(open(briefs_path, encoding="utf-8"))
+        notes = json.load(open(notes_path, encoding="utf-8"))
+
+        assert "design_briefs" not in briefs, "示例文件被包了一层，会静默失效"
+        assert set(briefs) == {str(i) for i in range(len(notes["pages"]))}
+        # 每页都得是完整六维，不能靠闸门兜底才发现
+        for i, b in briefs.items():
+            probs = ds.check_brief({"design_brief": b}, int(i) + 1,
+                                   design_system=notes["design_system"])
+            assert not probs, f"第 {i} 页简报不合格：{probs}"

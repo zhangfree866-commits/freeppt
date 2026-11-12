@@ -126,5 +126,30 @@
       "title": "读完之后，留一个问题给自己：你所在的关系里，谁在记账？",
       "source": "读书笔记 · 完"
     }
-  ]
+  ],
+  "design_system": {
+    "palette": {
+      "ink": "#1C1917",
+      "accent": "#9A3412",
+      "paper": "#FAF7F2",
+      "bronze": "#C8A27C",
+      "sand": "#E7D8C9",
+      "navy": "#1E3A5F"
+    },
+    "type_scale": {
+      "h1": 33,
+      "h2": 24,
+      "body": 16,
+      "meta": 13.5
+    },
+    "spacing": {
+      "base": 8,
+      "gutter": 76,
+      "margin": 64
+    },
+    "font_pair": {
+      "title": "Georgia",
+      "body": "Arial"
+    }
+  }
 }

@@ -1,49 +1,5 @@
 {
-  "cover_file": "book_cover_demo.png",
-  "cover_sha256": "ac41c5d52ca4de1c335e22d16d6d4fa977616968e4ff19ed02b9726ff530a05c",
-  "book": "人情与面子",
-  "swatches": [
-    {
-      "hex": "#EEE5D3",
-      "share": 0.5321
-    },
-    {
-      "hex": "#9E342A",
-      "share": 0.3361
-    },
-    {
-      "hex": "#882A22",
-      "share": 0.0191
-    },
-    {
-      "hex": "#EFE6D4",
-      "share": 0.0186
-    },
-    {
-      "hex": "#BEAEA0",
-      "share": 0.0169
-    },
-    {
-      "hex": "#8F796E",
-      "share": 0.0166
-    },
-    {
-      "hex": "#F4EBD9",
-      "share": 0.0149
-    },
-    {
-      "hex": "#F0E7D5",
-      "share": 0.0104
-    }
-  ],
-  "dominant_position": "bottom-left",
-  "cover_tone": "light",
-  "motif": "vertical-rule",
-  "serif": true,
-  "contrast_ink_on_paper": 16.22,
-  "contrast_paper_on_deep": 14.74,
-  "derived_theme": "cover-ac41c5d5",
-  "cover_path": "assets/book_cover_demo.png",
+  "fallback": "no cover image; base theme tokens reused",
   "archetypes": [
     "cover-editorial",
     "chapter-opener",
@@ -56,5 +12,32 @@
     "closing-echo"
   ],
   "distinct": 9,
-  "seed": "7a6a93106cf39ff6"
+  "design_briefs_applied": 9,
+  "seed": "91c2a41f0a96c9ac",
+  "chapter_boundaries": [
+    1
+  ],
+  "chapters": 2,
+  "long_deck_forced": false,
+  "scoring": false,
+  "design_spec": {
+    "pages_with_spec": 9,
+    "structure_counts": {
+      "书籍封面式竖排主轴：左三分之一放书名与副标题，右侧整幅留白托住书封图，底部一条细线收边。不用分栏网格，靠大留白把注意力压到书名上": 1,
+      "章节开篇的巨型编号兜底：左侧一个超大两位数编号占据半版，右侧竖排章节标题与英文注脚，没有任何内容块": 1,
+      "杂志式主辅分栏：左侧 58% 放导语与三组命题，右侧 42% 用浅色块承载批注，两列之间有细横线作节奏分割，不做等宽三卡": 1,
+      "整幅引言出血：一句金句以 40pt 占据页面中部，上下各留大片空白，左下角落款、右下角放语境说明，不使用任何栏格": 1,
+      "错位三联：三组概念左缘逐级缩进、纵向错落排列，每块自带编号与标题，形成向下递进的阅读重力，不是等宽三卡": 1,
+      "左右对峙：左半用深色块写「作为秩序的关系」，右半用纸色写「作为权术的关系」，中间一条明确分界线，两半面积相等形成对抗感": 1,
+      "向右上抬升的阶梯：三级台阶从左到右逐级升高，每级一个色块承载一层含义，底边共用一条基线，视觉上是攀登而不是列表": 1,
+      "单数字主宰：左侧一块浅色方区托住 1987 这个年份巨字，右侧竖排三条用法，数字与解释形成主从而非并列": 1,
+      "收束回声：居中一句反问占据中段，下方留白，底部一行「读书笔记 · 完」收口，整体与封面形成首尾呼应": 1
+    },
+    "tokens_declared": [
+      "font_pair",
+      "palette",
+      "spacing",
+      "type_scale"
+    ]
+  }
 }
