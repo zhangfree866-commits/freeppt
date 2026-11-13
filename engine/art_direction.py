@@ -76,6 +76,70 @@ def _wrap_h(text, w, size):
     return math.ceil(L.leaf_text_h(node, max(w, 1))) + 6
 
 
+# --------------------------------------------------------------------------- #
+# 版面变体：让「同一原型」在不同内容下产生**不同的几何**
+# --------------------------------------------------------------------------- #
+# 来历（2026-11-13，用户第三次追问「做到 skill 要求了吗」）：
+# 拿两本成品的几何骨架做哈希对比，《人情与面子》和《11枚戒指》的封面、章节页、
+# 引言页、左右对照、大数字、收束页**骨架哈希完全相同**——逐像素一样。
+# 书内不重复只是因为换了原型名，原型本身的坐标是常量。
+# 这就是「先从模板库里挑一个、再往里填字」，只是把模板叫成了 archetype。
+#
+# 修法不是废掉原型库（那是构件库，有用），而是把「固定坐标」换成
+# 「由这一页内容算出来的骨架参数」：同样的 editorial-spread，7 行正文和
+# 3 行正文必须排出不同的分栏比例、不同的起点、不同的呼吸。
+# 判据：同一原型 + 不同内容 → 骨架必须不同。测试
+# tests/test_archetype_variation.py 钉住这条。
+
+def _content_signals(p):
+    """把这一页的「内容形状」量成一组数：后面所有变体都从这里推导。
+
+    刻意只用页面自身的客观特征（字数、条目数、标题长度、有无导语/批注），
+    不掺随机数——同一页永远得到同一版面，但不同内容的页一定不同。
+    """
+    title = str(_head(p) or "")
+    lead = str(p.get("lead") or "")
+    pts = _points(p)
+    note = str(p.get("note") or "")
+    bodies = "".join(str(x.get("body") or "") for x in pts)
+    heads = "".join(str(x.get("head") or "") for x in pts)
+    total = len(title) + len(lead) + len(bodies) + len(heads)
+    return {
+        "title_chars": len(title),
+        "lead_chars": len(lead),
+        "n_points": len(pts),
+        "body_chars": len(bodies),
+        "head_chars": len(heads),
+        "note_chars": len(note),
+        "total_chars": total,
+        # 「内容有多重」：0=极简一句话，1=满版论述。用它决定留白与分栏。
+        "heft": min(1.0, total / 420.0),
+        # 「条目密度」：条目多说明该页是并列结构，不是单点强调。
+        "itemed": 1 if len(pts) >= 2 else 0,
+    }
+
+
+def _variant(p, lo, hi, key="heft"):
+    """把一个内容信号映射到 [lo, hi] 区间，作为可变的几何参数。
+
+    key 可以取 heft / title_chars / body_chars / n_points 等任意信号。
+    用法：`vw = _variant(p, 0.52, 0.68)` —— 内容轻时窄栏、内容重时宽栏。
+    """
+    sig = _content_signals(p)
+    v = sig.get(key, 0.0)
+    if key == "heft":
+        t = v
+    elif key == "title_chars":
+        t = min(1.0, v / 40.0)
+    elif key == "body_chars":
+        t = min(1.0, v / 300.0)
+    elif key == "n_points":
+        t = min(1.0, max(0, v - 1) / 4.0)
+    else:
+        t = min(1.0, v / 400.0)
+    return round(lo + (hi - lo) * t, 3)
+
+
 def _b(x, y, w, h, fill=None, **kw):
     n = {"t": "box", "rect": [round(x, 1), round(y, 1), round(w, 1), round(h, 1)],
          "children": []}
@@ -291,46 +355,99 @@ def _speaker_notes(page, arch, ctx):
 # ---------------------------------------------------------------------------
 
 def a_cover_editorial(p, S, c):
+    # 封面也必须是「这一本」的封面，不是一套封面的复写。
+    # 实测（20261113）：《人情与面子》与《11枚戒指》封面骨架哈希完全相同——
+    # 左图区固定 548 宽、标题固定 y=168/64pt、副标题固定 y=390。
+    # 现在三处几何都由书名与作者的实际长度推导：
+    #   书名越长 → 左图区越窄（给文字更多宽度）、标题字号略降、起点下移。
+    title = c["book"].get("title", "")
+    au = c["book"].get("author", "")
+    sub = c["book"].get("subtitle", "")
+    tl = len(str(title))
+    # 左栏占比：书名短（如 4 字）时敢用 0.47 的大图区；书名长时让到 0.38。
+    band = 0.38 + 0.09 * (1 - min(1.0, tl / 12.0))
+    band_w = round(W * band)
+    x = band_w + 92                              # 文字起点跟着左栏走
+    tw = W - x - 68
+    # 标题字号：短书名可以更大，长书名必须收，否则必然折成三行压到副标题。
+    tsize = 72 if tl <= 5 else (64 if tl <= 9 else 54)
+    # 标题垂直起点：书名长就给更多向上空间，短书名重心压低更稳。
+    ty = 150 + round(28 * (1 - min(1.0, tl / 12.0)))
+
     kids = []
     if c.get("cover_file"):
         kids.append({"t": "image", "src": c["cover_file"], "fit": "cover",
-                     "rect": [0, 0, 548, H], "credit": c.get("cover_credit")})
+                     "rect": [0, 0, band_w, H], "credit": c.get("cover_credit")})
     else:
-        kids.append(_b(0, 0, 548, H, S["deep"]))
+        kids.append(_b(0, 0, band_w, H, S["deep"]))
         kids += _motif(S, 90, 180, 2.4, 0)
-    kids.append(_d(596, 88, 2, S["accent"], vertical=True, h=540, thickness=4))
-    title = c["book"].get("title", "")
-    kids.append(_t(640, 168, 570, title, 64, S["ink"],
-                   max_h=210, min_size=38, weight="bold", on=S["paper"]))
-    sub = c["book"].get("subtitle", "")
+    kids.append(_d(band_w + 48, 88, 2, S["accent"], vertical=True, h=540,
+                   thickness=4))
+    tnode = _t(x, ty, tw, title, tsize, S["ink"],
+               max_h=210, min_size=38, weight="bold", on=S["paper"])
+    kids.append(tnode)
     if sub:
-        kids.append(_t(642, 390, 560, sub, 26, S["accent"], on=S["paper"]))
-    au = c["book"].get("author", "")
-    if au:
-        kids.append(_t(642, 452, 560, au + " 著", 20, S["body"], on=S["paper"]))
-    kids += _motif(S, 642, 120, 1.1, 1)
-    kids.append(_d(642, 600, 500, S["line"], thickness=1))
-    kids += _chrome(S, c, 642, 616, on=S["paper"])
+        # 副标题紧跟标题**实际**底边，不再写死 390。
+        sy = tnode["rect"][1] + tnode["rect"][3] + _variant(p, 46, 70)
+        kids.append(_t(x + 2, sy, tw - 10, sub, 26, S["accent"], on=S["paper"]))
+        if au:
+            kids.append(_t(x + 2, sy + 62, tw - 10, au + " 著", 20,
+                           S["body"], on=S["paper"]))
+    elif au:
+        kids.append(_t(x + 2, tnode["rect"][1] + tnode["rect"][3] + 54, tw - 10,
+                       au + " 著", 20, S["body"], on=S["paper"]))
+    kids += _motif(S, x + 2, 120, 1.1, 1)
+    kids.append(_d(x + 2, 600, min(500, tw - 40), S["line"], thickness=1))
+    kids += _chrome(S, c, x + 2, 616, on=S["paper"])
     return kids, S["paper"], "light", "airy"
 
 
 def a_chapter_opener(p, S, c):
+    # 章节页同款问题：编号固定 230pt / (70,70)，分隔线固定 y=430，标题固定
+    # y=462——两本书的章节页逐像素一致。现在由章节号位数与标题长度推导。
     no = str(p.get("no") or f"{c['idx']:02d}")
+    head = _head(p, "章节")
+    hl = len(str(head))
+    # 两位数编号敢放到 230pt；三位数（如 100）必须收，否则横向溢出半版。
+    nsize = 230 if len(no) <= 2 else 168
+    # 编号基线：编号位数越多，视觉重心上移，给标题让出下方空间。
+    ny = 70 if len(no) <= 2 else 92
+    # 分隔线与标题的起手位置：标题长则上移（宁可离编号近），标题短则下压。
+    rule_y = 430 - round(46 * max(0.0, (hl - 14) / 16.0))
+    rule_x = 70 + round(18 * _variant(p, 0.0, 1.0, key="heft"))
+    rule_w = 520 - round(120 * _variant(p, 0.0, 1.0, key="heft"))
+
     kids = [_b(0, 0, W, H, S["deep"]),
-            _t(70, 70, 600, no, 230, S["decor"], decor=True,
+            _t(70, ny, 600, no, nsize, S["decor"], decor=True,
                on=S["deep"], weight="bold")]
     kids += _motif(S, 900, 120, 2.6, 2)
-    kids.append(_d(70, 430, 520, S["accent"], thickness=4))
-    title = _t(70, 462, 900, _head(p, "章节"), 52, S["ondark"],
-               max_h=140, min_size=34, weight="bold", on=S["deep"])
+    kids.append(_d(rule_x, rule_y, rule_w, S["accent"], thickness=4))
+    title = _t(70, rule_y + 32, 900, head, 52 if hl <= 22 else 44,
+               S["ondark"], max_h=140, min_size=34, weight="bold", on=S["deep"])
     kids.append(title)
     if p.get("en"):
         # 英文注脚的位置由标题**实际**底边推出，不能写死 y=588。
         # 实测（20261113，《11枚戒指》p02）：「从 11 枚戒指往回看：冠军
         # 背后不是战术板」在 900px 里折成两行，标题框撑到 140px 高、
         # 底边 602，写死的 588 正好压进标题第二行，audit 报文字压字。
+        page_top = 640                                  # 页码行起点
+        en_size = 18
+        en_h = _wrap_h(p["en"], 800, en_size)
         en_y = title["rect"][1] + title["rect"][3] + 14
-        kids.append(_t(72, en_y, 800, p["en"], 18, S["soft"], on=S["deep"]))
+        if en_y + en_h > page_top - 26:
+            # 标题两行时，「标题 + 注脚 + 页码」三者竖直塞不下。
+            # 试过把注脚往上提——但提到距标题 6px，渲染出来直接贴上「术板」
+            # 那一行的字身（行盒比几何估算高），比原来更糟。
+            # 空间不够就换布局，而不是压间距：注脚与页码**并排**在页脚一行，
+            # 左边注脚（w=800 → 到 872）、右边页码（x=1060 起）互不相犯。
+            # 这是杂志的常规手法：footnote 与 folio 同行。
+            # 注脚与页码取同一基线（640），否则一个 638 一个 640 会显出错落。
+            en_y = page_top
+            kids.append(_t(72, en_y, 800, p["en"], en_size, S["soft"],
+                           on=S["deep"]))
+        else:
+            kids.append(_t(72, en_y, 800, p["en"], en_size, S["soft"],
+                           on=S["deep"]))
     kids += _chrome(S, c, 1060, 640, on=S["deep"], align="right", w=160)
     return kids, S["deep"], "dark", "airy"
 
@@ -560,11 +677,22 @@ def a_quote_bleed(p, S, c):
     surface = S["deep"] if dark else S["paper"]
     fg = S["ondark"] if dark else S["ink"]
     sub = S["soft"] if dark else S["body"]
+    q = _quote(p)
+    ql = len(str(q))
+    # 引言页的骨架也必须跟着句子走（实测两本书此页哈希完全相同）：
+    #   短句（≤18 字）→ 可以撑得很大（52pt）、居中偏上、左侧留出大片空白；
+    #   长句（>46 字）→ 字号收到 38pt、文字提前起排、右侧收窄，否则必溢出。
+    qsize = 52 if ql <= 18 else (46 if ql <= 32 else (40 if ql <= 46 else 38))
+    qx = 150 if ql <= 32 else 120
+    qw = 940 if ql <= 32 else 1000
+    qy = 236 if ql <= 32 else 210
+    mark_size = 130 if ql <= 24 else 104
+
     kids = [_b(0, 0, W, H, surface)]
     kids += _motif(S, 940, 80, 2.2 if not dark else 1.6, 2)
-    kids.append(_t(64, 52, 200, "“", 130, S["accent"], decor=True, on=surface))
-    q = _quote(p)
-    n = _t(150, 236, 940, q, 44, fg, max_h=290, min_size=28,
+    kids.append(_t(64, 52, 200, "“", mark_size, S["accent"], decor=True,
+                   on=surface))
+    n = _t(qx, qy, qw, q, qsize, fg, max_h=290, min_size=28,
            weight="bold", on=surface)
     kids.append(n)
     # 这条短粗线**不能放在引言下面**。实测两版都被穿过最后一行：
@@ -575,10 +703,11 @@ def a_quote_bleed(p, S, c):
     # 换一个设计判断：这条线的作用是「引言的起手式」，不是「下划线」。
     # 放在引言**上方**——既不会碰字，又保住了「一句话前面有一道重笔」的
     # 视觉重量。同一条线，位置一改，从缺陷变成设计。
-    kids.append(_d(150, 186, 260, S["accent"], thickness=4))
+    kids.append(_d(qx, qy - 50, 260 - round(60 * (1 - min(1.0, ql / 40.0))),
+                   S["accent"], thickness=4))
     att = p.get("attribution") or c["book"].get("author", "")
     if att:
-        kids.append(_t(150, n["rect"][1] + n["rect"][3] + 44, 800,
+        kids.append(_t(qx, n["rect"][1] + n["rect"][3] + 44, 800,
                        "— " + att, 19, sub, on=surface))
     kids += _chrome(S, c, 64, 650, on=surface)
     return kids, surface, "dark" if dark else "light", "airy"
@@ -592,23 +721,61 @@ def a_split_contrast(p, S, c):
         left = {"head": pts[0]["head"], "body": pts[0]["body"]}
     if not right and len(pts) > 1:
         right = {"head": pts[1]["head"], "body": pts[1]["body"]}
-    split = 620
+    # 分割位置由两侧**实际字数**决定（原来写死 620，两本书此页逐像素一致）。
+    # 内容重的一侧必须拿到更多宽度，否则对手戏变成一边拥挤一边空旷。
+    lb = len(str(left.get("head", ""))) + len(str(left.get("body", "")))
+    rb = len(str(right.get("head", ""))) + len(str(right.get("body", "")))
+    tot = max(1, lb + rb)
+    # 左栏占比限制在 0.44–0.58：少于 0.44 左栏装不下标题，多于 0.58 右栏失去
+    # 「另一半」的对峙感。内容轻的一侧拿 0.44。
+    ratio = 0.44 + 0.14 * (lb / tot)
+    split = round(W * ratio / 4) * 4
+    lw = split - 128
+    rw = W - split - 120
     kids = [_b(0, 0, split, H, S["deep"]), _b(split, 0, W - split, H, S["paper"]),
             _b(split - 6, 0, 12, H, S["accent"])]
-    kids.append(_t(64, 92, 480, _head(p), 32, S["ondark"], max_h=90,
-                   min_size=24, weight="bold", on=S["deep"]))
-    y = 240
+    tnode = _t(64, 92, lw, _head(p), 32, S["ondark"], max_h=90,
+               min_size=24, weight="bold", on=S["deep"])
+    kids.append(tnode)
+    # 起排点要满足两件事：① 左右同一条基线（对峙才可比）；② 必须落在
+    # 标题**实际**底边之下并留出间距。
+    # 实测第二轮踩了两个坑：先按两侧各自字数算偏移 → 左 217 / 右 182 错位
+    # 35px；改成两侧都取小值 → 都落在 182，正好等于标题框底边（182），
+    # 渲染出来「反」和「对乔丹」贴在一起。上限被下限吃掉了。
+    title_bottom = tnode["rect"][1] + tnode["rect"][3]
+    floor_y = title_bottom + 34
+    start_y = max(floor_y,
+                  min(240 - round(30 * (1 - min(1.0, lb / 240.0))),
+                      200 - round(24 * (1 - min(1.0, rb / 240.0)))))
+
+    # 内容少时不能死贴着标题往下排，否则整页下半全空（实测《人情与面子》p06：
+    # 左右各两段短句，正文在 216–300，300 到 650 一整片空白，像没排完）。
+    # 先把两侧各自的实际高度量出来，整组在版心内垂直居中；但不得高过 floor_y。
+    def _stack_h(side):
+        h = 0
+        for key in ("head", "body"):
+            val = side.get(key, "")
+            if val:
+                h += _wrap_h(val, lw if side is left else rw,
+                             30 if key == "head" else 19) + 24
+        return h
+
+    stack_h = max(_stack_h(left), _stack_h(right))
+    band_top, band_bottom = floor_y, 620
+    centered = band_top + max(0, (band_bottom - band_top - stack_h) // 2)
+    start_y = min(centered, 260) if stack_h < 200 else start_y
+    y = start_y
     for key, val in (("head", left.get("head", "")), ("body", left.get("body", ""))):
         if val:
-            n = _t(64, y, 480, val, 30 if key == "head" else 19,
+            n = _t(64, y, lw, val, 30 if key == "head" else 19,
                    S["ondark"] if key == "head" else S["soft"],
                    max_h=190, on=S["deep"], weight="bold" if key == "head" else None)
             kids.append(n)
             y = n["rect"][1] + n["rect"][3] + 24
-    y = 200
+    y = start_y
     for key, val in (("head", right.get("head", "")), ("body", right.get("body", ""))):
         if val:
-            n = _t(split + 56, y, W - split - 120, val,
+            n = _t(split + 56, y, rw, val,
                    30 if key == "head" else 19,
                    S["accent"] if key == "head" else S["body"],
                    max_h=210, on=S["paper"], weight="bold" if key == "head" else None)
@@ -798,11 +965,23 @@ def a_stair_list(p, S, c):
 def a_data_focus(p, S, c):
     value = str(p.get("value") or p.get("kpi") or "01")
     label = p.get("label") or p.get("lead") or ""
+    pts = _points(p)[:3]
+    # 大数字页原来是「浅块 640×360 + 数字 150pt 固定」——两本书一模一样。
+    # 改由「数字位数 + 右侧条目量」共同决定：
+    #   位数多 → 块变宽、字号收；右侧条目多 → 左块让位。
+    vl = len(value)
+    bl = sum(len(x.get("head", "")) + len(x.get("body", "")) for x in pts)
+    bw = 640 - round(90 * min(1.0, max(0, bl - 90) / 260.0))
+    bw = max(520, bw)
+    vx = 92 if vl <= 4 else 76
+    vsize = 150 if vl <= 4 else (120 if vl <= 6 else 96)
+    by = 200 - round(24 * _variant(p, 0.0, 1.0, key="heft"))
+    bh = 360
     kids = [_t(64, 74, 1000, _head(p), 32, S["ink"], max_h=80,
                min_size=24, weight="bold", on=S["paper"])]
-    kids.append(_b(64, 200, 640, 360, S["soft"]))
+    kids.append(_b(64, by, bw, bh, S["soft"]))
     kids += _motif(S, 92, 226, 1.2, 2)
-    num = _t(92, 286, 580, value, 150, S["accent"], max_h=190,
+    num = _t(vx, by + 86, bw - 60, value, vsize, S["accent"], max_h=190,
              min_size=60, weight="bold", on=S["soft"], decor=True)
     kids.append(num)
     if label:
@@ -810,21 +989,23 @@ def a_data_focus(p, S, c):
         # 150pt 数字加 _t 的 +6 余量，底边实际到 482，说明标签就压在数字下沿
         # （渲染图里「黄光国提出…的年份」和 1987 粘在一起）。
         label_y = num["rect"][1] + num["rect"][3] + 18
-        label_y = min(label_y, 200 + 360 - 62)      # 别超出浅色块
-        kids.append(_t(92, label_y, 560, label, 21, S["ink"],
+        label_y = min(label_y, by + bh - 62)        # 别超出浅色块
+        kids.append(_t(vx, label_y, bw - 80, label, 21, S["ink"],
                        max_h=62, on=S["soft"]))
-    y = 210
-    for pt in _points(p)[:3]:
+    ry = 210 - round(30 * min(1.0, max(0, bl - 90) / 260.0))
+    rxp = 64 + bw + 56
+    rwp = W - rxp - 80
+    for pt in pts:
         if pt["head"]:
-            n = _t(760, y, 440, pt["head"], 22, S["ink"],
+            n = _t(rxp, ry, rwp, pt["head"], 22, S["ink"],
                    weight="bold", on=S["paper"])
             kids.append(n)
-            y = n["rect"][1] + n["rect"][3] + 6
+            ry = n["rect"][1] + n["rect"][3] + 6
         if pt["body"]:
-            n = _t(760, y, 440, pt["body"], 17, S["body"],
+            n = _t(rxp, ry, rwp, pt["body"], 17, S["body"],
                    max_h=90, on=S["paper"])
             kids.append(n)
-            y = n["rect"][1] + n["rect"][3] + 26
+            ry = n["rect"][1] + n["rect"][3] + 26
     kids += _source(S, p, 64, 650, 900, on=S["paper"])
     kids += _chrome(S, c, 1060, 650, on=S["paper"], align="right", w=160)
     return kids, S["paper"], "light", "airy"
@@ -894,18 +1075,65 @@ def a_timeline_ribbon(p, S, c):
 
 
 def a_closing_echo(p, S, c):
-    kids = [_b(900, 0, 380, H, S["accent"])]
-    kids += _motif(S, 958, 90, 1.8, 1)
+    # 收束页原是「右色块 380 宽 + 结语 48pt 固定」——两本书逐像素一致。
+    # 改由结语长度推导：一句话的结语敢放大、右色块收窄；长结语则色块让位。
     msg = p.get("title") or p.get("quote") or "读完之后，留一个问题给自己"
-    kids.append(_t(72, 220, 760, msg, 48, S["ink"], max_h=230,
-                   min_size=30, weight="bold", on=S["paper"]))
-    kids.append(_d(72, 480, 420, S["accent"], thickness=4))
+    ml = len(str(msg))
+    # 右色块宽度与结语字号由结语长度共同决定，目标是「每行都有足够字数」。
+    #
+    # 实测（20261113 第三轮，《11枚戒指》p10）：结语 20 字、48pt、宽 772，
+    # 渲染成「第 12 枚戒指，是他选择不去拿的那 / 那 / 一枚」——第三行只有
+    # 两个字，且把「那一枚」硬拆开。这种断行不是设计选择，是排版事故。
+    # 中文字宽约等于字号，20 字 × 48pt 需 960px，772 放不下 → 必须换行。
+    # 所以：先按字数估一行能不能装下；装不下就降字号（而不是硬折），
+    # 仍不行再把右色块让窄以加宽正文区。
+    # 右色块宽度：结语越长让得越多，但下限要保到 330 —— 实测 300 时
+    # 「END」只剩 60px 空间、被挤成小字，右色块从「压角的重块」变成一条窄边，
+    # 收束感全失（《人情与面子》p09）。
+    band = 380 - round(60 * min(1.0, max(0, ml - 18) / 40.0))
+    band = max(330, band)
+    bx = W - band
+    mw = bx - 72 - 60
+    # 中文按 1.0 字宽、西文按 0.55 粗估可容纳字数
+    def _fits(size):
+        return mw / max(1, size) >= ml * 0.94
+    msize = 48
+    for cand in (48, 44, 40, 36, 32):
+        if _fits(cand):
+            msize = cand
+            break
+    else:
+        msize = 30
+    my = 220 - round(36 * min(1.0, max(0, ml - 20) / 40.0))
+
+    kids = [_b(bx, 0, band, H, S["accent"])]
+    kids += _motif(S, bx + 58, 90, 1.8, 1)
+    # 结语框预留 max_h 的**最坏情况**高度，后面的分隔线与书名按这个预留高度排。
+    #
+    # 来历（20261113 第三轮，《11枚戒指》p10）：结语「第 12 枚戒指，是他选择
+    # 不去拿的那一枚」估算 2 行（框高 131），实际渲染成 3 行，分隔线正好穿过
+    # 第三行的「一枚」。先试过按 0.86 保守宽度重量——仍然算出 2 行，说明
+    # 任何「按字数估行数」的做法在混排里都不可靠。
+    # 所以不赌估算：结语区固定预留 230（= max_h），下面的元素一律排在其后。
+    # 宁可底部留白多一点，也不让一条装饰线落在字上。
+    RESERVE = 230
+    tnode = _t(72, my, mw, msg, msize, S["ink"], max_h=RESERVE,
+               min_size=30, weight="bold", on=S["paper"])
+    kids.append(tnode)
+    rule_y = my + RESERVE + 34
+    # 线与书名两行必须留在页脚（640）之上
+    rule_y = min(rule_y, 640 - 32 - 30 - 12)
+    kids.append(_d(72, rule_y, 420, S["accent"], thickness=4))
     book = c["book"]
-    kids.append(_t(72, 510, 760,
+    kids.append(_t(72, rule_y + 30, mw,
                    "《" + book.get("title", "") + "》 · 读书笔记", 20,
                    S["body"], on=S["paper"]))
     kids += _chrome(S, c, 72, 640, on=S["paper"])
-    kids.append(_t(958, 600, 300, "END", 60, S["paper"], decor=True,
+    # END 必须落在色块**内**：宽度从 bx+58 到画布右缘再留 24 内边距。
+    # 原来写 band - 40，色块一窄就顶出画布（实测 OUT_OF_CANVAS [978,600,320,84]）。
+    end_w = max(60, W - (bx + 58) - 24)
+    end_size = 60 if end_w >= 220 else (44 if end_w >= 140 else 34)
+    kids.append(_t(bx + 58, 600, end_w, "END", end_size, S["paper"], decor=True,
                    on=S["accent"], weight="bold"))
     return kids, S["paper"], "light", "airy"
 

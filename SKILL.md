@@ -6,7 +6,7 @@ description: "FreePPT：创建专业 PowerPoint。第一原则是让模型逐页
 description_zh: "按「规划 → 生成 DSL → 布局 → lint 校验 → 编译渲染」五阶段产出原生可编辑 PPTX；读书笔记等非报告类内容走逐页创作编排，可从封面图派生专属配色与母题，避免所有页面套同一模板。"
 description_en: "Create native editable PPTX decks through a five-stage pipeline. Creative content such as reading notes is composed page by page with 17 layout archetypes (including native chart/table pages and glass/icon/numbered cards), gradient and frosted-glass alpha fills, a native-shape icon library, generated speaker notes, chapter-based long-deck guardrails, a research-source ledger and a content-density check, while structured reports use 16 themes, 10 masters and 8 templates."
 category: document
-version: "20261113.3"
+version: "20261113.4"
 author: "张三峯"
 ---
 
@@ -508,6 +508,14 @@ python3 tools/benchmark.py --out bench.json
 **适用场景**：读书笔记、书评、品牌故事、演讲稿、课程讲义等需要视觉变化的内容。固定母版（10 套）仍保留给周报/月报/经营分析这类结构稳定的报告。
 
 > 定位提醒：本节的「17 原型自动分配」是**引擎在没有逐页人工设计时的高质量兜底**——它让相邻页不重样，但仍属于「从构件库里选」。追求对标豆包的成品级效果时，按顶部「创作第一性原理」由宿主大模型**逐页判断载体**（可直接调用这些原型，也可完全不按原型），原型是素材而非起点。
+
+> **原型是构件，不是模板——这是硬规则，有测试钉住。** 同一个 archetype 装不同内容，**必须**排出不同的几何。若某个原型无论装什么内容都吐出同一套坐标，它就退化成模板，即为「先有固定模板、再往里填」。
+>
+> 落地方式：`_content_signals()` 把一页的客观内容形状（标题字数、条目数、正文字数、有无导语、总字数）量成信号，各原型据此推导自己的骨架参数——封面图区占比、章节编号字号、引言字号、左右分割位置、大数字块宽、收束色块宽度，全都跟着内容变。**不是加随机抖动**：同一内容永远同一版面。
+>
+> 回归测试 `tests/test_archetype_variation.py` 钉三条：轻/重内容几何必须不同、同内容必须可复现、两本示例书共用的原型骨架不许相同。
+>
+> 来历（20261113.4）：这条规则是因为实测发现两本书 8 个共用原型里 6 个骨架哈希**逐像素相同**才补上的——当时的判据全都放行，因为它们只查「页与页之间重不重复」，不查「原型本身能不能变形」。
 
 **强制工序（创作类 deck 必走，且已做成编译前提）**：宿主大模型在调用 `compose` 之前，先**逐页产出 `design_briefs`**——每页一份**六维**完整方案（`structure` / `hierarchy` / `components` / `states` / `responsive` / `a11y` / `consistency` / `rationale`，口径见上方「六维规格」表），并可用 `archetype` 字段钉用某个构件原型、或设为 `__host__` 留空占位交宿主亲手画（如一张手绘 SVG）。通过 `compose(notes, design_briefs=...)` 或 CLI `compose --briefs briefs.json` 传入。载体选择（真实照片 / 原生 SVG / 纯字体 / 数据可视化 / AI 图）写在 `structure` 与 `rationale` 里，是想清楚之后的结论，不是预设。简报原文原样写进每张 slide 的 `design_brief` 字段，可追溯。
 
